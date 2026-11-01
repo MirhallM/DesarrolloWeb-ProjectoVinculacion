@@ -20,6 +20,7 @@ yarn-error.log*
 # Backend (.NET)
 [Bb]in/
 [Oo]bj/
+.vs/
 /backend/.vs/
 /backend/.vscode/
 *.user
