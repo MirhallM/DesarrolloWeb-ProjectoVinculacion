@@ -16,6 +16,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     private static readonly Guid UserRoleId = new("6f1f6c3a-6b3e-4b8e-9a51-1d6c2a7b8e01");
     private static readonly Guid AdminRoleId = new("6f1f6c3a-6b3e-4b8e-9a51-1d6c2a7b8e02");
 
+    // Fecha fija para que la semilla de categorías no cambie entre migraciones.
+    private static readonly DateTime CategorySeedDate = new(2026, 11, 4, 0, 0, 0, DateTimeKind.Utc);
+
+    public DbSet<Category> Categories => Set<Category>();
+
+    public DbSet<CategoryRule> CategoryRules => Set<CategoryRule>();
+
     public DbSet<Product> Products => Set<Product>();
 
     public DbSet<Favorite> Favorites => Set<Favorite>();
@@ -33,10 +40,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
         // Primero Identity: define sus tablas, llaves e índices.
         base.OnModelCreating(builder);
 
-        // Búsqueda por similitud de texto (descripción de productos).
+        // Búsqueda por similitud de texto (nombre para mostrar de productos).
         builder.HasPostgresExtension("pg_trgm");
 
         ConfigureIdentity(builder);
+        ConfigureCategories(builder);
+        ConfigureCategoryRules(builder);
         ConfigureProducts(builder);
         ConfigureFavorites(builder);
         ConfigureProductImages(builder);
@@ -122,6 +131,59 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             });
     }
 
+    private static void ConfigureCategories(ModelBuilder builder)
+    {
+        builder.Entity<Category>(category =>
+        {
+            category.ToTable("categories", t =>
+            {
+                t.HasCheckConstraint("ck_categories_position", "position >= 1");
+            });
+
+            category.HasKey(c => c.Id);
+
+            category.Property(c => c.Name).HasMaxLength(100).IsRequired();
+            category.Property(c => c.Slug).HasMaxLength(100).IsRequired();
+            category.Property(c => c.CreatedAt).HasDefaultValueSql("now()");
+            category.Property(c => c.UpdatedAt).HasDefaultValueSql("now()");
+
+            category.HasIndex(c => c.Name).IsUnique();
+            category.HasIndex(c => c.Slug).IsUnique();
+
+            // Categoría para los productos que no coinciden con ninguna regla.
+            category.HasData(new Category
+            {
+                Id = Category.OthersId,
+                Name = "Otros",
+                Slug = "otros",
+                Position = 1000,
+                CreatedAt = CategorySeedDate,
+                UpdatedAt = CategorySeedDate
+            });
+        });
+    }
+
+    private static void ConfigureCategoryRules(ModelBuilder builder)
+    {
+        builder.Entity<CategoryRule>(rule =>
+        {
+            rule.ToTable("category_rules");
+
+            rule.HasKey(r => r.Id);
+
+            rule.Property(r => r.Keyword).HasMaxLength(100).IsRequired();
+            rule.Property(r => r.CreatedAt).HasDefaultValueSql("now()");
+            rule.Property(r => r.UpdatedAt).HasDefaultValueSql("now()");
+
+            rule.HasIndex(r => r.Keyword).IsUnique();
+
+            rule.HasOne(r => r.Category)
+                .WithMany()
+                .HasForeignKey(r => r.CategoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
     private static void ConfigureProducts(ModelBuilder builder)
     {
         builder.Entity<Product>(product =>
@@ -135,20 +197,24 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
 
             product.Property(p => p.Code).HasMaxLength(50).IsRequired();
             product.Property(p => p.Description).HasMaxLength(255).IsRequired();
-            product.Property(p => p.CategoryCode).HasMaxLength(50);
-            product.Property(p => p.CategoryName).HasMaxLength(150);
+            product.Property(p => p.DisplayName).HasMaxLength(255).IsRequired();
             product.Property(p => p.PublicPrice).HasPrecision(12, 2);
             product.Property(p => p.Stock).HasPrecision(14, 4);
             product.Property(p => p.CreatedAt).HasDefaultValueSql("now()");
             product.Property(p => p.UpdatedAt).HasDefaultValueSql("now()");
 
             product.HasIndex(p => p.Code).IsUnique();
-            product.HasIndex(p => new { p.IsActive, p.CategoryCode });
+            product.HasIndex(p => new { p.IsActive, p.CategoryId });
 
-            // Índice GIN con trigramas para buscar por descripción.
-            product.HasIndex(p => p.Description)
+            // Índice GIN con trigramas para buscar por nombre para mostrar.
+            product.HasIndex(p => p.DisplayName)
                 .HasMethod("gin")
                 .HasOperators("gin_trgm_ops");
+
+            product.HasOne(p => p.Category)
+                .WithMany()
+                .HasForeignKey(p => p.CategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 

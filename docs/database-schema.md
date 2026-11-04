@@ -3,7 +3,7 @@
 **Catálogo Web – Mini Super Nettes**  
 Documento de la historia **US-03: Diseñar el esquema de PostgreSQL**.
 
-> Los campos marcados como **pendiente US-04** dependen de reglas de Aspel SAE que se validan con el negocio. El esquema se ajustará con una migración si esas reglas cambian algo.
+> Las reglas de Aspel SAE que afectan este esquema están en [`business-rules.md`](business-rules.md) (US-04).
 
 ## 1. Decisiones de diseño
 
@@ -18,6 +18,8 @@ Documento de la historia **US-03: Diseñar el esquema de PostgreSQL**.
 | Nombres | Tablas en plural y columnas en `snake_case` |
 | Fechas | `timestamptz`, guardadas en UTC |
 | Estados y tipos | Texto con restricción `CHECK` (no enums nativos de PostgreSQL), para facilitar las migraciones |
+| Categorías | Propias de la aplicación, asignadas con reglas de palabras clave; Aspel no tiene categorías útiles |
+| Nombre para el cliente | `display_name`, generado a partir de `description`; Aspel no se modifica |
 
 ## 2. Diagrama de relaciones
 
@@ -29,6 +31,8 @@ erDiagram
     products ||--o{ favorites : "es favorito"
     products ||--o| product_images : "tiene una"
     products ||--o| featured_products : "puede ser"
+    categories ||--o{ products : "agrupa"
+    categories ||--o{ category_rules : "se asigna con"
     users |o--o{ product_images : "sube"
     users |o--o{ site_content : "edita"
 
@@ -57,15 +61,29 @@ erDiagram
     products {
         uuid id PK
         varchar code UK "CVE_ART de Aspel"
-        varchar description
-        varchar category_code "pendiente US-04"
-        varchar category_name "pendiente US-04"
+        varchar description "original de Aspel"
+        varchar display_name "nombre para el cliente"
+        uuid category_id FK
         numeric public_price "12,2 y mayor o igual a 0"
         numeric stock "puede ser negativo"
         boolean is_active "false si sale de Aspel"
-        timestamptz last_purchase_at
-        timestamptz last_sale_at
         timestamptz synced_at
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    categories {
+        uuid id PK
+        varchar name UK
+        varchar slug UK
+        int position "mayor o igual a 1"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    category_rules {
+        uuid id PK
+        uuid category_id FK
+        varchar keyword UK "mayusculas y sin acentos"
+        int priority
         timestamptz created_at
         timestamptz updated_at
     }
@@ -167,24 +185,51 @@ Copia sincronizada del catálogo de Aspel SAE. Solo la modifica el proceso de si
 |---|---|---|
 | `id` | `uuid` | Llave primaria |
 | `code` | `varchar(50)` | `NOT NULL`, **único**. Viene de Aspel (`CVE_ART`) |
-| `description` | `varchar(255)` | `NOT NULL` |
-| `category_code` | `varchar(50)` | Puede ser nulo. **Pendiente US-04** |
-| `category_name` | `varchar(150)` | Puede ser nulo. **Pendiente US-04** (cómo obtener el nombre) |
-| `public_price` | `numeric(12,2)` | `NOT NULL`, `CHECK (public_price >= 0)`. Precio con `CVE_PRECIO = 1`. **Pendiente US-04** |
+| `description` | `varchar(255)` | `NOT NULL`. Descripción original de Aspel; no se muestra al cliente |
+| `display_name` | `varchar(255)` | `NOT NULL`. Nombre para mostrar al cliente, generado a partir de `description` |
+| `category_id` | `uuid` | `NOT NULL`, FK a `categories(id)`, `ON DELETE RESTRICT` |
+| `public_price` | `numeric(12,2)` | `NOT NULL`, `CHECK (public_price >= 0)`. Precio con `CVE_PRECIO = 1`; se guarda `0` si no existe |
 | `stock` | `numeric(14,4)` | `NOT NULL`. Sin `CHECK`: Aspel puede reportar existencias negativas |
-| `is_active` | `boolean` | `NOT NULL`, por defecto `true`. Qué valor de `STATUS` es "inactivo": **pendiente US-04** |
-| `last_purchase_at` | `timestamptz` | Opcional. **Pendiente US-04** (decidir si se usa) |
-| `last_sale_at` | `timestamptz` | Opcional. **Pendiente US-04** (decidir si se usa) |
+| `is_active` | `boolean` | `NOT NULL`, por defecto `true`. `STATUS = 'A'` es `true`; `STATUS = 'B'` o dejar de venir de Aspel es `false` |
 | `synced_at` | `timestamptz` | `NOT NULL`. Última vez que se sincronizó |
 | `created_at`, `updated_at` | `timestamptz` | `NOT NULL` |
 
-Índices iniciales:
+Índices:
 
 - Único sobre `code`.
-- `(is_active, category_code)`, para los filtros del catálogo.
-- GIN con `pg_trgm` sobre `description`, para la búsqueda por nombre. Hay que confirmar que la extensión esté disponible en la base de datos de Railway.
+- `(is_active, category_id)`, para los filtros del catálogo.
+- `category_id`, creado por EF Core para la llave foránea.
+- GIN con `pg_trgm` sobre `display_name`, para la búsqueda por nombre. Hay que confirmar que la extensión esté disponible en la base de datos de Railway.
 
-Disponibilidad: se propone `is_active = true` y `stock > 0`. La regla final se confirma en US-04.
+Visibilidad: `is_active = true` y `public_price > 0`. Los productos visibles con `stock > 0` se muestran como Disponible y los demás como Agotado. El detalle está en [`business-rules.md`](business-rules.md).
+
+### `categories`
+
+Categorías propias del catálogo.
+
+| Columna | Tipo | Restricciones / notas |
+|---|---|---|
+| `id` | `uuid` | Llave primaria |
+| `name` | `varchar(100)` | `NOT NULL`, **único** |
+| `slug` | `varchar(100)` | `NOT NULL`, **único** |
+| `position` | `integer` | `NOT NULL`, `CHECK (position >= 1)` |
+| `created_at`, `updated_at` | `timestamptz` | `NOT NULL` |
+
+Semilla: la categoría **Otros** (`otros`, posición 1000), para los productos que no coinciden con ninguna regla. Su id está disponible en C# como `Category.OthersId`.
+
+### `category_rules`
+
+Reglas de palabras clave para categorizar productos. Las mantiene el equipo; todavía no tienen datos semilla.
+
+| Columna | Tipo | Restricciones / notas |
+|---|---|---|
+| `id` | `uuid` | Llave primaria |
+| `category_id` | `uuid` | `NOT NULL`, FK a `categories(id)`, `ON DELETE CASCADE` |
+| `keyword` | `varchar(100)` | `NOT NULL`, **único**. Se guarda en mayúsculas y sin acentos |
+| `priority` | `integer` | `NOT NULL`. Por defecto `0`, asignado en C# |
+| `created_at`, `updated_at` | `timestamptz` | `NOT NULL` |
+
+Índice sobre `category_id`. Si varias reglas coinciden, gana la de mayor prioridad y, si empatan, la palabra clave más larga.
 
 ### `favorites`
 
@@ -270,9 +315,9 @@ El área de preparación de los lotes de sincronización se define en US-06 y US
 
 | Archivo | Contenido |
 |---|---|
-| `backend/Data/AppDbContext.cs` | Hereda de `IdentityDbContext<AppUser, AppRole, Guid>`. Configura tablas, llaves, índices, restricciones y la semilla de roles. Llena `created_at` y `updated_at` al guardar. |
+| `backend/Data/AppDbContext.cs` | Hereda de `IdentityDbContext<AppUser, AppRole, Guid>`. Configura tablas, llaves, índices, restricciones y la semilla de roles y categorías. Llena `created_at` y `updated_at` al guardar. |
 | `backend/Data/SnakeCaseNaming.cs` | Convierte a `snake_case` tablas, columnas, llaves e índices, y quita el prefijo `AspNet` de las tablas de Identity. |
-| `backend/Data/Entities/` | Entidades: `AppUser`, `AppRole`, `Product`, `Favorite`, `ProductImage`, `FeaturedProduct`, `SiteContent`, `SyncRun`. |
+| `backend/Data/Entities/` | Entidades: `AppUser`, `AppRole`, `Category`, `CategoryRule`, `Product`, `Favorite`, `ProductImage`, `FeaturedProduct`, `SiteContent`, `SyncRun`. |
 | `backend/Data/Migrations/` | Migraciones generadas con `dotnet ef`. |
 
 Notas:
@@ -318,6 +363,5 @@ Nunca se edita una migración que ya está en `main`; se crea una nueva.
 
 ## 7. Pendientes
 
-- Reglas de Aspel SAE (US-04): significado de `STATUS`, disponibilidad, precio público, nombres de categorías y uso de `last_purchase_at` y `last_sale_at`.
 - Confirmar que `pg_trgm` se puede activar en PostgreSQL de Railway (es una extensión de confianza desde PostgreSQL 13).
 - Estrategia de preparación de lotes de sincronización (US-06 y US-07).

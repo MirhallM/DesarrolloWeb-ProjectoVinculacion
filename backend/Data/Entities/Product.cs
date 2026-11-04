@@ -11,11 +11,15 @@ public class Product : IHasTimestamps
     /// <summary>Código de artículo de Aspel (CVE_ART). Único.</summary>
     public string Code { get; set; } = string.Empty;
 
+    /// <summary>Descripción original de Aspel. No se muestra al cliente.</summary>
     public string Description { get; set; } = string.Empty;
 
-    public string? CategoryCode { get; set; }
+    /// <summary>Nombre para mostrar al cliente, generado a partir de la descripción.</summary>
+    public string DisplayName { get; set; } = string.Empty;
 
-    public string? CategoryName { get; set; }
+    public Guid CategoryId { get; set; }
+
+    public Category Category { get; set; } = null!;
 
     public decimal PublicPrice { get; set; }
 
@@ -24,10 +28,6 @@ public class Product : IHasTimestamps
 
     /// <summary>false cuando el producto deja de venir de Aspel.</summary>
     public bool IsActive { get; set; } = true;
-
-    public DateTime? LastPurchaseAt { get; set; }
-
-    public DateTime? LastSaleAt { get; set; }
 
     public DateTime SyncedAt { get; set; }
 
