@@ -1,0 +1,210 @@
+Project catalogo_mini_super_nettes {
+  database_type: 'PostgreSQL'
+  Note: 'Esquema de la aplicación (US-03). Productos sincronizados desde Aspel SAE; usuarios con ASP.NET Core Identity.'
+}
+
+// ===================== ASP.NET Core Identity =====================
+
+Table users {
+  id uuid [pk]
+  user_name varchar(256) [note: 'Igual al correo']
+  normalized_user_name varchar(256) [unique]
+  email varchar(256)
+  normalized_email varchar(256)
+  email_confirmed boolean [not null, default: false]
+  password_hash text [note: 'Hash; nunca la contraseña']
+  security_stamp text
+  concurrency_stamp text
+  phone_number text
+  phone_number_confirmed boolean [not null, default: false]
+  two_factor_enabled boolean [not null, default: false]
+  lockout_end timestamptz
+  lockout_enabled boolean [not null, default: true]
+  access_failed_count integer [not null, default: 0]
+  is_active boolean [not null, default: true, note: 'Campo propio']
+  created_at timestamptz [not null, default: `now()`, note: 'Campo propio']
+
+  indexes {
+    normalized_email
+  }
+}
+
+Table roles {
+  id uuid [pk]
+  name varchar(256)
+  normalized_name varchar(256) [unique]
+  concurrency_stamp text
+
+  Note: 'Roles iniciales: User y Admin'
+}
+
+Table user_roles {
+  user_id uuid [not null]
+  role_id uuid [not null]
+
+  indexes {
+    (user_id, role_id) [pk]
+    role_id
+  }
+}
+
+Table user_claims {
+  id integer [pk, increment]
+  user_id uuid [not null]
+  claim_type text
+  claim_value text
+}
+
+Table role_claims {
+  id integer [pk, increment]
+  role_id uuid [not null]
+  claim_type text
+  claim_value text
+}
+
+Table user_logins {
+  login_provider text [not null]
+  provider_key text [not null]
+  provider_display_name text
+  user_id uuid [not null]
+
+  indexes {
+    (login_provider, provider_key) [pk]
+  }
+}
+
+Table user_tokens {
+  user_id uuid [not null]
+  login_provider text [not null]
+  name text [not null]
+  value text
+
+  indexes {
+    (user_id, login_provider, name) [pk]
+  }
+}
+
+// ===================== Catálogo =====================
+
+Table products {
+  id uuid [pk]
+  code varchar(50) [not null, unique, note: 'CVE_ART de Aspel SAE']
+  description varchar(255) [not null]
+  category_code varchar(50) [note: 'Pendiente US-04']
+  category_name varchar(150) [note: 'Pendiente US-04']
+  public_price numeric(12,2) [not null, note: 'CHECK >= 0. Precio con CVE_PRECIO = 1']
+  stock numeric(14,4) [not null, note: 'Puede ser negativo en Aspel']
+  is_active boolean [not null, default: true, note: 'false si deja de venir de Aspel']
+  last_purchase_at timestamptz [note: 'Pendiente US-04']
+  last_sale_at timestamptz [note: 'Pendiente US-04']
+  synced_at timestamptz [not null]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (is_active, category_code)
+  }
+
+  Note: 'Solo la modifica la sincronización. Índice GIN con pg_trgm sobre description (se define en la migración).'
+}
+
+Table favorites {
+  user_id uuid [not null]
+  product_id uuid [not null]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, product_id) [pk]
+    product_id
+  }
+}
+
+Table product_images {
+  id uuid [pk]
+  product_id uuid [not null, unique, note: 'Una imagen por producto']
+  image_path text [not null, note: 'Ruta en el volumen']
+  alt_text varchar(255)
+  mime_type varchar(100) [not null]
+  file_size_bytes bigint [not null, note: 'CHECK > 0']
+  uploaded_by uuid
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+}
+
+Table featured_products {
+  id uuid [pk]
+  product_id uuid [not null, unique]
+  position integer [not null, note: 'CHECK >= 1; única entre los activos']
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+}
+
+Table site_content {
+  id uuid [pk]
+  content_type varchar(50) [not null, note: 'banner | promotion']
+  title varchar(200) [not null]
+  body text
+  image_path text
+  is_active boolean [not null, default: true]
+  start_at timestamptz
+  end_at timestamptz [note: 'CHECK end_at > start_at']
+  updated_by uuid
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (is_active, content_type, start_at, end_at)
+  }
+}
+
+Table sync_runs {
+  id uuid [pk]
+  status varchar(20) [not null, note: 'running | succeeded | failed. Solo una en running']
+  started_at timestamptz [not null]
+  finished_at timestamptz
+  products_read integer [not null, default: 0]
+  products_inserted integer [not null, default: 0]
+  products_updated integer [not null, default: 0]
+  products_deactivated integer [not null, default: 0]
+  error_message text
+
+  indexes {
+    (status, finished_at)
+  }
+}
+
+// ===================== Relaciones =====================
+
+Ref: user_roles.user_id > users.id [delete: cascade]
+Ref: user_roles.role_id > roles.id [delete: cascade]
+Ref: user_claims.user_id > users.id [delete: cascade]
+Ref: role_claims.role_id > roles.id [delete: cascade]
+Ref: user_logins.user_id > users.id [delete: cascade]
+Ref: user_tokens.user_id > users.id [delete: cascade]
+
+Ref: favorites.user_id > users.id [delete: cascade]
+Ref: favorites.product_id > products.id [delete: restrict]
+Ref: product_images.product_id - products.id [delete: cascade]
+Ref: product_images.uploaded_by > users.id [delete: set null]
+Ref: featured_products.product_id - products.id [delete: cascade]
+Ref: site_content.updated_by > users.id [delete: set null]
+
+TableGroup identity {
+  users
+  roles
+  user_roles
+  user_claims
+  role_claims
+  user_logins
+  user_tokens
+}
+
+TableGroup catalogo {
+  products
+  favorites
+  product_images
+  featured_products
+  site_content
+  sync_runs
+}
