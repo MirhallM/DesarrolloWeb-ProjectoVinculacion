@@ -1,0 +1,7300 @@
+{
+  "version": 1,
+  "matching": {
+    "normalize": "mayúsculas y sin acentos (Ñ -> N)",
+    "tokens": "separar por cualquier carácter que no sea letra o número",
+    "plurals": "cada palabra de la descripción puede ser igual a la de la clave, o la clave + S o + ES",
+    "tieBreak": "mayor prioridad; luego palabra clave más larga (sin espacios); luego menor posición de categoría",
+    "fallback": "otros"
+  },
+  "categories": [
+    {
+      "slug": "abarrotes",
+      "name": "Abarrotes",
+      "position": 1,
+      "rules": [
+        {
+          "keyword": "CREMA DE ELOTE",
+          "priority": 45
+        },
+        {
+          "keyword": "CREMA DE ESPARRAGOS",
+          "priority": 45
+        },
+        {
+          "keyword": "CREMA DE HONGOS",
+          "priority": 45
+        },
+        {
+          "keyword": "CREMA DE POLLO",
+          "priority": 45
+        },
+        {
+          "keyword": "ACEITE DE OLIVA",
+          "priority": 30
+        },
+        {
+          "keyword": "ACEITE OLIVA",
+          "priority": 30
+        },
+        {
+          "keyword": "AZUCAR GLAS",
+          "priority": 30
+        },
+        {
+          "keyword": "AZUCAR PARA REPOSTERIA",
+          "priority": 30
+        },
+        {
+          "keyword": "CEREZAS MARASCHINO",
+          "priority": 25
+        },
+        {
+          "keyword": "COLCAFE",
+          "priority": 25
+        },
+        {
+          "keyword": "DON CAPORAL",
+          "priority": 25
+        },
+        {
+          "keyword": "MARASCHINO",
+          "priority": 25
+        },
+        {
+          "keyword": "ACEITE COMESTIBLE",
+          "priority": 20
+        },
+        {
+          "keyword": "ACEITE DE COCINA",
+          "priority": 20
+        },
+        {
+          "keyword": "ACEITE VEGETAL",
+          "priority": 20
+        },
+        {
+          "keyword": "ACEITUNA",
+          "priority": 20
+        },
+        {
+          "keyword": "ACHIOTE",
+          "priority": 20
+        },
+        {
+          "keyword": "ADEREZO",
+          "priority": 20
+        },
+        {
+          "keyword": "ADOBO",
+          "priority": 20
+        },
+        {
+          "keyword": "AJO",
+          "priority": 20
+        },
+        {
+          "keyword": "AJO EN POLVO",
+          "priority": 20
+        },
+        {
+          "keyword": "ANCHOR",
+          "priority": 20
+        },
+        {
+          "keyword": "APIO",
+          "priority": 20
+        },
+        {
+          "keyword": "ARROZ",
+          "priority": 20
+        },
+        {
+          "keyword": "ATUN",
+          "priority": 20
+        },
+        {
+          "keyword": "AVENA",
+          "priority": 20
+        },
+        {
+          "keyword": "AZUCAR",
+          "priority": 20
+        },
+        {
+          "keyword": "BARBACOA",
+          "priority": 20
+        },
+        {
+          "keyword": "BBQ",
+          "priority": 20
+        },
+        {
+          "keyword": "BETTY CROCKER",
+          "priority": 20
+        },
+        {
+          "keyword": "BICARBONATO",
+          "priority": 20
+        },
+        {
+          "keyword": "CAFE",
+          "priority": 20
+        },
+        {
+          "keyword": "CAMPOFRESCO",
+          "priority": 20
+        },
+        {
+          "keyword": "CANELA",
+          "priority": 20
+        },
+        {
+          "keyword": "CANELONES",
+          "priority": 20
+        },
+        {
+          "keyword": "CEREAL",
+          "priority": 20
+        },
+        {
+          "keyword": "CHILPOTLE",
+          "priority": 20
+        },
+        {
+          "keyword": "CHIMOL",
+          "priority": 20
+        },
+        {
+          "keyword": "CHIPOTLE",
+          "priority": 20
+        },
+        {
+          "keyword": "COCO RALLADO",
+          "priority": 20
+        },
+        {
+          "keyword": "CODITO",
+          "priority": 20
+        },
+        {
+          "keyword": "COFFEE MATE",
+          "priority": 20
+        },
+        {
+          "keyword": "COMINO",
+          "priority": 20
+        },
+        {
+          "keyword": "CONSOME",
+          "priority": 20
+        },
+        {
+          "keyword": "CORNFLAKES",
+          "priority": 20
+        },
+        {
+          "keyword": "CREMA DE MANI",
+          "priority": 20
+        },
+        {
+          "keyword": "CREMORA",
+          "priority": 20
+        },
+        {
+          "keyword": "CUBITO",
+          "priority": 20
+        },
+        {
+          "keyword": "CUBITOS",
+          "priority": 20
+        },
+        {
+          "keyword": "CURCUMA",
+          "priority": 20
+        },
+        {
+          "keyword": "CURRY",
+          "priority": 20
+        },
+        {
+          "keyword": "DIP",
+          "priority": 20
+        },
+        {
+          "keyword": "ELOTE",
+          "priority": 20
+        },
+        {
+          "keyword": "EMPANIZADOR",
+          "priority": 20
+        },
+        {
+          "keyword": "ENCURTIDO",
+          "priority": 20
+        },
+        {
+          "keyword": "ESPAGUETI",
+          "priority": 20
+        },
+        {
+          "keyword": "FERMIPAN",
+          "priority": 20
+        },
+        {
+          "keyword": "FIDELIN",
+          "priority": 20
+        },
+        {
+          "keyword": "FIDEO",
+          "priority": 20
+        },
+        {
+          "keyword": "FIDEOS",
+          "priority": 20
+        },
+        {
+          "keyword": "FLAKES",
+          "priority": 20
+        },
+        {
+          "keyword": "FLAN",
+          "priority": 20
+        },
+        {
+          "keyword": "FRIJOL",
+          "priority": 20
+        },
+        {
+          "keyword": "FRIJOLES",
+          "priority": 20
+        },
+        {
+          "keyword": "GELATINA",
+          "priority": 20
+        },
+        {
+          "keyword": "HARINA",
+          "priority": 20
+        },
+        {
+          "keyword": "HEINZ",
+          "priority": 20
+        },
+        {
+          "keyword": "HUEVO",
+          "priority": 20
+        },
+        {
+          "keyword": "HUEVOS",
+          "priority": 20
+        },
+        {
+          "keyword": "INCAPARINA",
+          "priority": 20
+        },
+        {
+          "keyword": "JALAPENO",
+          "priority": 20
+        },
+        {
+          "keyword": "JALEA",
+          "priority": 20
+        },
+        {
+          "keyword": "KELLOGGS",
+          "priority": 20
+        },
+        {
+          "keyword": "KETCHUP",
+          "priority": 20
+        },
+        {
+          "keyword": "LAUREL",
+          "priority": 20
+        },
+        {
+          "keyword": "LECHE EN POLVO",
+          "priority": 20
+        },
+        {
+          "keyword": "LENTEJA",
+          "priority": 20
+        },
+        {
+          "keyword": "LEVADURA",
+          "priority": 20
+        },
+        {
+          "keyword": "MACARRON",
+          "priority": 20
+        },
+        {
+          "keyword": "MAICENA",
+          "priority": 20
+        },
+        {
+          "keyword": "MAIZ",
+          "priority": 20
+        },
+        {
+          "keyword": "MANTECA",
+          "priority": 20
+        },
+        {
+          "keyword": "MANZANILLA",
+          "priority": 20
+        },
+        {
+          "keyword": "MARGARINA",
+          "priority": 20
+        },
+        {
+          "keyword": "MASECA",
+          "priority": 20
+        },
+        {
+          "keyword": "MAYONESA",
+          "priority": 20
+        },
+        {
+          "keyword": "MAZOLA",
+          "priority": 20
+        },
+        {
+          "keyword": "MERMELADA",
+          "priority": 20
+        },
+        {
+          "keyword": "MEZCLA PARA",
+          "priority": 20
+        },
+        {
+          "keyword": "MIEL",
+          "priority": 20
+        },
+        {
+          "keyword": "MOSTAZA",
+          "priority": 20
+        },
+        {
+          "keyword": "NESCAFE",
+          "priority": 20
+        },
+        {
+          "keyword": "NUEZ MOSCADA",
+          "priority": 20
+        },
+        {
+          "keyword": "NUTELLA",
+          "priority": 20
+        },
+        {
+          "keyword": "OREGANO",
+          "priority": 20
+        },
+        {
+          "keyword": "PAPRIKA",
+          "priority": 20
+        },
+        {
+          "keyword": "PASTA DE TOMATE",
+          "priority": 20
+        },
+        {
+          "keyword": "PEPINILLO",
+          "priority": 20
+        },
+        {
+          "keyword": "PIMIENTA",
+          "priority": 20
+        },
+        {
+          "keyword": "POLVO DE HORNEAR",
+          "priority": 20
+        },
+        {
+          "keyword": "PUDIN",
+          "priority": 20
+        },
+        {
+          "keyword": "PURE",
+          "priority": 20
+        },
+        {
+          "keyword": "PUYAZO",
+          "priority": 20
+        },
+        {
+          "keyword": "SABOR MAS",
+          "priority": 20
+        },
+        {
+          "keyword": "SAL",
+          "priority": 20
+        },
+        {
+          "keyword": "SALSA",
+          "priority": 20
+        },
+        {
+          "keyword": "SALSINA",
+          "priority": 20
+        },
+        {
+          "keyword": "SARDINA",
+          "priority": 20
+        },
+        {
+          "keyword": "SAZON",
+          "priority": 20
+        },
+        {
+          "keyword": "SAZONADOR",
+          "priority": 20
+        },
+        {
+          "keyword": "SOFRITO",
+          "priority": 20
+        },
+        {
+          "keyword": "SOPA",
+          "priority": 20
+        },
+        {
+          "keyword": "SOPAS",
+          "priority": 20
+        },
+        {
+          "keyword": "SPAGHETTI",
+          "priority": 20
+        },
+        {
+          "keyword": "TORTILLA",
+          "priority": 20
+        },
+        {
+          "keyword": "VEGETALES MIXTOS",
+          "priority": 20
+        },
+        {
+          "keyword": "VERDURAS MIXTAS",
+          "priority": 20
+        },
+        {
+          "keyword": "VINAGRE",
+          "priority": 20
+        },
+        {
+          "keyword": "ACEITE",
+          "priority": 12
+        },
+        {
+          "keyword": "CHILE",
+          "priority": 12
+        },
+        {
+          "keyword": "PASTA",
+          "priority": 12
+        },
+        {
+          "keyword": "TE",
+          "priority": 12
+        },
+        {
+          "keyword": "CAPULLO",
+          "priority": 10
+        },
+        {
+          "keyword": "CLOVER",
+          "priority": 10
+        },
+        {
+          "keyword": "DEL MONTE",
+          "priority": 10
+        },
+        {
+          "keyword": "DON JULIO",
+          "priority": 10
+        },
+        {
+          "keyword": "DONJULIO",
+          "priority": 10
+        },
+        {
+          "keyword": "ELMIGO",
+          "priority": 10
+        },
+        {
+          "keyword": "HERDEZ",
+          "priority": 10
+        },
+        {
+          "keyword": "IDEAL",
+          "priority": 10
+        },
+        {
+          "keyword": "ISSIMA",
+          "priority": 10
+        },
+        {
+          "keyword": "KERNS",
+          "priority": 10
+        },
+        {
+          "keyword": "KNORR",
+          "priority": 10
+        },
+        {
+          "keyword": "KNORS",
+          "priority": 10
+        },
+        {
+          "keyword": "KRAFT",
+          "priority": 10
+        },
+        {
+          "keyword": "LA COSTENA",
+          "priority": 10
+        },
+        {
+          "keyword": "MAGGI",
+          "priority": 10
+        },
+        {
+          "keyword": "NATURAS",
+          "priority": 10
+        },
+        {
+          "keyword": "ROMA",
+          "priority": 10
+        },
+        {
+          "keyword": "SASSON",
+          "priority": 10
+        },
+        {
+          "keyword": "ZARA",
+          "priority": 10
+        }
+      ]
+    },
+    {
+      "slug": "lacteos",
+      "name": "Lácteos y huevos",
+      "position": 2,
+      "rules": [
+        {
+          "keyword": "CREMA DOS PINOS",
+          "priority": 40
+        },
+        {
+          "keyword": "CREMA LEYDE",
+          "priority": 40
+        },
+        {
+          "keyword": "CREMA SULA",
+          "priority": 40
+        },
+        {
+          "keyword": "LECHE CONDENSADA",
+          "priority": 40
+        },
+        {
+          "keyword": "LECHE DESCREMADA",
+          "priority": 40
+        },
+        {
+          "keyword": "LECHE ENTERA",
+          "priority": 40
+        },
+        {
+          "keyword": "LECHE EVAPORADA",
+          "priority": 40
+        },
+        {
+          "keyword": "MANTEQUILLA LEYDE",
+          "priority": 40
+        },
+        {
+          "keyword": "MANTEQUILLA SULA",
+          "priority": 40
+        },
+        {
+          "keyword": "QUESO AMARILLO",
+          "priority": 40
+        },
+        {
+          "keyword": "QUESO CREMA",
+          "priority": 40
+        },
+        {
+          "keyword": "QUESO FRESCO",
+          "priority": 40
+        },
+        {
+          "keyword": "QUESO MOZARELA",
+          "priority": 40
+        },
+        {
+          "keyword": "QUESO PROCESADO",
+          "priority": 40
+        },
+        {
+          "keyword": "QUESO RALLADO",
+          "priority": 40
+        },
+        {
+          "keyword": "QUESO SECO",
+          "priority": 40
+        },
+        {
+          "keyword": "CREMA AGRIA",
+          "priority": 18
+        },
+        {
+          "keyword": "CREMA LACTEA",
+          "priority": 18
+        },
+        {
+          "keyword": "CUAJADA",
+          "priority": 18
+        },
+        {
+          "keyword": "LACTEO",
+          "priority": 18
+        },
+        {
+          "keyword": "LEC",
+          "priority": 18
+        },
+        {
+          "keyword": "LECHE",
+          "priority": 18
+        },
+        {
+          "keyword": "MALTEADA",
+          "priority": 18
+        },
+        {
+          "keyword": "MANTEQUILLA",
+          "priority": 18
+        },
+        {
+          "keyword": "MONZARELLA",
+          "priority": 18
+        },
+        {
+          "keyword": "MOZARELA",
+          "priority": 18
+        },
+        {
+          "keyword": "MOZZARELLA",
+          "priority": 18
+        },
+        {
+          "keyword": "QUESILLO",
+          "priority": 18
+        },
+        {
+          "keyword": "QUESO",
+          "priority": 18
+        },
+        {
+          "keyword": "REQUESON",
+          "priority": 18
+        },
+        {
+          "keyword": "ROMPOPO",
+          "priority": 18
+        },
+        {
+          "keyword": "YOG",
+          "priority": 18
+        },
+        {
+          "keyword": "YOGUR",
+          "priority": 18
+        },
+        {
+          "keyword": "YOGURT",
+          "priority": 18
+        },
+        {
+          "keyword": "YUGURT",
+          "priority": 18
+        },
+        {
+          "keyword": "DELACT",
+          "priority": 10
+        },
+        {
+          "keyword": "DOS PINOS",
+          "priority": 10
+        },
+        {
+          "keyword": "LACTHOSA",
+          "priority": 10
+        },
+        {
+          "keyword": "LEYDE",
+          "priority": 10
+        },
+        {
+          "keyword": "PARMALAT",
+          "priority": 10
+        },
+        {
+          "keyword": "SULA",
+          "priority": 10
+        }
+      ]
+    },
+    {
+      "slug": "carnes",
+      "name": "Carnes y embutidos",
+      "position": 3,
+      "rules": [
+        {
+          "keyword": "HOT DOG",
+          "priority": 40
+        },
+        {
+          "keyword": "SALCHICHA HOT DOG",
+          "priority": 40
+        },
+        {
+          "keyword": "BACON",
+          "priority": 25
+        },
+        {
+          "keyword": "CHICHARRON",
+          "priority": 25
+        },
+        {
+          "keyword": "ALITAS",
+          "priority": 18
+        },
+        {
+          "keyword": "ASAR",
+          "priority": 18
+        },
+        {
+          "keyword": "CAMARON",
+          "priority": 18
+        },
+        {
+          "keyword": "CARNE",
+          "priority": 18
+        },
+        {
+          "keyword": "CERDO",
+          "priority": 18
+        },
+        {
+          "keyword": "CHORIZO",
+          "priority": 18
+        },
+        {
+          "keyword": "CHULETA",
+          "priority": 18
+        },
+        {
+          "keyword": "COSTILLA",
+          "priority": 18
+        },
+        {
+          "keyword": "EMBUTIDO",
+          "priority": 18
+        },
+        {
+          "keyword": "HAMBURGUESA",
+          "priority": 18
+        },
+        {
+          "keyword": "JAMON",
+          "priority": 18
+        },
+        {
+          "keyword": "MOLIDA",
+          "priority": 18
+        },
+        {
+          "keyword": "MORTADELA",
+          "priority": 18
+        },
+        {
+          "keyword": "NUGGETS",
+          "priority": 18
+        },
+        {
+          "keyword": "PECHUGA",
+          "priority": 18
+        },
+        {
+          "keyword": "PEPERONI",
+          "priority": 18
+        },
+        {
+          "keyword": "PEPPERONI",
+          "priority": 18
+        },
+        {
+          "keyword": "PESCADO",
+          "priority": 18
+        },
+        {
+          "keyword": "POLLO",
+          "priority": 18
+        },
+        {
+          "keyword": "RES",
+          "priority": 18
+        },
+        {
+          "keyword": "SALAMI",
+          "priority": 18
+        },
+        {
+          "keyword": "SALCHICHA",
+          "priority": 18
+        },
+        {
+          "keyword": "TILAPIA",
+          "priority": 18
+        },
+        {
+          "keyword": "TOCINO",
+          "priority": 18
+        }
+      ]
+    },
+    {
+      "slug": "panaderia",
+      "name": "Panadería y repostería",
+      "position": 4,
+      "rules": [
+        {
+          "keyword": "PAN DE HOT DOG",
+          "priority": 50
+        },
+        {
+          "keyword": "PAN HOT DOG",
+          "priority": 50
+        },
+        {
+          "keyword": "PAN PARA HAMBURGUESA",
+          "priority": 50
+        },
+        {
+          "keyword": "PAN PARA HOT DOG",
+          "priority": 50
+        },
+        {
+          "keyword": "SEMITA",
+          "priority": 30
+        },
+        {
+          "keyword": "QUEQUITO",
+          "priority": 25
+        },
+        {
+          "keyword": "QUEQUITOS",
+          "priority": 25
+        },
+        {
+          "keyword": "PAN",
+          "priority": 22
+        },
+        {
+          "keyword": "BIMBO",
+          "priority": 20
+        },
+        {
+          "keyword": "BIZCOCHO",
+          "priority": 20
+        },
+        {
+          "keyword": "BOLLO",
+          "priority": 20
+        },
+        {
+          "keyword": "CROISSANT",
+          "priority": 20
+        },
+        {
+          "keyword": "DONA",
+          "priority": 20
+        },
+        {
+          "keyword": "DONAS",
+          "priority": 20
+        },
+        {
+          "keyword": "ELENA",
+          "priority": 20
+        },
+        {
+          "keyword": "HAWIT",
+          "priority": 20
+        },
+        {
+          "keyword": "MANTECADA",
+          "priority": 20
+        },
+        {
+          "keyword": "MANTECADAS",
+          "priority": 20
+        },
+        {
+          "keyword": "PAN BLANCO",
+          "priority": 20
+        },
+        {
+          "keyword": "PAN DE ROSA",
+          "priority": 20
+        },
+        {
+          "keyword": "PAN DULCE",
+          "priority": 20
+        },
+        {
+          "keyword": "PAN INTEGRAL",
+          "priority": 20
+        },
+        {
+          "keyword": "PAN MOLDE",
+          "priority": 20
+        },
+        {
+          "keyword": "PANQUE",
+          "priority": 20
+        },
+        {
+          "keyword": "PASTELITO",
+          "priority": 20
+        },
+        {
+          "keyword": "QUEQUE",
+          "priority": 20
+        },
+        {
+          "keyword": "REPOSTERIA",
+          "priority": 20
+        },
+        {
+          "keyword": "ROSQUILLA",
+          "priority": 20
+        }
+      ]
+    },
+    {
+      "slug": "bebidas",
+      "name": "Bebidas",
+      "position": 5,
+      "rules": [
+        {
+          "keyword": "AGUA BOLSA",
+          "priority": 40
+        },
+        {
+          "keyword": "AGUA EN BOLSA",
+          "priority": 40
+        },
+        {
+          "keyword": "AGUA PURIFICADA",
+          "priority": 40
+        },
+        {
+          "keyword": "BEBIDA ENERGETICA",
+          "priority": 40
+        },
+        {
+          "keyword": "JUGO DEL VALLE",
+          "priority": 40
+        },
+        {
+          "keyword": "TE TOSH",
+          "priority": 40
+        },
+        {
+          "keyword": "AGUI",
+          "priority": 25
+        },
+        {
+          "keyword": "ARIZONA",
+          "priority": 25
+        },
+        {
+          "keyword": "LIPTON",
+          "priority": 25
+        },
+        {
+          "keyword": "QUANTY",
+          "priority": 25
+        },
+        {
+          "keyword": "SPORADE",
+          "priority": 25
+        },
+        {
+          "keyword": "TE FRIO",
+          "priority": 25
+        },
+        {
+          "keyword": "TE HELADO",
+          "priority": 25
+        },
+        {
+          "keyword": "TE LIPTON",
+          "priority": 25
+        },
+        {
+          "keyword": "TE NEGRO FRIO",
+          "priority": 25
+        },
+        {
+          "keyword": "TE VERDE FRIO",
+          "priority": 25
+        },
+        {
+          "keyword": "ALCOSA",
+          "priority": 22
+        },
+        {
+          "keyword": "ALOE DRINK",
+          "priority": 22
+        },
+        {
+          "keyword": "ALOE VERA JUGO",
+          "priority": 22
+        },
+        {
+          "keyword": "ENJOY",
+          "priority": 22
+        },
+        {
+          "keyword": "GATORAD",
+          "priority": 22
+        },
+        {
+          "keyword": "LIVIT",
+          "priority": 22
+        },
+        {
+          "keyword": "OKF",
+          "priority": 22
+        },
+        {
+          "keyword": "7UP",
+          "priority": 15
+        },
+        {
+          "keyword": "ADRENALINA",
+          "priority": 15
+        },
+        {
+          "keyword": "AGUA",
+          "priority": 15
+        },
+        {
+          "keyword": "AGUAZUL",
+          "priority": 15
+        },
+        {
+          "keyword": "AQUAFINA",
+          "priority": 15
+        },
+        {
+          "keyword": "BEBIDA",
+          "priority": 15
+        },
+        {
+          "keyword": "BIG COLA",
+          "priority": 15
+        },
+        {
+          "keyword": "C FRUIT",
+          "priority": 15
+        },
+        {
+          "keyword": "CANADA DRY",
+          "priority": 15
+        },
+        {
+          "keyword": "CANADRY",
+          "priority": 15
+        },
+        {
+          "keyword": "CAPPY",
+          "priority": 15
+        },
+        {
+          "keyword": "CIFRUT",
+          "priority": 15
+        },
+        {
+          "keyword": "CIFTRUT",
+          "priority": 15
+        },
+        {
+          "keyword": "COCA",
+          "priority": 15
+        },
+        {
+          "keyword": "COCA COLA",
+          "priority": 15
+        },
+        {
+          "keyword": "COLIBRI",
+          "priority": 15
+        },
+        {
+          "keyword": "DASANI",
+          "priority": 15
+        },
+        {
+          "keyword": "DEL VALLE",
+          "priority": 15
+        },
+        {
+          "keyword": "DELFRUTAL",
+          "priority": 15
+        },
+        {
+          "keyword": "DEPORADE",
+          "priority": 15
+        },
+        {
+          "keyword": "DEW",
+          "priority": 15
+        },
+        {
+          "keyword": "ENERGIZANTE",
+          "priority": 15
+        },
+        {
+          "keyword": "ENERGY",
+          "priority": 15
+        },
+        {
+          "keyword": "FANTA",
+          "priority": 15
+        },
+        {
+          "keyword": "FUZE",
+          "priority": 15
+        },
+        {
+          "keyword": "GASEOSA",
+          "priority": 15
+        },
+        {
+          "keyword": "GATORADE",
+          "priority": 15
+        },
+        {
+          "keyword": "HORCHATA",
+          "priority": 15
+        },
+        {
+          "keyword": "JAMAICA",
+          "priority": 15
+        },
+        {
+          "keyword": "JUGO",
+          "priority": 15
+        },
+        {
+          "keyword": "KOLA",
+          "priority": 15
+        },
+        {
+          "keyword": "KOOL AID",
+          "priority": 15
+        },
+        {
+          "keyword": "LIMONADA",
+          "priority": 15
+        },
+        {
+          "keyword": "LITROS",
+          "priority": 15
+        },
+        {
+          "keyword": "MALT",
+          "priority": 15
+        },
+        {
+          "keyword": "MALTA",
+          "priority": 15
+        },
+        {
+          "keyword": "MIRINDA",
+          "priority": 15
+        },
+        {
+          "keyword": "MONSTER",
+          "priority": 15
+        },
+        {
+          "keyword": "MONTUAIN DEW",
+          "priority": 15
+        },
+        {
+          "keyword": "MOUNTAIN DEW",
+          "priority": 15
+        },
+        {
+          "keyword": "NARANJADA",
+          "priority": 15
+        },
+        {
+          "keyword": "NECT",
+          "priority": 15
+        },
+        {
+          "keyword": "NECTAR",
+          "priority": 15
+        },
+        {
+          "keyword": "PEPSI",
+          "priority": 15
+        },
+        {
+          "keyword": "PNR",
+          "priority": 15
+        },
+        {
+          "keyword": "PONCHE",
+          "priority": 15
+        },
+        {
+          "keyword": "POWERADE",
+          "priority": 15
+        },
+        {
+          "keyword": "RED BULL",
+          "priority": 15
+        },
+        {
+          "keyword": "REFRESCO",
+          "priority": 15
+        },
+        {
+          "keyword": "SEVEN UP",
+          "priority": 15
+        },
+        {
+          "keyword": "SODA",
+          "priority": 15
+        },
+        {
+          "keyword": "SPRITE",
+          "priority": 15
+        },
+        {
+          "keyword": "SQUIRT",
+          "priority": 15
+        },
+        {
+          "keyword": "SURTIDO",
+          "priority": 15
+        },
+        {
+          "keyword": "TAMARINDO",
+          "priority": 15
+        },
+        {
+          "keyword": "TANG",
+          "priority": 15
+        },
+        {
+          "keyword": "TASTY",
+          "priority": 15
+        },
+        {
+          "keyword": "TROPICAL",
+          "priority": 15
+        },
+        {
+          "keyword": "VOLT",
+          "priority": 15
+        },
+        {
+          "keyword": "ZUKO",
+          "priority": 15
+        },
+        {
+          "keyword": "BIG",
+          "priority": 10
+        },
+        {
+          "keyword": "CIELO",
+          "priority": 10
+        },
+        {
+          "keyword": "CRISTAL",
+          "priority": 10
+        },
+        {
+          "keyword": "FRESCO",
+          "priority": 10
+        },
+        {
+          "keyword": "UVA",
+          "priority": 10
+        }
+      ]
+    },
+    {
+      "slug": "licores",
+      "name": "Licores y cigarrillos",
+      "position": 6,
+      "rules": [
+        {
+          "keyword": "ABSOLUT",
+          "priority": 30
+        },
+        {
+          "keyword": "AGUARDIENTE",
+          "priority": 30
+        },
+        {
+          "keyword": "BACARDI",
+          "priority": 30
+        },
+        {
+          "keyword": "BARENA",
+          "priority": 30
+        },
+        {
+          "keyword": "BCL",
+          "priority": 30
+        },
+        {
+          "keyword": "BELMONT",
+          "priority": 30
+        },
+        {
+          "keyword": "BLACK LABEL",
+          "priority": 30
+        },
+        {
+          "keyword": "BUCHANA",
+          "priority": 30
+        },
+        {
+          "keyword": "BUCHANANS",
+          "priority": 30
+        },
+        {
+          "keyword": "CATRACHITO",
+          "priority": 30
+        },
+        {
+          "keyword": "CERVEZA",
+          "priority": 30
+        },
+        {
+          "keyword": "CHAMPANA",
+          "priority": 30
+        },
+        {
+          "keyword": "CHIVAS",
+          "priority": 30
+        },
+        {
+          "keyword": "CIGARRILLO",
+          "priority": 30
+        },
+        {
+          "keyword": "CIGARRO",
+          "priority": 30
+        },
+        {
+          "keyword": "CORONA EXTRA",
+          "priority": 30
+        },
+        {
+          "keyword": "ENCENDEDOR",
+          "priority": 30
+        },
+        {
+          "keyword": "FLOR DE CANA",
+          "priority": 30
+        },
+        {
+          "keyword": "HEINEKEN",
+          "priority": 30
+        },
+        {
+          "keyword": "IMPERIAL",
+          "priority": 30
+        },
+        {
+          "keyword": "JACK DANIEL",
+          "priority": 30
+        },
+        {
+          "keyword": "JACK DDANIEL",
+          "priority": 30
+        },
+        {
+          "keyword": "JOHNNIE WALKER",
+          "priority": 30
+        },
+        {
+          "keyword": "JOSE CUERVO",
+          "priority": 30
+        },
+        {
+          "keyword": "LICOR",
+          "priority": 30
+        },
+        {
+          "keyword": "LUCKY STRIKE",
+          "priority": 30
+        },
+        {
+          "keyword": "MARLBORO",
+          "priority": 30
+        },
+        {
+          "keyword": "MICHELOB",
+          "priority": 30
+        },
+        {
+          "keyword": "MILLER",
+          "priority": 30
+        },
+        {
+          "keyword": "MILLET",
+          "priority": 30
+        },
+        {
+          "keyword": "OLD PARR",
+          "priority": 30
+        },
+        {
+          "keyword": "PALL MALL",
+          "priority": 30
+        },
+        {
+          "keyword": "PAPEL DE FUMAR",
+          "priority": 30
+        },
+        {
+          "keyword": "PORT ROYAL",
+          "priority": 30
+        },
+        {
+          "keyword": "RED LABEL",
+          "priority": 30
+        },
+        {
+          "keyword": "ROLIN",
+          "priority": 30
+        },
+        {
+          "keyword": "RON",
+          "priority": 30
+        },
+        {
+          "keyword": "SALVA VIDA",
+          "priority": 30
+        },
+        {
+          "keyword": "SIDRA",
+          "priority": 30
+        },
+        {
+          "keyword": "SMIRNOFF",
+          "priority": 30
+        },
+        {
+          "keyword": "SMOKING",
+          "priority": 30
+        },
+        {
+          "keyword": "TEQUILA",
+          "priority": 30
+        },
+        {
+          "keyword": "VAPE",
+          "priority": 30
+        },
+        {
+          "keyword": "VINO",
+          "priority": 30
+        },
+        {
+          "keyword": "VODKA",
+          "priority": 30
+        },
+        {
+          "keyword": "VUSE",
+          "priority": 30
+        },
+        {
+          "keyword": "VUSEGO",
+          "priority": 30
+        },
+        {
+          "keyword": "WHISKEY",
+          "priority": 30
+        },
+        {
+          "keyword": "WHISKY",
+          "priority": 30
+        },
+        {
+          "keyword": "YUSCARAN",
+          "priority": 30
+        },
+        {
+          "keyword": "DELTA",
+          "priority": 15
+        },
+        {
+          "keyword": "KENT",
+          "priority": 15
+        },
+        {
+          "keyword": "MICHELADA",
+          "priority": 15
+        }
+      ]
+    },
+    {
+      "slug": "snacks",
+      "name": "Snacks y dulces",
+      "position": 7,
+      "rules": [
+        {
+          "keyword": "BOM BOM",
+          "priority": 30
+        },
+        {
+          "keyword": "BUBULUBU",
+          "priority": 30
+        },
+        {
+          "keyword": "CHICLIN",
+          "priority": 30
+        },
+        {
+          "keyword": "HELADO",
+          "priority": 30
+        },
+        {
+          "keyword": "INFLADITOS",
+          "priority": 30
+        },
+        {
+          "keyword": "TWINKEE",
+          "priority": 30
+        },
+        {
+          "keyword": "ACIFRUTA",
+          "priority": 25
+        },
+        {
+          "keyword": "AIRHEAD",
+          "priority": 25
+        },
+        {
+          "keyword": "ALFAJOR",
+          "priority": 25
+        },
+        {
+          "keyword": "ALMENDRA",
+          "priority": 25
+        },
+        {
+          "keyword": "BARRA DE CEREAL",
+          "priority": 25
+        },
+        {
+          "keyword": "BARRILITO",
+          "priority": 25
+        },
+        {
+          "keyword": "BIZCOCHITO",
+          "priority": 25
+        },
+        {
+          "keyword": "BOCADILLO",
+          "priority": 25
+        },
+        {
+          "keyword": "BOMBON",
+          "priority": 25
+        },
+        {
+          "keyword": "BON O BON",
+          "priority": 25
+        },
+        {
+          "keyword": "BONOBON",
+          "priority": 25
+        },
+        {
+          "keyword": "BROWNIE",
+          "priority": 25
+        },
+        {
+          "keyword": "BUBBA",
+          "priority": 25
+        },
+        {
+          "keyword": "BUBBALOO",
+          "priority": 25
+        },
+        {
+          "keyword": "CACAHUATE",
+          "priority": 25
+        },
+        {
+          "keyword": "CANILLITAS",
+          "priority": 25
+        },
+        {
+          "keyword": "CARAMELO",
+          "priority": 25
+        },
+        {
+          "keyword": "CEREZA DE CHOCOLATE",
+          "priority": 25
+        },
+        {
+          "keyword": "CEREZITA",
+          "priority": 25
+        },
+        {
+          "keyword": "CHAMOY",
+          "priority": 25
+        },
+        {
+          "keyword": "CHAO",
+          "priority": 25
+        },
+        {
+          "keyword": "CHEETOS",
+          "priority": 25
+        },
+        {
+          "keyword": "CHICHARRONCITO",
+          "priority": 25
+        },
+        {
+          "keyword": "CHICLE",
+          "priority": 25
+        },
+        {
+          "keyword": "CHICLETS",
+          "priority": 25
+        },
+        {
+          "keyword": "CHILLY WILLY",
+          "priority": 25
+        },
+        {
+          "keyword": "CHILLYWILLY",
+          "priority": 25
+        },
+        {
+          "keyword": "CHIPS",
+          "priority": 25
+        },
+        {
+          "keyword": "CHOCO",
+          "priority": 25
+        },
+        {
+          "keyword": "CHOCOBANANO",
+          "priority": 25
+        },
+        {
+          "keyword": "CHOCOLATE",
+          "priority": 25
+        },
+        {
+          "keyword": "CHOCOVAINILLA",
+          "priority": 25
+        },
+        {
+          "keyword": "CHOKIS",
+          "priority": 25
+        },
+        {
+          "keyword": "CHUPETA",
+          "priority": 25
+        },
+        {
+          "keyword": "CHURRITO",
+          "priority": 25
+        },
+        {
+          "keyword": "CHURRITOS",
+          "priority": 25
+        },
+        {
+          "keyword": "CHURRO",
+          "priority": 25
+        },
+        {
+          "keyword": "CLUB SOCIAL",
+          "priority": 25
+        },
+        {
+          "keyword": "CONFITE",
+          "priority": 25
+        },
+        {
+          "keyword": "CONFITERIA",
+          "priority": 25
+        },
+        {
+          "keyword": "DORADITAS",
+          "priority": 25
+        },
+        {
+          "keyword": "DORITO",
+          "priority": 25
+        },
+        {
+          "keyword": "DORITOS",
+          "priority": 25
+        },
+        {
+          "keyword": "DULCE",
+          "priority": 25
+        },
+        {
+          "keyword": "ELOTITOS",
+          "priority": 25
+        },
+        {
+          "keyword": "ENCANELADO",
+          "priority": 25
+        },
+        {
+          "keyword": "FRISTY",
+          "priority": 25
+        },
+        {
+          "keyword": "FRITOS",
+          "priority": 25
+        },
+        {
+          "keyword": "FRUNA",
+          "priority": 25
+        },
+        {
+          "keyword": "GALLETA",
+          "priority": 25
+        },
+        {
+          "keyword": "GALLLETA",
+          "priority": 25
+        },
+        {
+          "keyword": "GOMITA",
+          "priority": 25
+        },
+        {
+          "keyword": "GRANOLA",
+          "priority": 25
+        },
+        {
+          "keyword": "HERSHEY",
+          "priority": 25
+        },
+        {
+          "keyword": "HERSHEYS",
+          "priority": 25
+        },
+        {
+          "keyword": "JAXIS",
+          "priority": 25
+        },
+        {
+          "keyword": "KISSES",
+          "priority": 25
+        },
+        {
+          "keyword": "KIT KAT",
+          "priority": 25
+        },
+        {
+          "keyword": "KITKAT",
+          "priority": 25
+        },
+        {
+          "keyword": "LAKY",
+          "priority": 25
+        },
+        {
+          "keyword": "LAY",
+          "priority": 25
+        },
+        {
+          "keyword": "LAYS",
+          "priority": 25
+        },
+        {
+          "keyword": "LOKA",
+          "priority": 25
+        },
+        {
+          "keyword": "MALVAVISCO",
+          "priority": 25
+        },
+        {
+          "keyword": "MANI",
+          "priority": 25
+        },
+        {
+          "keyword": "MANIES",
+          "priority": 25
+        },
+        {
+          "keyword": "MARANON",
+          "priority": 25
+        },
+        {
+          "keyword": "MARQUESOTE",
+          "priority": 25
+        },
+        {
+          "keyword": "MILKY WAY",
+          "priority": 25
+        },
+        {
+          "keyword": "MIX SEMILLA",
+          "priority": 25
+        },
+        {
+          "keyword": "NACHO",
+          "priority": 25
+        },
+        {
+          "keyword": "NUCITA",
+          "priority": 25
+        },
+        {
+          "keyword": "NUEZ",
+          "priority": 25
+        },
+        {
+          "keyword": "OKA",
+          "priority": 25
+        },
+        {
+          "keyword": "OREO",
+          "priority": 25
+        },
+        {
+          "keyword": "PALETA",
+          "priority": 25
+        },
+        {
+          "keyword": "PALETON",
+          "priority": 25
+        },
+        {
+          "keyword": "PALOMITA",
+          "priority": 25
+        },
+        {
+          "keyword": "PANDITAS",
+          "priority": 25
+        },
+        {
+          "keyword": "PAPASITAS",
+          "priority": 25
+        },
+        {
+          "keyword": "PAPITAS",
+          "priority": 25
+        },
+        {
+          "keyword": "PASAS",
+          "priority": 25
+        },
+        {
+          "keyword": "PLATANITOS",
+          "priority": 25
+        },
+        {
+          "keyword": "POPCORN",
+          "priority": 25
+        },
+        {
+          "keyword": "POPOTITOS",
+          "priority": 25
+        },
+        {
+          "keyword": "POPS",
+          "priority": 25
+        },
+        {
+          "keyword": "PRINGLES",
+          "priority": 25
+        },
+        {
+          "keyword": "PULPARINDO",
+          "priority": 25
+        },
+        {
+          "keyword": "QUESITO",
+          "priority": 25
+        },
+        {
+          "keyword": "RANCHITA",
+          "priority": 25
+        },
+        {
+          "keyword": "RANCHITAS",
+          "priority": 25
+        },
+        {
+          "keyword": "ROSQUETE",
+          "priority": 25
+        },
+        {
+          "keyword": "RUFFLES",
+          "priority": 25
+        },
+        {
+          "keyword": "SEMILLA",
+          "priority": 25
+        },
+        {
+          "keyword": "SEMILLAS MIXTA",
+          "priority": 25
+        },
+        {
+          "keyword": "SNACK",
+          "priority": 25
+        },
+        {
+          "keyword": "SNICKER",
+          "priority": 25
+        },
+        {
+          "keyword": "SNICKERS",
+          "priority": 25
+        },
+        {
+          "keyword": "SORBETE",
+          "priority": 25
+        },
+        {
+          "keyword": "SPONCH",
+          "priority": 25
+        },
+        {
+          "keyword": "TACO",
+          "priority": 25
+        },
+        {
+          "keyword": "TAJADAS",
+          "priority": 25
+        },
+        {
+          "keyword": "TAKIS",
+          "priority": 25
+        },
+        {
+          "keyword": "TAQUERITO",
+          "priority": 25
+        },
+        {
+          "keyword": "TIPITIN",
+          "priority": 25
+        },
+        {
+          "keyword": "TOCINITO",
+          "priority": 25
+        },
+        {
+          "keyword": "TORTI",
+          "priority": 25
+        },
+        {
+          "keyword": "TOSTECA",
+          "priority": 25
+        },
+        {
+          "keyword": "TOSTITOS",
+          "priority": 25
+        },
+        {
+          "keyword": "TOTIPOP",
+          "priority": 25
+        },
+        {
+          "keyword": "TRIDENT",
+          "priority": 25
+        },
+        {
+          "keyword": "TUMMIES",
+          "priority": 25
+        },
+        {
+          "keyword": "TURRON",
+          "priority": 25
+        },
+        {
+          "keyword": "WAFER",
+          "priority": 25
+        },
+        {
+          "keyword": "ZAMBO",
+          "priority": 25
+        },
+        {
+          "keyword": "ZAMBOS",
+          "priority": 25
+        },
+        {
+          "keyword": "ZIBAS",
+          "priority": 25
+        },
+        {
+          "keyword": "CHIKY",
+          "priority": 12
+        },
+        {
+          "keyword": "DIANA",
+          "priority": 12
+        },
+        {
+          "keyword": "NESTLE",
+          "priority": 12
+        },
+        {
+          "keyword": "PALITO",
+          "priority": 12
+        },
+        {
+          "keyword": "PALITOS",
+          "priority": 12
+        },
+        {
+          "keyword": "PAPA",
+          "priority": 12
+        },
+        {
+          "keyword": "PINDI",
+          "priority": 12
+        },
+        {
+          "keyword": "POZUELO",
+          "priority": 12
+        },
+        {
+          "keyword": "SARITA",
+          "priority": 12
+        },
+        {
+          "keyword": "TOSH",
+          "priority": 12
+        },
+        {
+          "keyword": "YUMMI",
+          "priority": 12
+        }
+      ]
+    },
+    {
+      "slug": "limpieza",
+      "name": "Limpieza del hogar",
+      "position": 8,
+      "rules": [
+        {
+          "keyword": "AMBIENTADOR",
+          "priority": 45
+        },
+        {
+          "keyword": "GLADE",
+          "priority": 45
+        },
+        {
+          "keyword": "SUAVITEL",
+          "priority": 45
+        },
+        {
+          "keyword": "DETERGENTE EN POLVO",
+          "priority": 40
+        },
+        {
+          "keyword": "GUANTE DE HULE",
+          "priority": 40
+        },
+        {
+          "keyword": "GUANTES DE HULE",
+          "priority": 40
+        },
+        {
+          "keyword": "JABON AXION",
+          "priority": 40
+        },
+        {
+          "keyword": "JABON BARRA",
+          "priority": 40
+        },
+        {
+          "keyword": "JABON CENTELLA",
+          "priority": 40
+        },
+        {
+          "keyword": "JABON DE BARRA",
+          "priority": 40
+        },
+        {
+          "keyword": "JABON LIMPIOX",
+          "priority": 40
+        },
+        {
+          "keyword": "JABON PANA",
+          "priority": 40
+        },
+        {
+          "keyword": "JABON ZIXX",
+          "priority": 40
+        },
+        {
+          "keyword": "PAPEL HIGIENICO",
+          "priority": 40
+        },
+        {
+          "keyword": "PAPEL LUCA",
+          "priority": 40
+        },
+        {
+          "keyword": "PAPEL SCOTT",
+          "priority": 40
+        },
+        {
+          "keyword": "ZIXX JABON",
+          "priority": 40
+        },
+        {
+          "keyword": "PASTILLA PARA INODORO",
+          "priority": 35
+        },
+        {
+          "keyword": "PASTILLA PATO",
+          "priority": 35
+        },
+        {
+          "keyword": "PASTILLA SANITARIA",
+          "priority": 35
+        },
+        {
+          "keyword": "PATO",
+          "priority": 35
+        },
+        {
+          "keyword": "CAMPHOR",
+          "priority": 30
+        },
+        {
+          "keyword": "CAMY",
+          "priority": 30
+        },
+        {
+          "keyword": "CERA LIQUIDA",
+          "priority": 30
+        },
+        {
+          "keyword": "CERA PARA PISO",
+          "priority": 30
+        },
+        {
+          "keyword": "COMPHOR",
+          "priority": 30
+        },
+        {
+          "keyword": "NAFTALINA",
+          "priority": 30
+        },
+        {
+          "keyword": "SUAV",
+          "priority": 25
+        },
+        {
+          "keyword": "SUAV ROPA",
+          "priority": 25
+        },
+        {
+          "keyword": "AIR WICK",
+          "priority": 20
+        },
+        {
+          "keyword": "AJAX",
+          "priority": 20
+        },
+        {
+          "keyword": "ARIEL",
+          "priority": 20
+        },
+        {
+          "keyword": "AROMATIZANTE",
+          "priority": 20
+        },
+        {
+          "keyword": "AXION",
+          "priority": 20
+        },
+        {
+          "keyword": "BASURERO",
+          "priority": 20
+        },
+        {
+          "keyword": "BASURO",
+          "priority": 20
+        },
+        {
+          "keyword": "BAYGON",
+          "priority": 20
+        },
+        {
+          "keyword": "BOLSA DE BASURA",
+          "priority": 20
+        },
+        {
+          "keyword": "BOLSA PARA BASURA",
+          "priority": 20
+        },
+        {
+          "keyword": "BRILLO",
+          "priority": 20
+        },
+        {
+          "keyword": "CLORO",
+          "priority": 20
+        },
+        {
+          "keyword": "CUCARACHA",
+          "priority": 20
+        },
+        {
+          "keyword": "DESENGRASANTE",
+          "priority": 20
+        },
+        {
+          "keyword": "DESINF",
+          "priority": 20
+        },
+        {
+          "keyword": "DESINFECTANTE",
+          "priority": 20
+        },
+        {
+          "keyword": "DETERG",
+          "priority": 20
+        },
+        {
+          "keyword": "DETERGENTE",
+          "priority": 20
+        },
+        {
+          "keyword": "DOWNY",
+          "priority": 20
+        },
+        {
+          "keyword": "DROPP",
+          "priority": 20
+        },
+        {
+          "keyword": "ESCOBA",
+          "priority": 20
+        },
+        {
+          "keyword": "ESCOBILLA",
+          "priority": 20
+        },
+        {
+          "keyword": "ESPONJA",
+          "priority": 20
+        },
+        {
+          "keyword": "ESTROPAJO",
+          "priority": 20
+        },
+        {
+          "keyword": "FABULOSO",
+          "priority": 20
+        },
+        {
+          "keyword": "FOSFORO",
+          "priority": 20
+        },
+        {
+          "keyword": "INSECTICIDA",
+          "priority": 20
+        },
+        {
+          "keyword": "JABON DE LAVAR",
+          "priority": 20
+        },
+        {
+          "keyword": "JABON EN POLVO",
+          "priority": 20
+        },
+        {
+          "keyword": "JABON PARA ROPA",
+          "priority": 20
+        },
+        {
+          "keyword": "LAMPAZO",
+          "priority": 20
+        },
+        {
+          "keyword": "LAVA PLATOS",
+          "priority": 20
+        },
+        {
+          "keyword": "LAVA TRASTES",
+          "priority": 20
+        },
+        {
+          "keyword": "LAVAPLAT",
+          "priority": 20
+        },
+        {
+          "keyword": "LAVAPLATOS",
+          "priority": 20
+        },
+        {
+          "keyword": "LEJIA",
+          "priority": 20
+        },
+        {
+          "keyword": "LIMPIADOR",
+          "priority": 20
+        },
+        {
+          "keyword": "LIMPIAVIDRIOS",
+          "priority": 20
+        },
+        {
+          "keyword": "LIMPIOX",
+          "priority": 20
+        },
+        {
+          "keyword": "LYSOL",
+          "priority": 20
+        },
+        {
+          "keyword": "MAGIA BLANCA",
+          "priority": 20
+        },
+        {
+          "keyword": "MATARRATAS",
+          "priority": 20
+        },
+        {
+          "keyword": "MR MUSCULO",
+          "priority": 20
+        },
+        {
+          "keyword": "MULTIUSO",
+          "priority": 20
+        },
+        {
+          "keyword": "PALA DE BASURA",
+          "priority": 20
+        },
+        {
+          "keyword": "PAPEL TOALLA",
+          "priority": 20
+        },
+        {
+          "keyword": "PINOL",
+          "priority": 20
+        },
+        {
+          "keyword": "PUREX",
+          "priority": 20
+        },
+        {
+          "keyword": "RAID",
+          "priority": 20
+        },
+        {
+          "keyword": "RATON",
+          "priority": 20
+        },
+        {
+          "keyword": "RATONES",
+          "priority": 20
+        },
+        {
+          "keyword": "RECOGEDOR",
+          "priority": 20
+        },
+        {
+          "keyword": "ROSAL",
+          "priority": 20
+        },
+        {
+          "keyword": "SAPOLIO",
+          "priority": 20
+        },
+        {
+          "keyword": "SCOTT",
+          "priority": 20
+        },
+        {
+          "keyword": "SERVILLETA",
+          "priority": 20
+        },
+        {
+          "keyword": "SUAVISSIMO",
+          "priority": 20
+        },
+        {
+          "keyword": "SUAVIZANTE",
+          "priority": 20
+        },
+        {
+          "keyword": "SURF",
+          "priority": 20
+        },
+        {
+          "keyword": "TIDE",
+          "priority": 20
+        },
+        {
+          "keyword": "TRAMPA",
+          "priority": 20
+        },
+        {
+          "keyword": "TRAPEADOR",
+          "priority": 20
+        },
+        {
+          "keyword": "ULTRA KLIN",
+          "priority": 20
+        },
+        {
+          "keyword": "ULTRAKLIN",
+          "priority": 20
+        },
+        {
+          "keyword": "VIRUTA",
+          "priority": 20
+        },
+        {
+          "keyword": "XEDEX",
+          "priority": 20
+        },
+        {
+          "keyword": "ZANCUDO",
+          "priority": 20
+        },
+        {
+          "keyword": "ZIXX",
+          "priority": 20
+        },
+        {
+          "keyword": "ROLLO",
+          "priority": 14
+        },
+        {
+          "keyword": "ROLLOS",
+          "priority": 14
+        },
+        {
+          "keyword": "GUANTE",
+          "priority": 10
+        },
+        {
+          "keyword": "ROPA",
+          "priority": 10
+        }
+      ]
+    },
+    {
+      "slug": "cuidado-personal",
+      "name": "Cuidado personal y belleza",
+      "position": 9,
+      "rules": [
+        {
+          "keyword": "CEPILLO DENTAL",
+          "priority": 45
+        },
+        {
+          "keyword": "CEPILLO DIENTES",
+          "priority": 45
+        },
+        {
+          "keyword": "CUCHILLA DE ROSTRO",
+          "priority": 45
+        },
+        {
+          "keyword": "CUCHILLA PARA ROSTRO",
+          "priority": 45
+        },
+        {
+          "keyword": "CUTICULA",
+          "priority": 45
+        },
+        {
+          "keyword": "ENGROSADOR",
+          "priority": 45
+        },
+        {
+          "keyword": "PALETA DE SOMBRA",
+          "priority": 45
+        },
+        {
+          "keyword": "TIO NACHO",
+          "priority": 45
+        },
+        {
+          "keyword": "CEPILLO DE DIENTE",
+          "priority": 40
+        },
+        {
+          "keyword": "CEPILLO P CEJAS",
+          "priority": 40
+        },
+        {
+          "keyword": "CREMA ATENAS",
+          "priority": 40
+        },
+        {
+          "keyword": "CREMA DOVE",
+          "priority": 40
+        },
+        {
+          "keyword": "CREMA HINDS",
+          "priority": 40
+        },
+        {
+          "keyword": "CREMA NIVEA",
+          "priority": 40
+        },
+        {
+          "keyword": "CREMA PANTENE",
+          "priority": 40
+        },
+        {
+          "keyword": "CREMA POND",
+          "priority": 40
+        },
+        {
+          "keyword": "CREMA SEDAL",
+          "priority": 40
+        },
+        {
+          "keyword": "CREMA SKALA",
+          "priority": 40
+        },
+        {
+          "keyword": "CREMA ST IVES",
+          "priority": 40
+        },
+        {
+          "keyword": "GEL ANTIBACTERIAL",
+          "priority": 40
+        },
+        {
+          "keyword": "JABON DE MANO",
+          "priority": 40
+        },
+        {
+          "keyword": "PASTA COLGATE",
+          "priority": 40
+        },
+        {
+          "keyword": "COLAS",
+          "priority": 30
+        },
+        {
+          "keyword": "ENCRESPADOR",
+          "priority": 30
+        },
+        {
+          "keyword": "ESMALTE",
+          "priority": 30
+        },
+        {
+          "keyword": "GRISI",
+          "priority": 30
+        },
+        {
+          "keyword": "HULITO",
+          "priority": 30
+        },
+        {
+          "keyword": "HULITOS",
+          "priority": 30
+        },
+        {
+          "keyword": "KOTEX",
+          "priority": 30
+        },
+        {
+          "keyword": "LABIAL",
+          "priority": 30
+        },
+        {
+          "keyword": "LIP",
+          "priority": 30
+        },
+        {
+          "keyword": "LIPSTICK",
+          "priority": 30
+        },
+        {
+          "keyword": "MAQUILLAJE",
+          "priority": 30
+        },
+        {
+          "keyword": "MASCARILLA",
+          "priority": 30
+        },
+        {
+          "keyword": "OLD SPICE",
+          "priority": 30
+        },
+        {
+          "keyword": "PLANCHA DE CABELLO",
+          "priority": 30
+        },
+        {
+          "keyword": "PLANCHA PARA CABELLO",
+          "priority": 30
+        },
+        {
+          "keyword": "RIZADOR",
+          "priority": 30
+        },
+        {
+          "keyword": "SABA",
+          "priority": 30
+        },
+        {
+          "keyword": "SECADORA DE CABELLO",
+          "priority": 30
+        },
+        {
+          "keyword": "SECADORA DE PELO",
+          "priority": 30
+        },
+        {
+          "keyword": "TINTE",
+          "priority": 30
+        },
+        {
+          "keyword": "ASETONA",
+          "priority": 25
+        },
+        {
+          "keyword": "ACETONA",
+          "priority": 22
+        },
+        {
+          "keyword": "ACONDICIONADOR",
+          "priority": 22
+        },
+        {
+          "keyword": "AFEITAR",
+          "priority": 22
+        },
+        {
+          "keyword": "ALCOHOL EN GEL",
+          "priority": 22
+        },
+        {
+          "keyword": "ALGODON",
+          "priority": 22
+        },
+        {
+          "keyword": "ALWAYS",
+          "priority": 22
+        },
+        {
+          "keyword": "ANTIBACTERIAL",
+          "priority": 22
+        },
+        {
+          "keyword": "ANTITRANSPIRANTE",
+          "priority": 22
+        },
+        {
+          "keyword": "AXE",
+          "priority": 22
+        },
+        {
+          "keyword": "BEAUTY",
+          "priority": 22
+        },
+        {
+          "keyword": "BLOQUEADOR",
+          "priority": 22
+        },
+        {
+          "keyword": "BRILLO LABIAL",
+          "priority": 22
+        },
+        {
+          "keyword": "BRONCEADO",
+          "priority": 22
+        },
+        {
+          "keyword": "CABELLO",
+          "priority": 22
+        },
+        {
+          "keyword": "CEJA",
+          "priority": 22
+        },
+        {
+          "keyword": "CEJAS",
+          "priority": 22
+        },
+        {
+          "keyword": "CEPILLO DE DIENTES",
+          "priority": 22
+        },
+        {
+          "keyword": "CHAMPU",
+          "priority": 22
+        },
+        {
+          "keyword": "COLG",
+          "priority": 22
+        },
+        {
+          "keyword": "COLGATE",
+          "priority": 22
+        },
+        {
+          "keyword": "COLITA",
+          "priority": 22
+        },
+        {
+          "keyword": "COLONIA",
+          "priority": 22
+        },
+        {
+          "keyword": "CORRECTOR",
+          "priority": 22
+        },
+        {
+          "keyword": "CORTA UNAS",
+          "priority": 22
+        },
+        {
+          "keyword": "CORTAUNAS",
+          "priority": 22
+        },
+        {
+          "keyword": "COTONETE",
+          "priority": 22
+        },
+        {
+          "keyword": "CREMA CORPORAL",
+          "priority": 22
+        },
+        {
+          "keyword": "CREMA DE MANOS",
+          "priority": 22
+        },
+        {
+          "keyword": "CREMA DE PEINAR",
+          "priority": 22
+        },
+        {
+          "keyword": "CREMA DENTAL",
+          "priority": 22
+        },
+        {
+          "keyword": "CREMA DEPILATORIA",
+          "priority": 22
+        },
+        {
+          "keyword": "CREMA FACIAL",
+          "priority": 22
+        },
+        {
+          "keyword": "CREMA PARA PEINAR",
+          "priority": 22
+        },
+        {
+          "keyword": "DEGREE",
+          "priority": 22
+        },
+        {
+          "keyword": "DELINEADOR",
+          "priority": 22
+        },
+        {
+          "keyword": "DEPILEX",
+          "priority": 22
+        },
+        {
+          "keyword": "DESCOLORANTE",
+          "priority": 22
+        },
+        {
+          "keyword": "DESODORANTE",
+          "priority": 22
+        },
+        {
+          "keyword": "DIADEMA",
+          "priority": 22
+        },
+        {
+          "keyword": "DOVE",
+          "priority": 22
+        },
+        {
+          "keyword": "EGO",
+          "priority": 22
+        },
+        {
+          "keyword": "ELVIVE",
+          "priority": 22
+        },
+        {
+          "keyword": "ENJUAGUE BUCAL",
+          "priority": 22
+        },
+        {
+          "keyword": "EXFOLIANTE",
+          "priority": 22
+        },
+        {
+          "keyword": "GANCHO PARA PELO",
+          "priority": 22
+        },
+        {
+          "keyword": "GANCHO PELO",
+          "priority": 22
+        },
+        {
+          "keyword": "GARNIER",
+          "priority": 22
+        },
+        {
+          "keyword": "GEL FIJADOR",
+          "priority": 22
+        },
+        {
+          "keyword": "GEL PARA CABELLO",
+          "priority": 22
+        },
+        {
+          "keyword": "GILLETE",
+          "priority": 22
+        },
+        {
+          "keyword": "GILLETTE",
+          "priority": 22
+        },
+        {
+          "keyword": "HEAD SHOULDERS",
+          "priority": 22
+        },
+        {
+          "keyword": "HERBAL",
+          "priority": 22
+        },
+        {
+          "keyword": "HILO DENTAL",
+          "priority": 22
+        },
+        {
+          "keyword": "HISOPO",
+          "priority": 22
+        },
+        {
+          "keyword": "JABON",
+          "priority": 22
+        },
+        {
+          "keyword": "JABON DE TOCADOR",
+          "priority": 22
+        },
+        {
+          "keyword": "KOLESTON",
+          "priority": 22
+        },
+        {
+          "keyword": "KUUL",
+          "priority": 22
+        },
+        {
+          "keyword": "LADY SPEED",
+          "priority": 22
+        },
+        {
+          "keyword": "LANCE",
+          "priority": 22
+        },
+        {
+          "keyword": "LIP GLOSS",
+          "priority": 22
+        },
+        {
+          "keyword": "LISTERINE",
+          "priority": 22
+        },
+        {
+          "keyword": "LOCION",
+          "priority": 22
+        },
+        {
+          "keyword": "MASCARA",
+          "priority": 22
+        },
+        {
+          "keyword": "MASCARILLA FACIAL",
+          "priority": 22
+        },
+        {
+          "keyword": "NIVEA",
+          "priority": 22
+        },
+        {
+          "keyword": "NOSOTRAS",
+          "priority": 22
+        },
+        {
+          "keyword": "ORAL B",
+          "priority": 22
+        },
+        {
+          "keyword": "PALMOLIVE",
+          "priority": 22
+        },
+        {
+          "keyword": "PANTENE",
+          "priority": 22
+        },
+        {
+          "keyword": "PASTA DENTAL",
+          "priority": 22
+        },
+        {
+          "keyword": "PEINE",
+          "priority": 22
+        },
+        {
+          "keyword": "PEINETA",
+          "priority": 22
+        },
+        {
+          "keyword": "PELO",
+          "priority": 22
+        },
+        {
+          "keyword": "PERFUME",
+          "priority": 22
+        },
+        {
+          "keyword": "PEROXIDO",
+          "priority": 22
+        },
+        {
+          "keyword": "PESTANA",
+          "priority": 22
+        },
+        {
+          "keyword": "PINZA DE CEJAS",
+          "priority": 22
+        },
+        {
+          "keyword": "POLVO COMPACTO",
+          "priority": 22
+        },
+        {
+          "keyword": "POND",
+          "priority": 22
+        },
+        {
+          "keyword": "PONDS",
+          "priority": 22
+        },
+        {
+          "keyword": "PRESTOBARBA",
+          "priority": 22
+        },
+        {
+          "keyword": "PROTECTOR DIARIO",
+          "priority": 22
+        },
+        {
+          "keyword": "PROTECTOR SOLAR",
+          "priority": 22
+        },
+        {
+          "keyword": "PROTEX",
+          "priority": 22
+        },
+        {
+          "keyword": "RACHEL",
+          "priority": 22
+        },
+        {
+          "keyword": "RAQUEL",
+          "priority": 22
+        },
+        {
+          "keyword": "RASURADORA",
+          "priority": 22
+        },
+        {
+          "keyword": "REMOVEDOR",
+          "priority": 22
+        },
+        {
+          "keyword": "REXONA",
+          "priority": 22
+        },
+        {
+          "keyword": "RIMEL",
+          "priority": 22
+        },
+        {
+          "keyword": "ROLL ON",
+          "priority": 22
+        },
+        {
+          "keyword": "RUBOR",
+          "priority": 22
+        },
+        {
+          "keyword": "SAVILE",
+          "priority": 22
+        },
+        {
+          "keyword": "SCHICK",
+          "priority": 22
+        },
+        {
+          "keyword": "SECRET",
+          "priority": 22
+        },
+        {
+          "keyword": "SEDAL",
+          "priority": 22
+        },
+        {
+          "keyword": "SENSODYNE",
+          "priority": 22
+        },
+        {
+          "keyword": "SERUM",
+          "priority": 22
+        },
+        {
+          "keyword": "SHAMPOO",
+          "priority": 22
+        },
+        {
+          "keyword": "SHAMPOOO",
+          "priority": 22
+        },
+        {
+          "keyword": "SKALA",
+          "priority": 22
+        },
+        {
+          "keyword": "SOMBRA",
+          "priority": 22
+        },
+        {
+          "keyword": "SPEED STICK",
+          "priority": 22
+        },
+        {
+          "keyword": "TALCO",
+          "priority": 22
+        },
+        {
+          "keyword": "TAMPON",
+          "priority": 22
+        },
+        {
+          "keyword": "TERSO",
+          "priority": 22
+        },
+        {
+          "keyword": "TOALLA SANITARIA",
+          "priority": 22
+        },
+        {
+          "keyword": "TOALLAS SANITARIAS",
+          "priority": 22
+        },
+        {
+          "keyword": "TRATAMIENTO",
+          "priority": 22
+        },
+        {
+          "keyword": "TRESEMME",
+          "priority": 22
+        },
+        {
+          "keyword": "UHAS",
+          "priority": 22
+        },
+        {
+          "keyword": "UNAS",
+          "priority": 22
+        },
+        {
+          "keyword": "USHAS",
+          "priority": 22
+        },
+        {
+          "keyword": "VASELINA",
+          "priority": 22
+        },
+        {
+          "keyword": "VINCHA",
+          "priority": 22
+        },
+        {
+          "keyword": "CAIDA",
+          "priority": 20
+        },
+        {
+          "keyword": "NAIL",
+          "priority": 20
+        },
+        {
+          "keyword": "NAILS",
+          "priority": 20
+        },
+        {
+          "keyword": "CREMA",
+          "priority": 12
+        },
+        {
+          "keyword": "ESPEJO",
+          "priority": 12
+        },
+        {
+          "keyword": "HAIR",
+          "priority": 12
+        },
+        {
+          "keyword": "ICE",
+          "priority": 12
+        },
+        {
+          "keyword": "LIMA",
+          "priority": 12
+        },
+        {
+          "keyword": "PIES",
+          "priority": 12
+        },
+        {
+          "keyword": "PINZA",
+          "priority": 12
+        },
+        {
+          "keyword": "RAYO",
+          "priority": 12
+        }
+      ]
+    },
+    {
+      "slug": "bebe",
+      "name": "Bebés",
+      "position": 10,
+      "rules": [
+        {
+          "keyword": "CAMBIADOR DE PANAL",
+          "priority": 45
+        },
+        {
+          "keyword": "CAMBIADOR PANAL",
+          "priority": 45
+        },
+        {
+          "keyword": "CAMBIADOR PARA BEBE",
+          "priority": 45
+        },
+        {
+          "keyword": "PEPE",
+          "priority": 30
+        },
+        {
+          "keyword": "BABY",
+          "priority": 25
+        },
+        {
+          "keyword": "BABYSEC",
+          "priority": 25
+        },
+        {
+          "keyword": "BEBE",
+          "priority": 25
+        },
+        {
+          "keyword": "BIBERON",
+          "priority": 25
+        },
+        {
+          "keyword": "CHICCO",
+          "priority": 25
+        },
+        {
+          "keyword": "CHUPON",
+          "priority": 25
+        },
+        {
+          "keyword": "ENFAMIL",
+          "priority": 25
+        },
+        {
+          "keyword": "GERBER",
+          "priority": 25
+        },
+        {
+          "keyword": "HUGGIES",
+          "priority": 25
+        },
+        {
+          "keyword": "JOHNSONS BABY",
+          "priority": 25
+        },
+        {
+          "keyword": "MAMADERA",
+          "priority": 25
+        },
+        {
+          "keyword": "NAN",
+          "priority": 25
+        },
+        {
+          "keyword": "NIDO",
+          "priority": 25
+        },
+        {
+          "keyword": "PACHA",
+          "priority": 25
+        },
+        {
+          "keyword": "PAMPER",
+          "priority": 25
+        },
+        {
+          "keyword": "PAMPERS",
+          "priority": 25
+        },
+        {
+          "keyword": "PANAL",
+          "priority": 25
+        },
+        {
+          "keyword": "PEDIASURE",
+          "priority": 25
+        },
+        {
+          "keyword": "RECIEN NACIDO",
+          "priority": 25
+        },
+        {
+          "keyword": "SIMILAC",
+          "priority": 25
+        },
+        {
+          "keyword": "TOALLA HUMEDA",
+          "priority": 25
+        },
+        {
+          "keyword": "TOALLAS HUMEDAS",
+          "priority": 25
+        },
+        {
+          "keyword": "TOALLITAS",
+          "priority": 25
+        },
+        {
+          "keyword": "WINNY",
+          "priority": 25
+        }
+      ]
+    },
+    {
+      "slug": "farmacia",
+      "name": "Farmacia y botiquín",
+      "position": 11,
+      "rules": [
+        {
+          "keyword": "ACEITE CARMINATIVO",
+          "priority": 45
+        },
+        {
+          "keyword": "CARMINATIVO",
+          "priority": 45
+        },
+        {
+          "keyword": "ACETAMINOFEN",
+          "priority": 25
+        },
+        {
+          "keyword": "AGUA OXIGENADA",
+          "priority": 25
+        },
+        {
+          "keyword": "ALKA",
+          "priority": 25
+        },
+        {
+          "keyword": "ALKA SELTZER",
+          "priority": 25
+        },
+        {
+          "keyword": "AMOXICILINA",
+          "priority": 25
+        },
+        {
+          "keyword": "ANTIACIDO",
+          "priority": 25
+        },
+        {
+          "keyword": "ANTIBIOTICO",
+          "priority": 25
+        },
+        {
+          "keyword": "ANTIGRIPAL",
+          "priority": 25
+        },
+        {
+          "keyword": "ASPIRINA",
+          "priority": 25
+        },
+        {
+          "keyword": "ASRPIRINA",
+          "priority": 25
+        },
+        {
+          "keyword": "CONDON",
+          "priority": 25
+        },
+        {
+          "keyword": "CUBREBOCAS",
+          "priority": 25
+        },
+        {
+          "keyword": "CURITA",
+          "priority": 25
+        },
+        {
+          "keyword": "CURITAS",
+          "priority": 25
+        },
+        {
+          "keyword": "DICLOFENACO",
+          "priority": 25
+        },
+        {
+          "keyword": "DOLO",
+          "priority": 25
+        },
+        {
+          "keyword": "ELECTROLIT",
+          "priority": 25
+        },
+        {
+          "keyword": "ESPARADRAPO",
+          "priority": 25
+        },
+        {
+          "keyword": "GASA",
+          "priority": 25
+        },
+        {
+          "keyword": "GLICERINA",
+          "priority": 25
+        },
+        {
+          "keyword": "IBOPROFENO",
+          "priority": 25
+        },
+        {
+          "keyword": "IBUPROFENO",
+          "priority": 25
+        },
+        {
+          "keyword": "JARABE",
+          "priority": 25
+        },
+        {
+          "keyword": "LAXANTE",
+          "priority": 25
+        },
+        {
+          "keyword": "LORATADINA",
+          "priority": 25
+        },
+        {
+          "keyword": "MASCARILLA DESECHABLE",
+          "priority": 25
+        },
+        {
+          "keyword": "MENTHOLATUM",
+          "priority": 25
+        },
+        {
+          "keyword": "MERTHIOLATE",
+          "priority": 25
+        },
+        {
+          "keyword": "MULTIVITAMINICO",
+          "priority": 25
+        },
+        {
+          "keyword": "NEOMELUBRINA",
+          "priority": 25
+        },
+        {
+          "keyword": "OMEPRAZOL",
+          "priority": 25
+        },
+        {
+          "keyword": "PANADOL",
+          "priority": 25
+        },
+        {
+          "keyword": "PARACETAMOL",
+          "priority": 25
+        },
+        {
+          "keyword": "PEDIALYTE",
+          "priority": 25
+        },
+        {
+          "keyword": "PEPTO",
+          "priority": 25
+        },
+        {
+          "keyword": "POMADA",
+          "priority": 25
+        },
+        {
+          "keyword": "PRESERVATIVO",
+          "priority": 25
+        },
+        {
+          "keyword": "PRUEBA DE EMBARAZO",
+          "priority": 25
+        },
+        {
+          "keyword": "SAL ANDREWS",
+          "priority": 25
+        },
+        {
+          "keyword": "SUERO ORAL",
+          "priority": 25
+        },
+        {
+          "keyword": "SUEROX",
+          "priority": 25
+        },
+        {
+          "keyword": "TABCIN",
+          "priority": 25
+        },
+        {
+          "keyword": "TAPA BOCAS",
+          "priority": 25
+        },
+        {
+          "keyword": "TAPABOCAS",
+          "priority": 25
+        },
+        {
+          "keyword": "TERMOMETRO",
+          "priority": 25
+        },
+        {
+          "keyword": "UNGUENTO",
+          "priority": 25
+        },
+        {
+          "keyword": "VAPORUB",
+          "priority": 25
+        },
+        {
+          "keyword": "VENDA",
+          "priority": 25
+        },
+        {
+          "keyword": "ALCOHOL",
+          "priority": 18
+        },
+        {
+          "keyword": "CAPSULA",
+          "priority": 18
+        },
+        {
+          "keyword": "DOLOR",
+          "priority": 18
+        },
+        {
+          "keyword": "GRIPE",
+          "priority": 18
+        },
+        {
+          "keyword": "MK",
+          "priority": 18
+        },
+        {
+          "keyword": "PASTILLA",
+          "priority": 18
+        },
+        {
+          "keyword": "SUERO",
+          "priority": 18
+        },
+        {
+          "keyword": "TABLETA",
+          "priority": 18
+        },
+        {
+          "keyword": "TOS",
+          "priority": 18
+        },
+        {
+          "keyword": "VICK",
+          "priority": 18
+        },
+        {
+          "keyword": "VITAMINA",
+          "priority": 18
+        }
+      ]
+    },
+    {
+      "slug": "mascotas",
+      "name": "Mascotas",
+      "position": 12,
+      "rules": [
+        {
+          "keyword": "COLLAR PARA PERRO",
+          "priority": 45
+        },
+        {
+          "keyword": "COMIDA PARA GATO",
+          "priority": 45
+        },
+        {
+          "keyword": "COMIDA PARA PERRO",
+          "priority": 45
+        },
+        {
+          "keyword": "CORREA PARA PERRO",
+          "priority": 45
+        },
+        {
+          "keyword": "JGTE P PERRO",
+          "priority": 45
+        },
+        {
+          "keyword": "JUGUETE PARA PERRO",
+          "priority": 45
+        },
+        {
+          "keyword": "P GATO",
+          "priority": 45
+        },
+        {
+          "keyword": "P PERRO",
+          "priority": 45
+        },
+        {
+          "keyword": "PARA GATO",
+          "priority": 45
+        },
+        {
+          "keyword": "PARA PERRO",
+          "priority": 45
+        },
+        {
+          "keyword": "PERRO GATO",
+          "priority": 45
+        },
+        {
+          "keyword": "PLATO P MASCOTA",
+          "priority": 45
+        },
+        {
+          "keyword": "PLATO P MASCOTAS",
+          "priority": 45
+        },
+        {
+          "keyword": "PLATO PARA PERRO",
+          "priority": 45
+        },
+        {
+          "keyword": "SHAMPOO PERRO",
+          "priority": 45
+        },
+        {
+          "keyword": "ALPISTE",
+          "priority": 25
+        },
+        {
+          "keyword": "ANTIPULGAS",
+          "priority": 25
+        },
+        {
+          "keyword": "ARENA PARA GATO",
+          "priority": 25
+        },
+        {
+          "keyword": "ARNES",
+          "priority": 25
+        },
+        {
+          "keyword": "CACHORRO",
+          "priority": 25
+        },
+        {
+          "keyword": "CAT CHOW",
+          "priority": 25
+        },
+        {
+          "keyword": "CROQUETA",
+          "priority": 25
+        },
+        {
+          "keyword": "DOG CHOW",
+          "priority": 25
+        },
+        {
+          "keyword": "DOGCHOW",
+          "priority": 25
+        },
+        {
+          "keyword": "FELIX",
+          "priority": 25
+        },
+        {
+          "keyword": "FRISKIES",
+          "priority": 25
+        },
+        {
+          "keyword": "GATO",
+          "priority": 25
+        },
+        {
+          "keyword": "MASCOTA",
+          "priority": 25
+        },
+        {
+          "keyword": "PEDIGREE",
+          "priority": 25
+        },
+        {
+          "keyword": "PERRO",
+          "priority": 25
+        },
+        {
+          "keyword": "PETS",
+          "priority": 25
+        },
+        {
+          "keyword": "PULGUICIDA",
+          "priority": 25
+        },
+        {
+          "keyword": "PURINA",
+          "priority": 25
+        },
+        {
+          "keyword": "WHISKAS",
+          "priority": 25
+        },
+        {
+          "keyword": "CAT",
+          "priority": 12
+        },
+        {
+          "keyword": "DOG",
+          "priority": 12
+        },
+        {
+          "keyword": "GATI",
+          "priority": 12
+        }
+      ]
+    },
+    {
+      "slug": "hogar-cocina",
+      "name": "Hogar y cocina",
+      "position": 13,
+      "rules": [
+        {
+          "keyword": "BOLSA CAMISETA",
+          "priority": 45
+        },
+        {
+          "keyword": "BOLSA DE ROLLO",
+          "priority": 45
+        },
+        {
+          "keyword": "BOLSA ROLLO",
+          "priority": 45
+        },
+        {
+          "keyword": "BOTE PLAST P AGUA",
+          "priority": 45
+        },
+        {
+          "keyword": "BOTE PLASTICO PARA AGUA",
+          "priority": 45
+        },
+        {
+          "keyword": "COPA DE VINO",
+          "priority": 45
+        },
+        {
+          "keyword": "COPAS DE VINO",
+          "priority": 45
+        },
+        {
+          "keyword": "ESTUFA ELECTRICA",
+          "priority": 45
+        },
+        {
+          "keyword": "PALITOS PARA DIENTES",
+          "priority": 45
+        },
+        {
+          "keyword": "PINZA DE COCINA",
+          "priority": 45
+        },
+        {
+          "keyword": "QUEMADOR",
+          "priority": 45
+        },
+        {
+          "keyword": "TABLA DE CORTAR",
+          "priority": 45
+        },
+        {
+          "keyword": "TABLA PARA CORTAR",
+          "priority": 45
+        },
+        {
+          "keyword": "TAZA DE VINO",
+          "priority": 45
+        },
+        {
+          "keyword": "TIJERA COCINA",
+          "priority": 45
+        },
+        {
+          "keyword": "TIJERA DE COCINA",
+          "priority": 45
+        },
+        {
+          "keyword": "TIJERA PARA COCINA",
+          "priority": 45
+        },
+        {
+          "keyword": "TRAMPA PARA RATONES",
+          "priority": 45
+        },
+        {
+          "keyword": "VELA VELADORA",
+          "priority": 45
+        },
+        {
+          "keyword": "VELAS VELADORA",
+          "priority": 45
+        },
+        {
+          "keyword": "BALDE",
+          "priority": 20
+        },
+        {
+          "keyword": "CIERRE",
+          "priority": 20
+        },
+        {
+          "keyword": "CORTINA",
+          "priority": 20
+        },
+        {
+          "keyword": "CUBETA",
+          "priority": 20
+        },
+        {
+          "keyword": "CUBIERTOS",
+          "priority": 20
+        },
+        {
+          "keyword": "ELASTICO",
+          "priority": 20
+        },
+        {
+          "keyword": "ELASTIGO",
+          "priority": 20
+        },
+        {
+          "keyword": "LICUADORA",
+          "priority": 20
+        },
+        {
+          "keyword": "OCOTE",
+          "priority": 20
+        },
+        {
+          "keyword": "OLLA",
+          "priority": 20
+        },
+        {
+          "keyword": "PICHEL",
+          "priority": 20
+        },
+        {
+          "keyword": "PLANCHA",
+          "priority": 20
+        },
+        {
+          "keyword": "PLATO",
+          "priority": 20
+        },
+        {
+          "keyword": "RECIPIENTE",
+          "priority": 20
+        },
+        {
+          "keyword": "SACA CORCHO",
+          "priority": 20
+        },
+        {
+          "keyword": "SACACORCHO",
+          "priority": 20
+        },
+        {
+          "keyword": "SARTEN",
+          "priority": 20
+        },
+        {
+          "keyword": "TASA",
+          "priority": 20
+        },
+        {
+          "keyword": "TAZA",
+          "priority": 20
+        },
+        {
+          "keyword": "TERMO",
+          "priority": 20
+        },
+        {
+          "keyword": "TOALLA",
+          "priority": 20
+        },
+        {
+          "keyword": "VASO",
+          "priority": 20
+        },
+        {
+          "keyword": "VELADORA",
+          "priority": 20
+        },
+        {
+          "keyword": "ZIPER",
+          "priority": 20
+        },
+        {
+          "keyword": "ABRELATAS",
+          "priority": 12
+        },
+        {
+          "keyword": "AGUJA",
+          "priority": 12
+        },
+        {
+          "keyword": "ALFOMBRA",
+          "priority": 12
+        },
+        {
+          "keyword": "ALMOHADA",
+          "priority": 12
+        },
+        {
+          "keyword": "ALUMINIO",
+          "priority": 12
+        },
+        {
+          "keyword": "AROMATICA",
+          "priority": 12
+        },
+        {
+          "keyword": "ARROCERA",
+          "priority": 12
+        },
+        {
+          "keyword": "ASPIRAL",
+          "priority": 12
+        },
+        {
+          "keyword": "ATOMIZADOR",
+          "priority": 12
+        },
+        {
+          "keyword": "BANDEJA",
+          "priority": 12
+        },
+        {
+          "keyword": "BOLSA",
+          "priority": 12
+        },
+        {
+          "keyword": "BOLSA PLASTICA",
+          "priority": 12
+        },
+        {
+          "keyword": "BOLSA TRANSPARENTE",
+          "priority": 12
+        },
+        {
+          "keyword": "BOTE PLAST",
+          "priority": 12
+        },
+        {
+          "keyword": "BOTE PLASTICO",
+          "priority": 12
+        },
+        {
+          "keyword": "BOTELLA",
+          "priority": 12
+        },
+        {
+          "keyword": "BOTON",
+          "priority": 12
+        },
+        {
+          "keyword": "BOTONES",
+          "priority": 12
+        },
+        {
+          "keyword": "CACEROLA",
+          "priority": 12
+        },
+        {
+          "keyword": "CAFETERA",
+          "priority": 12
+        },
+        {
+          "keyword": "CANASTA",
+          "priority": 12
+        },
+        {
+          "keyword": "CARBON",
+          "priority": 12
+        },
+        {
+          "keyword": "CEPILLO",
+          "priority": 12
+        },
+        {
+          "keyword": "CERAMICA",
+          "priority": 12
+        },
+        {
+          "keyword": "CHIMBO DE GAS",
+          "priority": 12
+        },
+        {
+          "keyword": "COBIJA",
+          "priority": 12
+        },
+        {
+          "keyword": "COLADOR",
+          "priority": 12
+        },
+        {
+          "keyword": "COMAL",
+          "priority": 12
+        },
+        {
+          "keyword": "COPA",
+          "priority": 12
+        },
+        {
+          "keyword": "CORTINERO",
+          "priority": 12
+        },
+        {
+          "keyword": "COSTURA",
+          "priority": 12
+        },
+        {
+          "keyword": "CRISA",
+          "priority": 12
+        },
+        {
+          "keyword": "CUCHARA",
+          "priority": 12
+        },
+        {
+          "keyword": "CUCHARON",
+          "priority": 12
+        },
+        {
+          "keyword": "CUCHILLO",
+          "priority": 12
+        },
+        {
+          "keyword": "DESECHABLE",
+          "priority": 12
+        },
+        {
+          "keyword": "DYNA PACK",
+          "priority": 12
+        },
+        {
+          "keyword": "EMBUDO",
+          "priority": 12
+        },
+        {
+          "keyword": "ESPATULA",
+          "priority": 12
+        },
+        {
+          "keyword": "ESPIRAL",
+          "priority": 12
+        },
+        {
+          "keyword": "ESTUFA",
+          "priority": 12
+        },
+        {
+          "keyword": "FLORERO",
+          "priority": 12
+        },
+        {
+          "keyword": "FOAM",
+          "priority": 12
+        },
+        {
+          "keyword": "FOIL",
+          "priority": 12
+        },
+        {
+          "keyword": "GANCHO",
+          "priority": 12
+        },
+        {
+          "keyword": "GANCHO DE ROPA",
+          "priority": 12
+        },
+        {
+          "keyword": "HERMETICA",
+          "priority": 12
+        },
+        {
+          "keyword": "HIELERA",
+          "priority": 12
+        },
+        {
+          "keyword": "HILO",
+          "priority": 12
+        },
+        {
+          "keyword": "HORNILLA",
+          "priority": 12
+        },
+        {
+          "keyword": "INCIENSO",
+          "priority": 12
+        },
+        {
+          "keyword": "JARRA",
+          "priority": 12
+        },
+        {
+          "keyword": "LONCHERA",
+          "priority": 12
+        },
+        {
+          "keyword": "MACETA",
+          "priority": 12
+        },
+        {
+          "keyword": "MACETERO",
+          "priority": 12
+        },
+        {
+          "keyword": "MANTA",
+          "priority": 12
+        },
+        {
+          "keyword": "MASETERA",
+          "priority": 12
+        },
+        {
+          "keyword": "MICROONDAS",
+          "priority": 12
+        },
+        {
+          "keyword": "ORGANIZADOR",
+          "priority": 12
+        },
+        {
+          "keyword": "PAJILLA",
+          "priority": 12
+        },
+        {
+          "keyword": "PALANGANA",
+          "priority": 12
+        },
+        {
+          "keyword": "PALILLO",
+          "priority": 12
+        },
+        {
+          "keyword": "PALILLOS",
+          "priority": 12
+        },
+        {
+          "keyword": "PANA",
+          "priority": 12
+        },
+        {
+          "keyword": "PAPEL ALUMINIO",
+          "priority": 12
+        },
+        {
+          "keyword": "PAPEL ENCERADO",
+          "priority": 12
+        },
+        {
+          "keyword": "PAPEL FOIL",
+          "priority": 12
+        },
+        {
+          "keyword": "PERCHA",
+          "priority": 12
+        },
+        {
+          "keyword": "PINZA DE ROPA",
+          "priority": 12
+        },
+        {
+          "keyword": "PLANTA",
+          "priority": 12
+        },
+        {
+          "keyword": "PLASTICO ADHERENTE",
+          "priority": 12
+        },
+        {
+          "keyword": "PORTARRETRATO",
+          "priority": 12
+        },
+        {
+          "keyword": "RALLADOR",
+          "priority": 12
+        },
+        {
+          "keyword": "RELOJ DE PARED",
+          "priority": 12
+        },
+        {
+          "keyword": "SABANA",
+          "priority": 12
+        },
+        {
+          "keyword": "SANDWICHERA",
+          "priority": 12
+        },
+        {
+          "keyword": "TABLA",
+          "priority": 12
+        },
+        {
+          "keyword": "TABLA DE PICAR",
+          "priority": 12
+        },
+        {
+          "keyword": "TAPETE",
+          "priority": 12
+        },
+        {
+          "keyword": "TAZON",
+          "priority": 12
+        },
+        {
+          "keyword": "TENDEDERO",
+          "priority": 12
+        },
+        {
+          "keyword": "TENDERO",
+          "priority": 12
+        },
+        {
+          "keyword": "TENEDOR",
+          "priority": 12
+        },
+        {
+          "keyword": "TERMICO",
+          "priority": 12
+        },
+        {
+          "keyword": "TERMOFOM",
+          "priority": 12
+        },
+        {
+          "keyword": "TUPPER",
+          "priority": 12
+        },
+        {
+          "keyword": "VELA AROMATICA",
+          "priority": 12
+        },
+        {
+          "keyword": "VENTILADOR",
+          "priority": 12
+        },
+        {
+          "keyword": "ZIPLOC",
+          "priority": 12
+        }
+      ]
+    },
+    {
+      "slug": "ferreteria",
+      "name": "Ferretería y herramientas",
+      "position": 14,
+      "rules": [
+        {
+          "keyword": "LLAVE DE ESFERA",
+          "priority": 50
+        },
+        {
+          "keyword": "LLAVE DE JARDIN",
+          "priority": 50
+        },
+        {
+          "keyword": "LLAVE ESFERA",
+          "priority": 50
+        },
+        {
+          "keyword": "LLAVE JARDIN",
+          "priority": 50
+        },
+        {
+          "keyword": "BOMBA DE AGUA",
+          "priority": 45
+        },
+        {
+          "keyword": "BROCA",
+          "priority": 45
+        },
+        {
+          "keyword": "CAMISA PVC",
+          "priority": 45
+        },
+        {
+          "keyword": "CEMENTO SOLVENTE",
+          "priority": 45
+        },
+        {
+          "keyword": "ESCUADRA METAL",
+          "priority": 45
+        },
+        {
+          "keyword": "ESTANO",
+          "priority": 45
+        },
+        {
+          "keyword": "EXTEN P MANERAL",
+          "priority": 45
+        },
+        {
+          "keyword": "EXTEN P MENERAL",
+          "priority": 45
+        },
+        {
+          "keyword": "EXTENSION P MANERAL",
+          "priority": 45
+        },
+        {
+          "keyword": "EXTENSION PARA MANERAL",
+          "priority": 45
+        },
+        {
+          "keyword": "GRAPA CONCRETO",
+          "priority": 45
+        },
+        {
+          "keyword": "GRAPA PARA CERCAR",
+          "priority": 45
+        },
+        {
+          "keyword": "GRAPA PARA CERCO",
+          "priority": 45
+        },
+        {
+          "keyword": "LAPIZ CARPINTERO",
+          "priority": 45
+        },
+        {
+          "keyword": "LAPIZ DE CARPINTERO",
+          "priority": 45
+        },
+        {
+          "keyword": "LIMA MEDIA CANA",
+          "priority": 45
+        },
+        {
+          "keyword": "LIMA PLANA",
+          "priority": 45
+        },
+        {
+          "keyword": "LIMA REDONDA",
+          "priority": 45
+        },
+        {
+          "keyword": "LIMA TRIANGULAR",
+          "priority": 45
+        },
+        {
+          "keyword": "LLAVE HEXAGONAL",
+          "priority": 45
+        },
+        {
+          "keyword": "LLAVE INDIVI",
+          "priority": 45
+        },
+        {
+          "keyword": "LLAVE INDIVIDUAL",
+          "priority": 45
+        },
+        {
+          "keyword": "LLAVE LABAMANO",
+          "priority": 45
+        },
+        {
+          "keyword": "LLAVE LAVAMANO",
+          "priority": 45
+        },
+        {
+          "keyword": "LLAVE P FILTRO",
+          "priority": 45
+        },
+        {
+          "keyword": "LLAVE PARA LAVA",
+          "priority": 45
+        },
+        {
+          "keyword": "PEGAMENTO CEMENTO",
+          "priority": 45
+        },
+        {
+          "keyword": "PLANA P ALBANIL",
+          "priority": 45
+        },
+        {
+          "keyword": "ABRASADERA",
+          "priority": 40
+        },
+        {
+          "keyword": "CINTA METRICA",
+          "priority": 40
+        },
+        {
+          "keyword": "ESCUADRA CARPINTERO",
+          "priority": 40
+        },
+        {
+          "keyword": "ESCUADRA DE CARPINTERO",
+          "priority": 40
+        },
+        {
+          "keyword": "JUEGO DE BROCAS",
+          "priority": 40
+        },
+        {
+          "keyword": "JUEGO DE DADOS",
+          "priority": 40
+        },
+        {
+          "keyword": "JUEGO DE DESARMADORES",
+          "priority": 40
+        },
+        {
+          "keyword": "JUEGO DE LLAVES",
+          "priority": 40
+        },
+        {
+          "keyword": "LLAVE PILA",
+          "priority": 40
+        },
+        {
+          "keyword": "LLAVIN",
+          "priority": 35
+        },
+        {
+          "keyword": "PLANA",
+          "priority": 30
+        },
+        {
+          "keyword": "PVC",
+          "priority": 30
+        },
+        {
+          "keyword": "REMACHE",
+          "priority": 25
+        },
+        {
+          "keyword": "ABRAZADERA",
+          "priority": 20
+        },
+        {
+          "keyword": "ACRILICA",
+          "priority": 20
+        },
+        {
+          "keyword": "ADAPTADOR P MANGUERA",
+          "priority": 20
+        },
+        {
+          "keyword": "AEROSOL",
+          "priority": 20
+        },
+        {
+          "keyword": "ALAMBRE",
+          "priority": 20
+        },
+        {
+          "keyword": "ALBANIL",
+          "priority": 20
+        },
+        {
+          "keyword": "ALDABA",
+          "priority": 20
+        },
+        {
+          "keyword": "ALICATE",
+          "priority": 20
+        },
+        {
+          "keyword": "ANCLA",
+          "priority": 20
+        },
+        {
+          "keyword": "ANTEOJOS DE SEGURIDAD",
+          "priority": 20
+        },
+        {
+          "keyword": "ANTICORROSIVO",
+          "priority": 20
+        },
+        {
+          "keyword": "ARANDELA",
+          "priority": 20
+        },
+        {
+          "keyword": "ASPERSOR",
+          "priority": 20
+        },
+        {
+          "keyword": "AZADON",
+          "priority": 20
+        },
+        {
+          "keyword": "BANCO",
+          "priority": 20
+        },
+        {
+          "keyword": "BANDEJA PARA PINTURA",
+          "priority": 20
+        },
+        {
+          "keyword": "BISAGRA",
+          "priority": 20
+        },
+        {
+          "keyword": "BLOCK",
+          "priority": 20
+        },
+        {
+          "keyword": "BROCHA",
+          "priority": 20
+        },
+        {
+          "keyword": "CADENA GALVANIZADA",
+          "priority": 20
+        },
+        {
+          "keyword": "CANDADO",
+          "priority": 20
+        },
+        {
+          "keyword": "CANDELA",
+          "priority": 20
+        },
+        {
+          "keyword": "CARPA",
+          "priority": 20
+        },
+        {
+          "keyword": "CARRETILLA",
+          "priority": 20
+        },
+        {
+          "keyword": "CASCO",
+          "priority": 20
+        },
+        {
+          "keyword": "CEMENTO",
+          "priority": 20
+        },
+        {
+          "keyword": "CERRADURA",
+          "priority": 20
+        },
+        {
+          "keyword": "CHALECO",
+          "priority": 20
+        },
+        {
+          "keyword": "CHAPA",
+          "priority": 20
+        },
+        {
+          "keyword": "CINCHO",
+          "priority": 20
+        },
+        {
+          "keyword": "CINTA ANTIDERRAP",
+          "priority": 20
+        },
+        {
+          "keyword": "CINTA ANTIDERRAPANTE",
+          "priority": 20
+        },
+        {
+          "keyword": "CINTA DOBLE CARA",
+          "priority": 20
+        },
+        {
+          "keyword": "CLAVO",
+          "priority": 20
+        },
+        {
+          "keyword": "CODO",
+          "priority": 20
+        },
+        {
+          "keyword": "COLORANTE DE PISO",
+          "priority": 20
+        },
+        {
+          "keyword": "CONCRETO",
+          "priority": 20
+        },
+        {
+          "keyword": "CONECTOR MANGU",
+          "priority": 20
+        },
+        {
+          "keyword": "CUBO",
+          "priority": 20
+        },
+        {
+          "keyword": "DADO",
+          "priority": 20
+        },
+        {
+          "keyword": "DESAGUE",
+          "priority": 20
+        },
+        {
+          "keyword": "DESARMADOR",
+          "priority": 20
+        },
+        {
+          "keyword": "DESTORNILLADOR",
+          "priority": 20
+        },
+        {
+          "keyword": "DILUYENTE",
+          "priority": 20
+        },
+        {
+          "keyword": "DISCO",
+          "priority": 20
+        },
+        {
+          "keyword": "DRENAJE",
+          "priority": 20
+        },
+        {
+          "keyword": "DUCHA",
+          "priority": 20
+        },
+        {
+          "keyword": "ELECTRODO",
+          "priority": 20
+        },
+        {
+          "keyword": "EPOXICO",
+          "priority": 20
+        },
+        {
+          "keyword": "ESCALERA",
+          "priority": 20
+        },
+        {
+          "keyword": "ESMERILADORA",
+          "priority": 20
+        },
+        {
+          "keyword": "ESTOPA",
+          "priority": 20
+        },
+        {
+          "keyword": "FLEXOMETRO",
+          "priority": 20
+        },
+        {
+          "keyword": "GRIFO",
+          "priority": 20
+        },
+        {
+          "keyword": "GUANTE DE TRABAJO",
+          "priority": 20
+        },
+        {
+          "keyword": "GUANTES DE TRABAJO",
+          "priority": 20
+        },
+        {
+          "keyword": "HERRAMIENTA",
+          "priority": 20
+        },
+        {
+          "keyword": "IMPERMEABILIZANTE",
+          "priority": 20
+        },
+        {
+          "keyword": "LADRILLO",
+          "priority": 20
+        },
+        {
+          "keyword": "LAMINA",
+          "priority": 20
+        },
+        {
+          "keyword": "LAVAMANO",
+          "priority": 20
+        },
+        {
+          "keyword": "LAVAMANOS",
+          "priority": 20
+        },
+        {
+          "keyword": "LENTES DE SEGURIDAD",
+          "priority": 20
+        },
+        {
+          "keyword": "LIJA",
+          "priority": 20
+        },
+        {
+          "keyword": "LLAVE AJUSTABLE",
+          "priority": 20
+        },
+        {
+          "keyword": "LLAVE ALLEN",
+          "priority": 20
+        },
+        {
+          "keyword": "LLAVE DE BOLA",
+          "priority": 20
+        },
+        {
+          "keyword": "LLAVE DE CHORRO",
+          "priority": 20
+        },
+        {
+          "keyword": "LLAVE DE TUBO",
+          "priority": 20
+        },
+        {
+          "keyword": "LLAVE MIXTA",
+          "priority": 20
+        },
+        {
+          "keyword": "LLAVE PRESION",
+          "priority": 20
+        },
+        {
+          "keyword": "LLAVE STILSON",
+          "priority": 20
+        },
+        {
+          "keyword": "LONA",
+          "priority": 20
+        },
+        {
+          "keyword": "MACHETE",
+          "priority": 20
+        },
+        {
+          "keyword": "MALLA",
+          "priority": 20
+        },
+        {
+          "keyword": "MALLA SOMBRA",
+          "priority": 20
+        },
+        {
+          "keyword": "MANERAL",
+          "priority": 20
+        },
+        {
+          "keyword": "MANGUERA",
+          "priority": 20
+        },
+        {
+          "keyword": "MARTILLO",
+          "priority": 20
+        },
+        {
+          "keyword": "MASILLA",
+          "priority": 20
+        },
+        {
+          "keyword": "MASKING",
+          "priority": 20
+        },
+        {
+          "keyword": "MATE",
+          "priority": 20
+        },
+        {
+          "keyword": "MORTERO",
+          "priority": 20
+        },
+        {
+          "keyword": "NIPLE",
+          "priority": 20
+        },
+        {
+          "keyword": "NIVEL",
+          "priority": 20
+        },
+        {
+          "keyword": "PAINT TRAY",
+          "priority": 20
+        },
+        {
+          "keyword": "PASADOR",
+          "priority": 20
+        },
+        {
+          "keyword": "PASTA PARA SOLDAR",
+          "priority": 20
+        },
+        {
+          "keyword": "PEGAMENTO PVC",
+          "priority": 20
+        },
+        {
+          "keyword": "PERILLA",
+          "priority": 20
+        },
+        {
+          "keyword": "PERNO",
+          "priority": 20
+        },
+        {
+          "keyword": "PICAPORTE",
+          "priority": 20
+        },
+        {
+          "keyword": "PILA D BALIN",
+          "priority": 20
+        },
+        {
+          "keyword": "PINTURA",
+          "priority": 20
+        },
+        {
+          "keyword": "PIOCHA",
+          "priority": 20
+        },
+        {
+          "keyword": "PORTA CANDADO",
+          "priority": 20
+        },
+        {
+          "keyword": "PRENSA",
+          "priority": 20
+        },
+        {
+          "keyword": "PULIDORA",
+          "priority": 20
+        },
+        {
+          "keyword": "RASTRILLO",
+          "priority": 20
+        },
+        {
+          "keyword": "RATCH",
+          "priority": 20
+        },
+        {
+          "keyword": "REDUCTOR",
+          "priority": 20
+        },
+        {
+          "keyword": "RIEL",
+          "priority": 20
+        },
+        {
+          "keyword": "RODILLO",
+          "priority": 20
+        },
+        {
+          "keyword": "RODO",
+          "priority": 20
+        },
+        {
+          "keyword": "SANITARIO",
+          "priority": 20
+        },
+        {
+          "keyword": "SAPO SANITARIO",
+          "priority": 20
+        },
+        {
+          "keyword": "SEGUETA",
+          "priority": 20
+        },
+        {
+          "keyword": "SELLADOR",
+          "priority": 20
+        },
+        {
+          "keyword": "SERRUCHO",
+          "priority": 20
+        },
+        {
+          "keyword": "SERRUCHO PODAR",
+          "priority": 20
+        },
+        {
+          "keyword": "SIERRA",
+          "priority": 20
+        },
+        {
+          "keyword": "SIFON",
+          "priority": 20
+        },
+        {
+          "keyword": "SILICON",
+          "priority": 20
+        },
+        {
+          "keyword": "SILICONA",
+          "priority": 20
+        },
+        {
+          "keyword": "SOLDADURA",
+          "priority": 20
+        },
+        {
+          "keyword": "SOMBRIA",
+          "priority": 20
+        },
+        {
+          "keyword": "TALADRO",
+          "priority": 20
+        },
+        {
+          "keyword": "TAPACARPA",
+          "priority": 20
+        },
+        {
+          "keyword": "TAPE",
+          "priority": 20
+        },
+        {
+          "keyword": "TAPIZ",
+          "priority": 20
+        },
+        {
+          "keyword": "TAPON",
+          "priority": 20
+        },
+        {
+          "keyword": "TARUGO",
+          "priority": 20
+        },
+        {
+          "keyword": "TEE",
+          "priority": 20
+        },
+        {
+          "keyword": "TEFLON",
+          "priority": 20
+        },
+        {
+          "keyword": "TENAZA",
+          "priority": 20
+        },
+        {
+          "keyword": "THINNER",
+          "priority": 20
+        },
+        {
+          "keyword": "TIJERA DE PODAR",
+          "priority": 20
+        },
+        {
+          "keyword": "TIJERA P PODAR",
+          "priority": 20
+        },
+        {
+          "keyword": "TIRADOR",
+          "priority": 20
+        },
+        {
+          "keyword": "TORNILLO",
+          "priority": 20
+        },
+        {
+          "keyword": "TUBERIA",
+          "priority": 20
+        },
+        {
+          "keyword": "TUBO",
+          "priority": 20
+        },
+        {
+          "keyword": "TUERCA",
+          "priority": 20
+        },
+        {
+          "keyword": "VALVULA",
+          "priority": 20
+        },
+        {
+          "keyword": "VALVULA DE BOLA",
+          "priority": 20
+        },
+        {
+          "keyword": "VARILLA",
+          "priority": 20
+        },
+        {
+          "keyword": "YESO",
+          "priority": 20
+        },
+        {
+          "keyword": "ZINC",
+          "priority": 20
+        },
+        {
+          "keyword": "CUCHILLA",
+          "priority": 15
+        },
+        {
+          "keyword": "CUERDA",
+          "priority": 15
+        },
+        {
+          "keyword": "MAZO",
+          "priority": 15
+        },
+        {
+          "keyword": "PISTOLA",
+          "priority": 15
+        },
+        {
+          "keyword": "SPRAY",
+          "priority": 15
+        },
+        {
+          "keyword": "LLAVE",
+          "priority": 12
+        },
+        {
+          "keyword": "3M",
+          "priority": 10
+        },
+        {
+          "keyword": "ABRO",
+          "priority": 10
+        },
+        {
+          "keyword": "AMANCO",
+          "priority": 10
+        },
+        {
+          "keyword": "BLACK DECKER",
+          "priority": 10
+        },
+        {
+          "keyword": "BOSCH",
+          "priority": 10
+        },
+        {
+          "keyword": "COFLE",
+          "priority": 10
+        },
+        {
+          "keyword": "COLORAMICA",
+          "priority": 10
+        },
+        {
+          "keyword": "DEWALT",
+          "priority": 10
+        },
+        {
+          "keyword": "DURMAN",
+          "priority": 10
+        },
+        {
+          "keyword": "FANDELI",
+          "priority": 10
+        },
+        {
+          "keyword": "KMT",
+          "priority": 10
+        },
+        {
+          "keyword": "MAKITA",
+          "priority": 10
+        },
+        {
+          "keyword": "PRETUL",
+          "priority": 10
+        },
+        {
+          "keyword": "PROTECTO",
+          "priority": 10
+        },
+        {
+          "keyword": "SHERWIN",
+          "priority": 10
+        },
+        {
+          "keyword": "SHERWIN WILLIAMS",
+          "priority": 10
+        },
+        {
+          "keyword": "STANLEY",
+          "priority": 10
+        },
+        {
+          "keyword": "STRONG",
+          "priority": 10
+        },
+        {
+          "keyword": "SURTEX",
+          "priority": 10
+        },
+        {
+          "keyword": "TOOLS",
+          "priority": 10
+        },
+        {
+          "keyword": "TOTAL",
+          "priority": 10
+        },
+        {
+          "keyword": "TRUPER",
+          "priority": 10
+        },
+        {
+          "keyword": "URREA",
+          "priority": 10
+        },
+        {
+          "keyword": "VIK",
+          "priority": 10
+        },
+        {
+          "keyword": "VIKING",
+          "priority": 10
+        },
+        {
+          "keyword": "VIKINGO",
+          "priority": 10
+        },
+        {
+          "keyword": "WAD",
+          "priority": 10
+        },
+        {
+          "keyword": "WADFOW",
+          "priority": 10
+        }
+      ]
+    },
+    {
+      "slug": "electricidad",
+      "name": "Electricidad e iluminación",
+      "position": 15,
+      "rules": [
+        {
+          "keyword": "CABLE ELEC",
+          "priority": 45
+        },
+        {
+          "keyword": "CAJA ELECTRICA",
+          "priority": 45
+        },
+        {
+          "keyword": "CAJA ELETRICA",
+          "priority": 45
+        },
+        {
+          "keyword": "CINTA AISLANTE",
+          "priority": 45
+        },
+        {
+          "keyword": "EXTENSION ELEC",
+          "priority": 45
+        },
+        {
+          "keyword": "EXTENSION ELECTRICA",
+          "priority": 45
+        },
+        {
+          "keyword": "GRAPA AISLANTE",
+          "priority": 45
+        },
+        {
+          "keyword": "TAPE PVC ELECTRICO",
+          "priority": 45
+        },
+        {
+          "keyword": "ALAMBRE ELECTRICO",
+          "priority": 20
+        },
+        {
+          "keyword": "APAGADOR",
+          "priority": 20
+        },
+        {
+          "keyword": "AWG",
+          "priority": 20
+        },
+        {
+          "keyword": "BATERIA",
+          "priority": 20
+        },
+        {
+          "keyword": "BOMBILLO",
+          "priority": 20
+        },
+        {
+          "keyword": "BREAKER",
+          "priority": 20
+        },
+        {
+          "keyword": "CABLE DUPLEX",
+          "priority": 20
+        },
+        {
+          "keyword": "CABLE ELECTRICO",
+          "priority": 20
+        },
+        {
+          "keyword": "CABLE PARALELO",
+          "priority": 20
+        },
+        {
+          "keyword": "CLAVIJA",
+          "priority": 20
+        },
+        {
+          "keyword": "CONECTOR",
+          "priority": 20
+        },
+        {
+          "keyword": "DURACELL",
+          "priority": 20
+        },
+        {
+          "keyword": "E27",
+          "priority": 20
+        },
+        {
+          "keyword": "EAGLE",
+          "priority": 20
+        },
+        {
+          "keyword": "ELEC",
+          "priority": 20
+        },
+        {
+          "keyword": "ELECTRICA",
+          "priority": 20
+        },
+        {
+          "keyword": "ELECTRICO",
+          "priority": 20
+        },
+        {
+          "keyword": "ENCHUFE",
+          "priority": 20
+        },
+        {
+          "keyword": "ENERGIZER",
+          "priority": 20
+        },
+        {
+          "keyword": "EXTEN",
+          "priority": 20
+        },
+        {
+          "keyword": "EXTENSION",
+          "priority": 20
+        },
+        {
+          "keyword": "FOCO",
+          "priority": 20
+        },
+        {
+          "keyword": "FOTOCELDA",
+          "priority": 20
+        },
+        {
+          "keyword": "FUSIBLE",
+          "priority": 20
+        },
+        {
+          "keyword": "INTERRUPTOR",
+          "priority": 20
+        },
+        {
+          "keyword": "INVERSOR",
+          "priority": 20
+        },
+        {
+          "keyword": "LAMPARA",
+          "priority": 20
+        },
+        {
+          "keyword": "LED",
+          "priority": 20
+        },
+        {
+          "keyword": "LINTERNA",
+          "priority": 20
+        },
+        {
+          "keyword": "LLAMADOR",
+          "priority": 20
+        },
+        {
+          "keyword": "MULTITOMA",
+          "priority": 20
+        },
+        {
+          "keyword": "PANASONIC",
+          "priority": 20
+        },
+        {
+          "keyword": "PANEL SOLAR",
+          "priority": 20
+        },
+        {
+          "keyword": "PHELPS",
+          "priority": 20
+        },
+        {
+          "keyword": "PHILIPS",
+          "priority": 20
+        },
+        {
+          "keyword": "PLAFON",
+          "priority": 20
+        },
+        {
+          "keyword": "RAYOVAC",
+          "priority": 20
+        },
+        {
+          "keyword": "REFLECTOR",
+          "priority": 20
+        },
+        {
+          "keyword": "REGLETA",
+          "priority": 20
+        },
+        {
+          "keyword": "REGULADOR DE VOLTAJE",
+          "priority": 20
+        },
+        {
+          "keyword": "RELAY",
+          "priority": 20
+        },
+        {
+          "keyword": "SENSOR",
+          "priority": 20
+        },
+        {
+          "keyword": "SOCKET",
+          "priority": 20
+        },
+        {
+          "keyword": "SUPRESOR",
+          "priority": 20
+        },
+        {
+          "keyword": "SWICH",
+          "priority": 20
+        },
+        {
+          "keyword": "SWITCH",
+          "priority": 20
+        },
+        {
+          "keyword": "SYLVANIA",
+          "priority": 20
+        },
+        {
+          "keyword": "TERMINAL",
+          "priority": 20
+        },
+        {
+          "keyword": "THHN",
+          "priority": 20
+        },
+        {
+          "keyword": "TIMBRE",
+          "priority": 20
+        },
+        {
+          "keyword": "TOMA CORRIENTE",
+          "priority": 20
+        },
+        {
+          "keyword": "TOMACORRIENTE",
+          "priority": 20
+        },
+        {
+          "keyword": "TUBO LED",
+          "priority": 20
+        },
+        {
+          "keyword": "VOLTECK",
+          "priority": 20
+        },
+        {
+          "keyword": "CABLE",
+          "priority": 12
+        },
+        {
+          "keyword": "PILA",
+          "priority": 12
+        },
+        {
+          "keyword": "SOLAR",
+          "priority": 12
+        }
+      ]
+    },
+    {
+      "slug": "electronica",
+      "name": "Celulares y electrónica",
+      "position": 16,
+      "rules": [
+        {
+          "keyword": "CARGADOR CARRO",
+          "priority": 45
+        },
+        {
+          "keyword": "CARGADOR PARA CARRO",
+          "priority": 45
+        },
+        {
+          "keyword": "CUBO USB",
+          "priority": 45
+        },
+        {
+          "keyword": "CUBO USB C",
+          "priority": 45
+        },
+        {
+          "keyword": "RECARGA CLARO",
+          "priority": 45
+        },
+        {
+          "keyword": "ADATA",
+          "priority": 20
+        },
+        {
+          "keyword": "ANDROID",
+          "priority": 20
+        },
+        {
+          "keyword": "ANTENA",
+          "priority": 20
+        },
+        {
+          "keyword": "AUDIFONO",
+          "priority": 20
+        },
+        {
+          "keyword": "AUDIFONOS",
+          "priority": 20
+        },
+        {
+          "keyword": "AURICULAR",
+          "priority": 20
+        },
+        {
+          "keyword": "BOCINA",
+          "priority": 20
+        },
+        {
+          "keyword": "CABLE IPHONE",
+          "priority": 20
+        },
+        {
+          "keyword": "CABLE TIPO C",
+          "priority": 20
+        },
+        {
+          "keyword": "CABLE USB",
+          "priority": 20
+        },
+        {
+          "keyword": "CALCULADORA",
+          "priority": 20
+        },
+        {
+          "keyword": "CARGADOR",
+          "priority": 20
+        },
+        {
+          "keyword": "CARGDOR",
+          "priority": 20
+        },
+        {
+          "keyword": "CASIO",
+          "priority": 20
+        },
+        {
+          "keyword": "CELULAR",
+          "priority": 20
+        },
+        {
+          "keyword": "CONTROL REMOTO",
+          "priority": 20
+        },
+        {
+          "keyword": "CONTROL UNIVERSAL",
+          "priority": 20
+        },
+        {
+          "keyword": "FORRO",
+          "priority": 20
+        },
+        {
+          "keyword": "FUNDA",
+          "priority": 20
+        },
+        {
+          "keyword": "GALAXY",
+          "priority": 20
+        },
+        {
+          "keyword": "HDMI",
+          "priority": 20
+        },
+        {
+          "keyword": "HUAWEI",
+          "priority": 20
+        },
+        {
+          "keyword": "IPHONE",
+          "priority": 20
+        },
+        {
+          "keyword": "JBL",
+          "priority": 20
+        },
+        {
+          "keyword": "KINGSTON",
+          "priority": 20
+        },
+        {
+          "keyword": "LIGHTNING",
+          "priority": 20
+        },
+        {
+          "keyword": "LINK",
+          "priority": 20
+        },
+        {
+          "keyword": "MAXEL",
+          "priority": 20
+        },
+        {
+          "keyword": "MEMORIA",
+          "priority": 20
+        },
+        {
+          "keyword": "MICA",
+          "priority": 20
+        },
+        {
+          "keyword": "MICRO SD",
+          "priority": 20
+        },
+        {
+          "keyword": "MICRO USB",
+          "priority": 20
+        },
+        {
+          "keyword": "MOTOROLA",
+          "priority": 20
+        },
+        {
+          "keyword": "PARLANTE",
+          "priority": 20
+        },
+        {
+          "keyword": "PENDRIVE",
+          "priority": 20
+        },
+        {
+          "keyword": "POWER BANK",
+          "priority": 20
+        },
+        {
+          "keyword": "POWERBANK",
+          "priority": 20
+        },
+        {
+          "keyword": "PROTECTOR DE PANTALLA",
+          "priority": 20
+        },
+        {
+          "keyword": "RADIO",
+          "priority": 20
+        },
+        {
+          "keyword": "RECARGA",
+          "priority": 20
+        },
+        {
+          "keyword": "RELOJ INTELIGENTE",
+          "priority": 20
+        },
+        {
+          "keyword": "ROUTER",
+          "priority": 20
+        },
+        {
+          "keyword": "SAMSUNG",
+          "priority": 20
+        },
+        {
+          "keyword": "SANDISK",
+          "priority": 20
+        },
+        {
+          "keyword": "SMARTWATCH",
+          "priority": 20
+        },
+        {
+          "keyword": "SMOSTEL",
+          "priority": 20
+        },
+        {
+          "keyword": "SMS",
+          "priority": 20
+        },
+        {
+          "keyword": "SOMOSTEL",
+          "priority": 20
+        },
+        {
+          "keyword": "SOPORTE CELULAR",
+          "priority": 20
+        },
+        {
+          "keyword": "SOPORTE PARA CELULAR",
+          "priority": 20
+        },
+        {
+          "keyword": "SPEAKER",
+          "priority": 20
+        },
+        {
+          "keyword": "SUPERRECARGA",
+          "priority": 20
+        },
+        {
+          "keyword": "TECLADO",
+          "priority": 20
+        },
+        {
+          "keyword": "TELEFONO",
+          "priority": 20
+        },
+        {
+          "keyword": "TIGO",
+          "priority": 20
+        },
+        {
+          "keyword": "TIPO C",
+          "priority": 20
+        },
+        {
+          "keyword": "UNNO",
+          "priority": 20
+        },
+        {
+          "keyword": "USB",
+          "priority": 20
+        },
+        {
+          "keyword": "VIDRIO TEMPLADO",
+          "priority": 20
+        },
+        {
+          "keyword": "XIAOMI",
+          "priority": 20
+        }
+      ]
+    },
+    {
+      "slug": "vehiculos",
+      "name": "Bicicletas, motos y autos",
+      "position": 17,
+      "rules": [
+        {
+          "keyword": "ACEITE CASTROL",
+          "priority": 50
+        },
+        {
+          "keyword": "AMBIENTADOR CARRO",
+          "priority": 50
+        },
+        {
+          "keyword": "BATERIA MOTO",
+          "priority": 50
+        },
+        {
+          "keyword": "BOMBA BICI",
+          "priority": 50
+        },
+        {
+          "keyword": "BOMBA PARA BICI",
+          "priority": 50
+        },
+        {
+          "keyword": "CADENA DE BICI",
+          "priority": 50
+        },
+        {
+          "keyword": "CADENA P MOTO",
+          "priority": 50
+        },
+        {
+          "keyword": "CADENA PARA BICI",
+          "priority": 50
+        },
+        {
+          "keyword": "DESODORANTE CARRO",
+          "priority": 50
+        },
+        {
+          "keyword": "PULIDOR CARRO",
+          "priority": 50
+        },
+        {
+          "keyword": "RELAY P CARRO",
+          "priority": 50
+        },
+        {
+          "keyword": "SHAMPOO CARRO",
+          "priority": 50
+        },
+        {
+          "keyword": "VALVULA ADAPTADOR CARRO",
+          "priority": 50
+        },
+        {
+          "keyword": "ACEITE MOT",
+          "priority": 45
+        },
+        {
+          "keyword": "ACEITE MOTOR",
+          "priority": 45
+        },
+        {
+          "keyword": "ACEITE PARA MOTOR",
+          "priority": 45
+        },
+        {
+          "keyword": "BOMBA DE AIRE",
+          "priority": 45
+        },
+        {
+          "keyword": "CABLE DE CAMBIO",
+          "priority": 45
+        },
+        {
+          "keyword": "CAMBIO DE PALANCA",
+          "priority": 45
+        },
+        {
+          "keyword": "COPA DELANTERA",
+          "priority": 45
+        },
+        {
+          "keyword": "COPA TRASERA",
+          "priority": 45
+        },
+        {
+          "keyword": "PALANCA DE CAMBIO",
+          "priority": 45
+        },
+        {
+          "keyword": "CAMBIADOR",
+          "priority": 30
+        },
+        {
+          "keyword": "ACEITE 2T",
+          "priority": 25
+        },
+        {
+          "keyword": "ACEITE 4T",
+          "priority": 25
+        },
+        {
+          "keyword": "ACEITE DE MOTOR",
+          "priority": 25
+        },
+        {
+          "keyword": "ANTICONGELANTE",
+          "priority": 25
+        },
+        {
+          "keyword": "AROS",
+          "priority": 25
+        },
+        {
+          "keyword": "AUTO PART",
+          "priority": 25
+        },
+        {
+          "keyword": "BALINERA",
+          "priority": 25
+        },
+        {
+          "keyword": "BICI",
+          "priority": 25
+        },
+        {
+          "keyword": "BICICLETA",
+          "priority": 25
+        },
+        {
+          "keyword": "BREQUE",
+          "priority": 25
+        },
+        {
+          "keyword": "BUJIA",
+          "priority": 25
+        },
+        {
+          "keyword": "CABLE DE FRENO",
+          "priority": 25
+        },
+        {
+          "keyword": "CALIPER",
+          "priority": 25
+        },
+        {
+          "keyword": "CAMARA DE BICI",
+          "priority": 25
+        },
+        {
+          "keyword": "CARBURADOR",
+          "priority": 25
+        },
+        {
+          "keyword": "CASTROL",
+          "priority": 25
+        },
+        {
+          "keyword": "CATARINA",
+          "priority": 25
+        },
+        {
+          "keyword": "CERA PARA CARRO",
+          "priority": 25
+        },
+        {
+          "keyword": "EJE",
+          "priority": 25
+        },
+        {
+          "keyword": "ESTRIBO",
+          "priority": 25
+        },
+        {
+          "keyword": "FRENO",
+          "priority": 25
+        },
+        {
+          "keyword": "GRIFA",
+          "priority": 25
+        },
+        {
+          "keyword": "GUARDAFANGO",
+          "priority": 25
+        },
+        {
+          "keyword": "INFLADOR",
+          "priority": 25
+        },
+        {
+          "keyword": "KENDA",
+          "priority": 25
+        },
+        {
+          "keyword": "LIMPIAPARABRISAS",
+          "priority": 25
+        },
+        {
+          "keyword": "LIQUIDO DE FRENO",
+          "priority": 25
+        },
+        {
+          "keyword": "LLANTA",
+          "priority": 25
+        },
+        {
+          "keyword": "LUBRICANTE",
+          "priority": 25
+        },
+        {
+          "keyword": "MANUBRIO",
+          "priority": 25
+        },
+        {
+          "keyword": "MOBIL",
+          "priority": 25
+        },
+        {
+          "keyword": "MONTURA",
+          "priority": 25
+        },
+        {
+          "keyword": "MOTO",
+          "priority": 25
+        },
+        {
+          "keyword": "MOTOCICLETA",
+          "priority": 25
+        },
+        {
+          "keyword": "MTB",
+          "priority": 25
+        },
+        {
+          "keyword": "NEUMATICO",
+          "priority": 25
+        },
+        {
+          "keyword": "PARCHE",
+          "priority": 25
+        },
+        {
+          "keyword": "PARRILLA BICI",
+          "priority": 25
+        },
+        {
+          "keyword": "PEDAL",
+          "priority": 25
+        },
+        {
+          "keyword": "PINON",
+          "priority": 25
+        },
+        {
+          "keyword": "PLUMILLA",
+          "priority": 25
+        },
+        {
+          "keyword": "PORTA PLACA",
+          "priority": 25
+        },
+        {
+          "keyword": "POSTE",
+          "priority": 25
+        },
+        {
+          "keyword": "REFRIGERANTE",
+          "priority": 25
+        },
+        {
+          "keyword": "RIN",
+          "priority": 25
+        },
+        {
+          "keyword": "RODAMIENTO",
+          "priority": 25
+        },
+        {
+          "keyword": "SHIMANO",
+          "priority": 25
+        },
+        {
+          "keyword": "SPROCKET",
+          "priority": 25
+        },
+        {
+          "keyword": "VALVOLINE",
+          "priority": 25
+        },
+        {
+          "keyword": "VIELA",
+          "priority": 25
+        },
+        {
+          "keyword": "ZAPATA",
+          "priority": 25
+        },
+        {
+          "keyword": "AUTO",
+          "priority": 12
+        },
+        {
+          "keyword": "GRASA",
+          "priority": 12
+        }
+      ]
+    },
+    {
+      "slug": "papeleria",
+      "name": "Papelería y útiles",
+      "position": 18,
+      "rules": [
+        {
+          "keyword": "COLORES MAPED",
+          "priority": 40
+        },
+        {
+          "keyword": "LAPIZ DE COLOR",
+          "priority": 40
+        },
+        {
+          "keyword": "PEGAMENTO BARRA",
+          "priority": 40
+        },
+        {
+          "keyword": "PEGAMENTO BLANCO",
+          "priority": 40
+        },
+        {
+          "keyword": "SILICON LIQUIDO",
+          "priority": 40
+        },
+        {
+          "keyword": "AGENDA",
+          "priority": 25
+        },
+        {
+          "keyword": "SUBRAYADOR",
+          "priority": 25
+        },
+        {
+          "keyword": "ACUARELA",
+          "priority": 20
+        },
+        {
+          "keyword": "AMIGO",
+          "priority": 20
+        },
+        {
+          "keyword": "APRENDE CONMIGO",
+          "priority": 20
+        },
+        {
+          "keyword": "ARCHIVADOR",
+          "priority": 20
+        },
+        {
+          "keyword": "ARTE",
+          "priority": 20
+        },
+        {
+          "keyword": "ARTESCO",
+          "priority": 20
+        },
+        {
+          "keyword": "BIC",
+          "priority": 20
+        },
+        {
+          "keyword": "BOLIGRAFO",
+          "priority": 20
+        },
+        {
+          "keyword": "BORRADOR",
+          "priority": 20
+        },
+        {
+          "keyword": "CALCOMANIA",
+          "priority": 20
+        },
+        {
+          "keyword": "CALIGRAFIA",
+          "priority": 20
+        },
+        {
+          "keyword": "CANVA",
+          "priority": 20
+        },
+        {
+          "keyword": "CARNET",
+          "priority": 20
+        },
+        {
+          "keyword": "CARPETA",
+          "priority": 20
+        },
+        {
+          "keyword": "CARTON",
+          "priority": 20
+        },
+        {
+          "keyword": "CARTUCHERA",
+          "priority": 20
+        },
+        {
+          "keyword": "CARTULINA",
+          "priority": 20
+        },
+        {
+          "keyword": "CHINCHE",
+          "priority": 20
+        },
+        {
+          "keyword": "CLIP",
+          "priority": 20
+        },
+        {
+          "keyword": "COLOREAR",
+          "priority": 20
+        },
+        {
+          "keyword": "COMPAS",
+          "priority": 20
+        },
+        {
+          "keyword": "CORRECTOR LIQUIDO",
+          "priority": 20
+        },
+        {
+          "keyword": "CRAYOLA",
+          "priority": 20
+        },
+        {
+          "keyword": "CRAYON",
+          "priority": 20
+        },
+        {
+          "keyword": "CUADERNO",
+          "priority": 20
+        },
+        {
+          "keyword": "CUENTO",
+          "priority": 20
+        },
+        {
+          "keyword": "DICCIONARIO",
+          "priority": 20
+        },
+        {
+          "keyword": "ENGRAPADORA",
+          "priority": 20
+        },
+        {
+          "keyword": "ESCUADRA",
+          "priority": 20
+        },
+        {
+          "keyword": "ESTUCHE",
+          "priority": 20
+        },
+        {
+          "keyword": "ETIQUETA",
+          "priority": 20
+        },
+        {
+          "keyword": "FABER",
+          "priority": 20
+        },
+        {
+          "keyword": "FACTURA",
+          "priority": 20
+        },
+        {
+          "keyword": "FOAMI",
+          "priority": 20
+        },
+        {
+          "keyword": "FOAMY",
+          "priority": 20
+        },
+        {
+          "keyword": "FOLDER",
+          "priority": 20
+        },
+        {
+          "keyword": "FOMI",
+          "priority": 20
+        },
+        {
+          "keyword": "FOMY",
+          "priority": 20
+        },
+        {
+          "keyword": "GEOMETRIA",
+          "priority": 20
+        },
+        {
+          "keyword": "GRAPA",
+          "priority": 20
+        },
+        {
+          "keyword": "KORES",
+          "priority": 20
+        },
+        {
+          "keyword": "LAPICERO",
+          "priority": 20
+        },
+        {
+          "keyword": "LAPICES",
+          "priority": 20
+        },
+        {
+          "keyword": "LAPIZ",
+          "priority": 20
+        },
+        {
+          "keyword": "LIBRETA",
+          "priority": 20
+        },
+        {
+          "keyword": "LIBRO",
+          "priority": 20
+        },
+        {
+          "keyword": "LIENZO",
+          "priority": 20
+        },
+        {
+          "keyword": "LUPA",
+          "priority": 20
+        },
+        {
+          "keyword": "MAPED",
+          "priority": 20
+        },
+        {
+          "keyword": "MARCADOR",
+          "priority": 20
+        },
+        {
+          "keyword": "MINA",
+          "priority": 20
+        },
+        {
+          "keyword": "MOCHILA",
+          "priority": 20
+        },
+        {
+          "keyword": "NORMA",
+          "priority": 20
+        },
+        {
+          "keyword": "NOTA ADHESIVA",
+          "priority": 20
+        },
+        {
+          "keyword": "OFFICE ONE",
+          "priority": 20
+        },
+        {
+          "keyword": "OFFICEONE",
+          "priority": 20
+        },
+        {
+          "keyword": "PAPEL BON",
+          "priority": 20
+        },
+        {
+          "keyword": "PAPEL BOND",
+          "priority": 20
+        },
+        {
+          "keyword": "PAPEL CARTA",
+          "priority": 20
+        },
+        {
+          "keyword": "PAPEL CHINA",
+          "priority": 20
+        },
+        {
+          "keyword": "PAPEL CONSTRUCCION",
+          "priority": 20
+        },
+        {
+          "keyword": "PAPEL CREPE",
+          "priority": 20
+        },
+        {
+          "keyword": "PAPEL LUSTRE",
+          "priority": 20
+        },
+        {
+          "keyword": "PAPER MATE",
+          "priority": 20
+        },
+        {
+          "keyword": "PEGAMENTO",
+          "priority": 20
+        },
+        {
+          "keyword": "PELIKAN",
+          "priority": 20
+        },
+        {
+          "keyword": "PENTEL",
+          "priority": 20
+        },
+        {
+          "keyword": "PERFORADORA",
+          "priority": 20
+        },
+        {
+          "keyword": "PINCEL",
+          "priority": 20
+        },
+        {
+          "keyword": "PINTURA DE DEDO",
+          "priority": 20
+        },
+        {
+          "keyword": "PLASTILINA",
+          "priority": 20
+        },
+        {
+          "keyword": "PLUMA",
+          "priority": 20
+        },
+        {
+          "keyword": "PLUMON",
+          "priority": 20
+        },
+        {
+          "keyword": "PORTA CARNET",
+          "priority": 20
+        },
+        {
+          "keyword": "PORTA MINA",
+          "priority": 20
+        },
+        {
+          "keyword": "PORTAMINA",
+          "priority": 20
+        },
+        {
+          "keyword": "POST IT",
+          "priority": 20
+        },
+        {
+          "keyword": "RECIBO",
+          "priority": 20
+        },
+        {
+          "keyword": "REGLA",
+          "priority": 20
+        },
+        {
+          "keyword": "RESALTADOR",
+          "priority": 20
+        },
+        {
+          "keyword": "RESISTOL",
+          "priority": 20
+        },
+        {
+          "keyword": "SACAPUNTA",
+          "priority": 20
+        },
+        {
+          "keyword": "SCRIBE",
+          "priority": 20
+        },
+        {
+          "keyword": "SILICON BARRA",
+          "priority": 20
+        },
+        {
+          "keyword": "SOBRE",
+          "priority": 20
+        },
+        {
+          "keyword": "STABILO",
+          "priority": 20
+        },
+        {
+          "keyword": "STICKER",
+          "priority": 20
+        },
+        {
+          "keyword": "TACHUELA",
+          "priority": 20
+        },
+        {
+          "keyword": "TALONARIO",
+          "priority": 20
+        },
+        {
+          "keyword": "TEMPERA",
+          "priority": 20
+        },
+        {
+          "keyword": "TIJERA",
+          "priority": 20
+        },
+        {
+          "keyword": "TINTA",
+          "priority": 20
+        },
+        {
+          "keyword": "TOMO",
+          "priority": 20
+        },
+        {
+          "keyword": "TRANSPORTADOR",
+          "priority": 20
+        },
+        {
+          "keyword": "UHU",
+          "priority": 20
+        },
+        {
+          "keyword": "COLORES",
+          "priority": 12
+        },
+        {
+          "keyword": "PAPEL",
+          "priority": 12
+        }
+      ]
+    },
+    {
+      "slug": "fiesta",
+      "name": "Fiestas y regalos",
+      "position": 19,
+      "rules": [
+        {
+          "keyword": "BOLSA DE REGALO",
+          "priority": 45
+        },
+        {
+          "keyword": "BOLSA REGALO",
+          "priority": 45
+        },
+        {
+          "keyword": "CINTA DE REGALO",
+          "priority": 45
+        },
+        {
+          "keyword": "CINTA MANTEQUILLA",
+          "priority": 45
+        },
+        {
+          "keyword": "CINTA PARA REGALO",
+          "priority": 45
+        },
+        {
+          "keyword": "CORTINA METALICA",
+          "priority": 45
+        },
+        {
+          "keyword": "CORTINA PA CUMPLEANOS",
+          "priority": 45
+        },
+        {
+          "keyword": "CORTINA PARA CUMPLEANOS",
+          "priority": 45
+        },
+        {
+          "keyword": "CORTINA PARA FIESTA",
+          "priority": 45
+        },
+        {
+          "keyword": "NUMERO PARA PASTEL",
+          "priority": 45
+        },
+        {
+          "keyword": "NUMEROS PARA PASTEL",
+          "priority": 45
+        },
+        {
+          "keyword": "PAPEL DE REGALO",
+          "priority": 45
+        },
+        {
+          "keyword": "PAPEL REGALO",
+          "priority": 45
+        },
+        {
+          "keyword": "PARA PASTEL",
+          "priority": 45
+        },
+        {
+          "keyword": "SET PARA DECORA GLOBOS",
+          "priority": 45
+        },
+        {
+          "keyword": "VELA CUMPLEANOS",
+          "priority": 45
+        },
+        {
+          "keyword": "VELA PARA PASTEL",
+          "priority": 45
+        },
+        {
+          "keyword": "VELAS DE NUMERO",
+          "priority": 45
+        },
+        {
+          "keyword": "VELAS PARA PASTEL",
+          "priority": 45
+        },
+        {
+          "keyword": "GLOBO",
+          "priority": 35
+        },
+        {
+          "keyword": "GLOBOS",
+          "priority": 35
+        },
+        {
+          "keyword": "GOLOBOS",
+          "priority": 35
+        },
+        {
+          "keyword": "CUMPLEANO",
+          "priority": 25
+        },
+        {
+          "keyword": "ADORNO",
+          "priority": 20
+        },
+        {
+          "keyword": "BABY SHOWER",
+          "priority": 20
+        },
+        {
+          "keyword": "BANNER",
+          "priority": 20
+        },
+        {
+          "keyword": "BIRTHDAY",
+          "priority": 20
+        },
+        {
+          "keyword": "BOMBA",
+          "priority": 20
+        },
+        {
+          "keyword": "CENTRO DE MESA",
+          "priority": 20
+        },
+        {
+          "keyword": "CHONGO",
+          "priority": 20
+        },
+        {
+          "keyword": "CONFETI",
+          "priority": 20
+        },
+        {
+          "keyword": "CUMPLEANOS",
+          "priority": 20
+        },
+        {
+          "keyword": "DECORACION",
+          "priority": 20
+        },
+        {
+          "keyword": "DECORATIVA",
+          "priority": 20
+        },
+        {
+          "keyword": "DECORATIVO",
+          "priority": 20
+        },
+        {
+          "keyword": "DIA DE LA MADRE",
+          "priority": 20
+        },
+        {
+          "keyword": "FIESTA",
+          "priority": 20
+        },
+        {
+          "keyword": "FLOR ARTIFICIAL",
+          "priority": 20
+        },
+        {
+          "keyword": "FLORES ARTIFICIALES",
+          "priority": 20
+        },
+        {
+          "keyword": "GENDER REVEAL",
+          "priority": 20
+        },
+        {
+          "keyword": "GORRITO",
+          "priority": 20
+        },
+        {
+          "keyword": "GUIRNALDA",
+          "priority": 20
+        },
+        {
+          "keyword": "HAPPY BIRTHDAY",
+          "priority": 20
+        },
+        {
+          "keyword": "INVITACION",
+          "priority": 20
+        },
+        {
+          "keyword": "LAZO DE REGALO",
+          "priority": 20
+        },
+        {
+          "keyword": "MANTEL",
+          "priority": 20
+        },
+        {
+          "keyword": "MONO",
+          "priority": 20
+        },
+        {
+          "keyword": "PARTY",
+          "priority": 20
+        },
+        {
+          "keyword": "PINATA",
+          "priority": 20
+        },
+        {
+          "keyword": "PLATO CARTON",
+          "priority": 20
+        },
+        {
+          "keyword": "POPOTE",
+          "priority": 20
+        },
+        {
+          "keyword": "RAMO",
+          "priority": 20
+        },
+        {
+          "keyword": "REGALO",
+          "priority": 20
+        },
+        {
+          "keyword": "ROSAS",
+          "priority": 20
+        },
+        {
+          "keyword": "SAN VALENTIN",
+          "priority": 20
+        },
+        {
+          "keyword": "SERPENTINA",
+          "priority": 20
+        },
+        {
+          "keyword": "SORPRESA",
+          "priority": 20
+        },
+        {
+          "keyword": "TARJETA",
+          "priority": 20
+        },
+        {
+          "keyword": "TOPPER",
+          "priority": 20
+        },
+        {
+          "keyword": "VASO CARTON",
+          "priority": 20
+        },
+        {
+          "keyword": "VELA",
+          "priority": 20
+        },
+        {
+          "keyword": "VOLCAN",
+          "priority": 20
+        },
+        {
+          "keyword": "ARCOIRIS",
+          "priority": 12
+        },
+        {
+          "keyword": "BANDERA",
+          "priority": 12
+        },
+        {
+          "keyword": "CINTA",
+          "priority": 12
+        },
+        {
+          "keyword": "CORONA",
+          "priority": 12
+        },
+        {
+          "keyword": "FELIZ",
+          "priority": 12
+        },
+        {
+          "keyword": "LAZO",
+          "priority": 12
+        },
+        {
+          "keyword": "POMPOM",
+          "priority": 12
+        }
+      ]
+    },
+    {
+      "slug": "navidad",
+      "name": "Navidad",
+      "position": 20,
+      "rules": [
+        {
+          "keyword": "ARBOL DE NAVIDAD",
+          "priority": 50
+        },
+        {
+          "keyword": "BOLA NAV",
+          "priority": 50
+        },
+        {
+          "keyword": "CONEX NAV",
+          "priority": 50
+        },
+        {
+          "keyword": "CORONA NAV",
+          "priority": 50
+        },
+        {
+          "keyword": "ESCARCHA",
+          "priority": 50
+        },
+        {
+          "keyword": "ESFERA",
+          "priority": 50
+        },
+        {
+          "keyword": "FELIZ NAVIDAD",
+          "priority": 50
+        },
+        {
+          "keyword": "INSTALACION NAVIDENA",
+          "priority": 50
+        },
+        {
+          "keyword": "MUNECO DE NIEVE",
+          "priority": 50
+        },
+        {
+          "keyword": "NACIMIENTO",
+          "priority": 50
+        },
+        {
+          "keyword": "NAV",
+          "priority": 50
+        },
+        {
+          "keyword": "NAVIDAD",
+          "priority": 50
+        },
+        {
+          "keyword": "NAVIDENA",
+          "priority": 50
+        },
+        {
+          "keyword": "NAVIDENO",
+          "priority": 50
+        },
+        {
+          "keyword": "NOCHEBUENA",
+          "priority": 50
+        },
+        {
+          "keyword": "PASCUA",
+          "priority": 50
+        },
+        {
+          "keyword": "PESEBRE",
+          "priority": 50
+        },
+        {
+          "keyword": "RENO",
+          "priority": 50
+        },
+        {
+          "keyword": "SANTA CLAUS",
+          "priority": 50
+        },
+        {
+          "keyword": "SANTA CLOUS",
+          "priority": 50
+        }
+      ]
+    },
+    {
+      "slug": "juguetes",
+      "name": "Juguetes",
+      "position": 21,
+      "rules": [
+        {
+          "keyword": "CUERDA DE SALTAR",
+          "priority": 45
+        },
+        {
+          "keyword": "CUERDA PARA SALTAR",
+          "priority": 45
+        },
+        {
+          "keyword": "CARRO JUGUETE",
+          "priority": 40
+        },
+        {
+          "keyword": "JGTE CARRO",
+          "priority": 40
+        },
+        {
+          "keyword": "PELOTA DE BASKET",
+          "priority": 40
+        },
+        {
+          "keyword": "PELOTA DE FUTBOL",
+          "priority": 40
+        },
+        {
+          "keyword": "SET DE CARROS",
+          "priority": 40
+        },
+        {
+          "keyword": "AJEDREZ",
+          "priority": 30
+        },
+        {
+          "keyword": "AVION",
+          "priority": 30
+        },
+        {
+          "keyword": "BALON",
+          "priority": 30
+        },
+        {
+          "keyword": "BARAJA",
+          "priority": 30
+        },
+        {
+          "keyword": "BARBIE",
+          "priority": 30
+        },
+        {
+          "keyword": "BOLQUETA",
+          "priority": 30
+        },
+        {
+          "keyword": "BURBUJAS",
+          "priority": 30
+        },
+        {
+          "keyword": "CAMION",
+          "priority": 30
+        },
+        {
+          "keyword": "CANICA",
+          "priority": 30
+        },
+        {
+          "keyword": "CANICAS",
+          "priority": 30
+        },
+        {
+          "keyword": "CAPIRUCHO",
+          "priority": 30
+        },
+        {
+          "keyword": "CARRITO",
+          "priority": 30
+        },
+        {
+          "keyword": "CARRO DE JUGUETE",
+          "priority": 30
+        },
+        {
+          "keyword": "CONSTRUCCION",
+          "priority": 30
+        },
+        {
+          "keyword": "DINOSAURIO",
+          "priority": 30
+        },
+        {
+          "keyword": "DOMINO",
+          "priority": 30
+        },
+        {
+          "keyword": "HOT WHEELS",
+          "priority": 30
+        },
+        {
+          "keyword": "JGTE",
+          "priority": 30
+        },
+        {
+          "keyword": "JUEGO DE COCINA",
+          "priority": 30
+        },
+        {
+          "keyword": "JUEGO DE MESA",
+          "priority": 30
+        },
+        {
+          "keyword": "JUEGO UNO",
+          "priority": 30
+        },
+        {
+          "keyword": "JUEGUETE",
+          "priority": 30
+        },
+        {
+          "keyword": "JUGUETE",
+          "priority": 30
+        },
+        {
+          "keyword": "LEGO",
+          "priority": 30
+        },
+        {
+          "keyword": "LOTERIA",
+          "priority": 30
+        },
+        {
+          "keyword": "MAUBLE",
+          "priority": 30
+        },
+        {
+          "keyword": "MUNECA",
+          "priority": 30
+        },
+        {
+          "keyword": "MUNECO",
+          "priority": 30
+        },
+        {
+          "keyword": "NAIPE",
+          "priority": 30
+        },
+        {
+          "keyword": "PATINES",
+          "priority": 30
+        },
+        {
+          "keyword": "PATINETA",
+          "priority": 30
+        },
+        {
+          "keyword": "PELOTA",
+          "priority": 30
+        },
+        {
+          "keyword": "PELUCHE",
+          "priority": 30
+        },
+        {
+          "keyword": "PISTOLA DE AGUA",
+          "priority": 30
+        },
+        {
+          "keyword": "PUZZLE",
+          "priority": 30
+        },
+        {
+          "keyword": "ROBOT",
+          "priority": 30
+        },
+        {
+          "keyword": "ROMPECABEZA",
+          "priority": 30
+        },
+        {
+          "keyword": "ROMPECABEZAS",
+          "priority": 30
+        },
+        {
+          "keyword": "SLIME",
+          "priority": 30
+        },
+        {
+          "keyword": "SONAJERO",
+          "priority": 30
+        },
+        {
+          "keyword": "SPIDERMAN",
+          "priority": 30
+        },
+        {
+          "keyword": "SUPERHEROE",
+          "priority": 30
+        },
+        {
+          "keyword": "SUPERHEROES",
+          "priority": 30
+        },
+        {
+          "keyword": "TAMBOR",
+          "priority": 30
+        },
+        {
+          "keyword": "TRACTOR",
+          "priority": 30
+        },
+        {
+          "keyword": "TREN",
+          "priority": 30
+        },
+        {
+          "keyword": "TROMPO",
+          "priority": 30
+        },
+        {
+          "keyword": "UNO SPIN",
+          "priority": 30
+        },
+        {
+          "keyword": "YOYO",
+          "priority": 30
+        },
+        {
+          "keyword": "CARRO",
+          "priority": 15
+        },
+        {
+          "keyword": "CARROS",
+          "priority": 15
+        }
+      ]
+    },
+    {
+      "slug": "ropa",
+      "name": "Ropa, calzado y accesorios",
+      "position": 22,
+      "rules": [
+        {
+          "keyword": "BOTA DE HULE",
+          "priority": 45
+        },
+        {
+          "keyword": "BOTA HULE",
+          "priority": 45
+        },
+        {
+          "keyword": "BOTAS DE HULE",
+          "priority": 45
+        },
+        {
+          "keyword": "LLAVERO",
+          "priority": 30
+        },
+        {
+          "keyword": "BLOOMER",
+          "priority": 25
+        },
+        {
+          "keyword": "BLUMER",
+          "priority": 25
+        },
+        {
+          "keyword": "BRASIEL",
+          "priority": 25
+        },
+        {
+          "keyword": "CORBATA",
+          "priority": 25
+        },
+        {
+          "keyword": "ANILLO",
+          "priority": 20
+        },
+        {
+          "keyword": "ANTEOJOS",
+          "priority": 20
+        },
+        {
+          "keyword": "ARETE",
+          "priority": 20
+        },
+        {
+          "keyword": "ARITO",
+          "priority": 20
+        },
+        {
+          "keyword": "BILLETERA",
+          "priority": 20
+        },
+        {
+          "keyword": "BISUTERIA",
+          "priority": 20
+        },
+        {
+          "keyword": "BLUSA",
+          "priority": 20
+        },
+        {
+          "keyword": "BOLSO",
+          "priority": 20
+        },
+        {
+          "keyword": "BOTA",
+          "priority": 20
+        },
+        {
+          "keyword": "BOXER",
+          "priority": 20
+        },
+        {
+          "keyword": "BRASIER",
+          "priority": 20
+        },
+        {
+          "keyword": "BRAZIEL",
+          "priority": 20
+        },
+        {
+          "keyword": "BRAZIER",
+          "priority": 20
+        },
+        {
+          "keyword": "CABALLERO",
+          "priority": 20
+        },
+        {
+          "keyword": "CADENA FASHION",
+          "priority": 20
+        },
+        {
+          "keyword": "CALCETA",
+          "priority": 20
+        },
+        {
+          "keyword": "CALCETIN",
+          "priority": 20
+        },
+        {
+          "keyword": "CALSETA",
+          "priority": 20
+        },
+        {
+          "keyword": "CALZON",
+          "priority": 20
+        },
+        {
+          "keyword": "CALZONCILLO",
+          "priority": 20
+        },
+        {
+          "keyword": "CAMISA",
+          "priority": 20
+        },
+        {
+          "keyword": "CAMISETA",
+          "priority": 20
+        },
+        {
+          "keyword": "CARTERA",
+          "priority": 20
+        },
+        {
+          "keyword": "CHANCLETA",
+          "priority": 20
+        },
+        {
+          "keyword": "CHUMPA",
+          "priority": 20
+        },
+        {
+          "keyword": "CINTURON",
+          "priority": 20
+        },
+        {
+          "keyword": "COLLAR",
+          "priority": 20
+        },
+        {
+          "keyword": "CROCS",
+          "priority": 20
+        },
+        {
+          "keyword": "DAMA",
+          "priority": 20
+        },
+        {
+          "keyword": "DELANTAL",
+          "priority": 20
+        },
+        {
+          "keyword": "FAJA",
+          "priority": 20
+        },
+        {
+          "keyword": "FALDA",
+          "priority": 20
+        },
+        {
+          "keyword": "FASHION JEWELRY",
+          "priority": 20
+        },
+        {
+          "keyword": "GAFAS",
+          "priority": 20
+        },
+        {
+          "keyword": "GORRA",
+          "priority": 20
+        },
+        {
+          "keyword": "GORRO",
+          "priority": 20
+        },
+        {
+          "keyword": "IMPERMEABLE",
+          "priority": 20
+        },
+        {
+          "keyword": "LENTES",
+          "priority": 20
+        },
+        {
+          "keyword": "LENTES DE SOL",
+          "priority": 20
+        },
+        {
+          "keyword": "MEDIAS",
+          "priority": 20
+        },
+        {
+          "keyword": "MONEDERO",
+          "priority": 20
+        },
+        {
+          "keyword": "PANTALON",
+          "priority": 20
+        },
+        {
+          "keyword": "PANTUFLA",
+          "priority": 20
+        },
+        {
+          "keyword": "PARAGUAS",
+          "priority": 20
+        },
+        {
+          "keyword": "PIJAMA",
+          "priority": 20
+        },
+        {
+          "keyword": "PULSERA",
+          "priority": 20
+        },
+        {
+          "keyword": "RELOJ",
+          "priority": 20
+        },
+        {
+          "keyword": "SANDALIA",
+          "priority": 20
+        },
+        {
+          "keyword": "SHORT",
+          "priority": 20
+        },
+        {
+          "keyword": "SOMBRERO",
+          "priority": 20
+        },
+        {
+          "keyword": "SOMBRILLA",
+          "priority": 20
+        },
+        {
+          "keyword": "SUETER",
+          "priority": 20
+        },
+        {
+          "keyword": "TALLA",
+          "priority": 20
+        },
+        {
+          "keyword": "TENIS",
+          "priority": 20
+        },
+        {
+          "keyword": "VESTIDO",
+          "priority": 20
+        },
+        {
+          "keyword": "ZAPATO",
+          "priority": 20
+        }
+      ]
+    },
+    {
+      "slug": "otros",
+      "name": "Otros",
+      "position": 1000,
+      "rules": []
+    }
+  ]
+}
