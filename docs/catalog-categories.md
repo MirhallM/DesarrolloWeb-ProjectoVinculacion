@@ -11,9 +11,9 @@ Complementa la sección 4 y 5 de [business-rules.md](business-rules.md). Resulta
 |---|---|
 | Artículos en `INVE01` | 18 460 |
 | Visibles en el catálogo (activos, con precio válido y con descripción) | 18 271 |
-| Con categoría asignada por regla | 15 565 (85.2 %) |
-| En **Otros** | 2 706 (14.8 %) |
-| Precisión estimada en muestras revisadas a mano | ~90–95 % |
+| Con categoría asignada por regla | 18 247 (99.9 %) |
+| En **Otros** | 24 (0.1 %) |
+| Precisión estimada en muestras revisadas a mano | ~90–95 % (reglas originales); ~97 % en los productos que se sacaron de Otros |
 | Visibles agotados (`EXIST <= 0`) | 1 610 |
 
 La precisión se midió revisando muestras al azar de cada categoría. Los errores que quedan son casi siempre palabras con dos sentidos (`PALETA` dulce o de broca, `AEROSOL` insecticida o pintura), marcas desconocidas y descripciones mal escritas en Aspel (`ELADO`, `GALLLETA`).
@@ -22,29 +22,32 @@ La precisión se midió revisando muestras al azar de cada categoría. Los error
 
 | Categoría | Productos | Reglas | Ejemplos (nombre para mostrar) |
 |---|---:|---:|---|
-| Abarrotes | 1252 | 141 | Atún Desmenuzado en Aceite Ahumado · Atún en Aceite Bumble Bee · Gcerezas Maraschino 170 g |
-| Lácteos y huevos | 229 | 41 | Cuajada 1/2 lb · Leche Entera Leyde, 473 ml · Malteada de Fresa Leyde 473 ml |
-| Carnes y embutidos | 179 | 28 | Jamón Bavaria, Toledo · Pollo Teritaki Pr · Chorizo Cervecero, el ´porteño |
-| Panadería y repostería | 148 | 28 | Pan Toñita Bolsa · Pan Chapin Batida de Azúcar · Semita Mazorca |
-| Bebidas | 677 | 88 | Coca Morada · Big Cola 250 ml Narnjan · Jugo Enjoy Manzana Pera |
-| Licores y cigarrillos | 158 | 53 | Encendedor Multiusoso · Encendedor Grande Clipper · Elado Tipo Casero Ron con Pasa 70 g |
-| Snacks y dulces | 1271 | 134 | Ranchita Plateado 70 g · Panditas Acidas, 70 g · Galleta Black Out |
-| Limpieza del hogar | 792 | 101 | Papel Scott 12 Rollos Esencial Deluxe · Suavitel Completo 80 ml Primaver · Desengrasante Multiuso 1-GLN Abro PD-620 |
-| Cuidado personal y belleza | 1883 | 171 | Juego de Colas 20 piezas · Sedal Shampoo, Rizos Definidos, 190 ml · Calceta de Algodón |
-| Bebés | 307 | 28 | Mameluco para Bebe · Pepe Smile · Pañal Adulto Plenitud Clas Talla M 1X8 |
-| Farmacia y botiquín | 232 | 61 | Jarabe Sudagrip · Alcohol Clinico Droop Azul 250 ml · Condon Durex Real Feel |
-| Mascotas | 230 | 37 | Correa Perro Grande · Shampoo Perro Blanco · Jugue Zapato Ruido para Perro |
-| Hogar y cocina | 1274 | 133 | Super Bolsas 10 unidades · Sacacorcho Metal · Bolsa Basura Hercules |
-| Ferretería y herramientas | 2402 | 217 | Tee PVC S40 1.1/2 X 1/2 · Tape Eléctrico PVC Abro · Baigon Aerosol Hogar Total, 400 ml |
-| Electricidad e iluminación | 446 | 65 | Fusible Vidrio Tubito 10 A 6.3X32MM YC212 · Ext Elec 50"C/PORTAFOCO WD-4 · Tomacorriente Estufa Sup 50 A Aguil 112 |
-| Celulares y electrónica | 297 | 65 | Moiuse Unno USB · Calculadora Casio, 12DIGITS, DX-12B · Reloj Somostel H8ULTR Max |
-| Bicicletas, motos y autos | 478 | 76 | Bujia Cobre Champion · Calcamonia Bici V/Estilos · Neumatico Bici 24X2.125 de V Kenda Bolsa" |
-| Papelería y útiles | 1166 | 104 | Sobre Manila 10X13 · Marcador Sharpie Negro Tank · Bolígrafo Pentel, 1.0 mm, Violeta |
-| Fiestas y regalos | 941 | 69 | Banner Feliz Cumpleaños, Princesa · Globo Purpura #7 · Campanita 6 Velas |
-| Navidad | 251 | 20 | Adorno Navideño Oso Polar Colg 2 piezas 15X8CM Blanco · Chongo Navideño Rojo · Glade Destellas de Navidad, 275 ml |
-| Juguetes | 520 | 58 | Juguete Pista para Parqueo JQ97074/P4188 · Peluche Miky Mau · Juguete de Carros |
-| Ropa, calzado y accesorios | 432 | 64 | Chancleta Croc · Calcetas Tiro Bajo para a · Chancletas Mujer 30-41 |
-| Otros | 2706 | 0 | Pastel Preferida · Kit Viaje V.v Love Mellow Grove · Colorante Rojo para Piso |
+| Abarrotes | 1399 | 277 | Sopa Menudo Maggi 50 g · Fetuccinne Carozi · Sopa Pollo Fideos Maggi 50 g |
+| Frutas y verduras | 78 | 74 | Guayaba Unidad · Malanga · Culantro ANCHO1/2MAZO |
+| Lácteos y huevos | 233 | 49 | Sulita Yogurt Fresa 100 ml · Leche Semidescremada Deslactosada Sula · Crujitos Queso y Chile |
+| Carnes y embutidos | 212 | 49 | Milanesa Pollo Rey · Rica Sula Yuca con Chicharrón 16 g · Costilla Res Pesada |
+| Panadería y repostería | 189 | 57 | Pan Chapin Guayaba · Torta Piña Hawit Unidad · Rosquillas Mixta |
+| Bebidas | 819 | 176 | Alcien Maracuyá 330 ml · Crush Pineaplple · Cutter 170 g Aloe |
+| Licores y cigarrillos | 273 | 104 | Smirnoff Limón · Malboro Gold · Vusego Watermelon |
+| Snacks y dulces | 1631 | 365 | Elotito Chiile Diana · Chokis Chocobase (roja) · Zambos Picositos Limón y Sal |
+| Limpieza del hogar | 924 | 194 | Ensueño Turquesa 740 ml · Escobita Bimba Flamingo · PACK4 Barra Mr.maxx Podersuavizante |
+| Cuidado personal y belleza | 2151 | 335 | Desodorante Piedra Alumbre 70 g · Listerine Freshburst 500 ml · Terso Finos Detalles 850 ml |
+| Bebés | 327 | 46 | Contendor para Leche de Bebe · Espamo Tropin Bebe Gotos 30 ml · Huggies Clasico Jumbotalla Xxg 1X50 |
+| Farmacia y botiquín | 420 | 182 | Agua Oxigenada Rk 3%, 120 ml · Vitaflenaco -farmamedica · Atribion Unidad |
+| Mascotas | 263 | 55 | Dogui Vegetal · Collar para Perros/Gatos · Cadena para Perro |
+| Hogar y cocina | 1533 | 271 | Sarten con Espatula 20 cm Paris · Platos Foam #6 Pequeño · Espatulas Cocina |
+| Ferretería y herramientas | 2591 | 368 | Pintura Aceite Amarillo Brillante/Gln · Masking 18MMX 10M 4 piezas Multi Uso Abro · Thinner Laca 100 Corriente 1/4-GAL |
+| Electricidad e iluminación | 483 | 94 | Foco Mano 6LED Recarg Vikingo Vk 6LED · Tapadera de Interruptor Eagle · Conector 3/4 |
+| Celulares y electrónica | 328 | 97 | Cable USB Unno V8 · Audifonos Wireles SMS-J22 · Cargador para Phone |
+| Bicicletas, motos y autos | 559 | 113 | Pedal Bici Plástico 9/16"C/R Sp 300 · Aceite Atf Dexron & Mercon 1QT Abro · Manecilla Bici PLAST/12 20"HS3 |
+| Papelería y útiles | 1374 | 243 | Marcador Morado Pentel · Folder Plástico Espandible · Papel Canson Iris Piel |
+| Fiestas y regalos | 1004 | 122 | Bolsas Metalicas Cumpleaños · Globo Plateado M40 · Mantel Rayados Plateado |
+| Navidad | 266 | 31 | Bolas Navideñas Escarchadas Rosadas 12 unidades · Pinguinos Edicion Navideña 80 g · Adorno Navideño Vincha/Reno 12*25 Cmrojo |
+| Juguetes | 621 | 143 | Naipes Plasticos · Pelota de Cuero · Juguete Juego Pesca 5 piezas 42" 1-18717-668-5 |
+| Ropa, calzado y accesorios | 490 | 102 | Calcetas Sport Largas 3 piezas · Diamond Betun Past NO.4 Begro 70 g · Calcetas Unidades Par Azul |
+| Deportes y piscina | 54 | 38 | NO:6001(SOPORTE Pantorrilla) · Hula Hoo Mediano · Rodillera Alfamedic |
+| Servicios | 25 | 13 | Paquetigo Voz 35MIN · Facebook Ilimitado · Copias Legal Color Pagina Completa |
+| Otros | 24 | 0 | L · Himan · Yi Xin Yan |
 
 
 El orden de la tabla es el orden en que se muestran en el catálogo (`position`). **Otros** siempre va al final.
@@ -66,7 +69,9 @@ Guía de prioridades:
 
 | Prioridad | Uso | Ejemplo |
 |---|---|---|
+| 8 | Palabras sueltas que también son sabores o ingredientes | `CEBOLLA`, `MELON`, `SANDWICH` |
 | 10–15 | Palabras genéricas o ambiguas | `TE`, `PASTA`, `ENERGY` |
+| 16 | Marcas y productos agregados al vaciar Otros: solo ganan si nada más coincide | `RAPTOR`, `GLASS`, `CORREA` |
 | 20–25 | Tipo de producto | `LECHE`, `GALLETA`, `DETERGENTE` |
 | 30 | Marcas y productos muy específicos | `SUAVITEL`, `TINTE` |
 | 45–50 | Frases que corrigen un conflicto | `ACEITE MOTOR`, `LLAVE DE JARDIN`, `CAMBIADOR DE PANAL` |
@@ -80,6 +85,16 @@ Una palabra clave pertenece a **una sola** categoría.
 - `ENCENDEDOR` → licores y cigarrillos.
 - `ACEITE` → abarrotes, pero `ACEITE MOT` / `ACEITE MOTOR` → vehículos.
 - `SUEROX` → farmacia.
+- **Frutas y verduras**, **Deportes y piscina** y **Servicios** se agregaron después de revisar Otros con el equipo.
+- Las palabras sueltas de verduras (`CEBOLLA`, `AGUACATE`, `PEPINO`) tienen prioridad 8, como los sabores: "Pringles crema y cebolla" sigue en snacks y "shampoo de aguacate" en cuidado personal.
+- `RECARGAS NORMALES` (recargas telefónicas) → Servicios. `COPIAS` (fotocopias) → Servicios.
+- `PLATA`, `XL` (Botrán XL) y `ULTRA` (Michelob Ultra) → licores. `ROLLING` (papel para fumar) → licores y cigarrillos.
+- `CHINOLA` (betún) → ropa y calzado. `BAÑO` (tinas para bebé) → bebés. `PINITO` (aromatizante de carro) → vehículos.
+- Las reglas agregadas para vaciar Otros tienen prioridad 16: solo toman productos que ninguna otra regla reconoce.
+- Respuestas del equipo sobre productos desconocidos: `GLASS` y los colores `GRNADE` son vasos de vidrio (hogar), `FURY` es energizante, `PALILLONA` es el bastón de desfiles (fiestas), `GOTAS MAGICAS`, `COSTREX`, `SANADORA` y `FROTAL` son de farmacia, `CORREA` son correas para perro, `CHEMICOL` es tinte para cuero (calzado), `DENTAL` es pasta o enjuague y `DOROSA` es removedor de esmalte (cuidado personal). `CABALLO ROJO` son fósforos, y los fósforos pasaron de limpieza a hogar y cocina. `GUACHAS` son arandelas, `HULE DE PEPITO` es el chupón del biberón, `NUMERA` es vela de número para pastel y `DINA PACK` son platos desechables.
+- Varias descripciones de Aspel tienen errores que cambian el producto: `HONGO GRANDE ROJO` es un chongo (moño) y `DUREZ` es Durex.
+- `JUEGO`, `FRITO`, `ESTRELLA`, `MELON` y otras palabras que aparecen en muchos productos tienen prioridad 8: solo deciden cuando no hay ninguna otra coincidencia.
+- Después de cada cambio se compara la categoría de todos los productos contra la versión anterior para detectar reglas que le quitan productos a otra categoría.
 - Los sabores (`FRESA`, `MANGO`, `LIMON`) y colores **no** son reglas: aparecen en productos de cualquier categoría.
 - `CHICHARRON` queda en carnes; los chicharrones de bolsa con marca de snack caen en snacks por su marca.
 
@@ -131,5 +146,5 @@ El backend en C# implementa el mismo algoritmo (US-06). [`tools/catalog-analysis
 ## 6. Pendientes
 
 - El negocio valida la lista de categorías y revisa `01-productos-con-categoria.csv`.
-- Bajar los 2 706 productos de Otros con nuevas reglas a partir de las palabras que reporta `analyze.py`.
+- Los 24 productos que siguen en Otros tienen descripciones que nadie del equipo reconoce (`L`, `ÑÑÑ`, `FHJJGGJGG`, `CAYAMO`). Conviene que el negocio corrija esas descripciones en Aspel con nuevas reglas a partir de las palabras que reporta `analyze.py`.
 - Probar en C# que la categorización da el mismo resultado que `catalog.py` con el mismo inventario.
