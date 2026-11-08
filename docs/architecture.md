@@ -133,7 +133,7 @@ Reglas iniciales propuestas:
 
 La estrategia concreta (área de preparación, tamaño de lote, formato del mensaje) se definirá durante la implementación.
 
-Las tablas y los campos de Aspel SAE (`INVE01`, `PRECIO_X_PROD01`, `STATUS`, `CVE_PRECIO = 1`) están pendientes de validación con el negocio en US-04.
+Las tablas y los campos de Aspel SAE (`INVE01`, `PRECIO_X_PROD01`, `STATUS`, `CVE_PRECIO = 1`) se definen en [`business-rules.md`](business-rules.md); la consulta se verifica contra la base real en US-05.
 
 **Alternativas descartadas:**
 
@@ -246,7 +246,7 @@ Los nombres de ramas y los mensajes de commit se escribirán en inglés, en min�
 - **Confirmar con el docente y el negocio** el uso de Railway en lugar de la máquina virtual con Windows 11.
 - Definir quién abre y paga la cuenta de Railway, y cómo se traspasa al terminar.
 - Confirmar con el negocio que se puede instalar un agente en su red, con salida HTTPS a Internet.
-- Reglas de Aspel SAE: estado de productos, disponibilidad, precio público y categorías (US-04).
+- Validar con el negocio la lista de categorías y verificar la consulta a Aspel SAE (US-05).
 - Definir y probar la estrategia de sincronización por lotes (US-05 a US-07).
 - Definir la política de reintentos (*Exponential Backoff*) y detección de inactividad del agente local (*Heartbeat*).
 - Configurar las políticas de *Rate Limiting* (`CatalogSearchPolicy`) en la API de .NET.

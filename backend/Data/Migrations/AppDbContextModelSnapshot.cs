@@ -292,6 +292,115 @@ namespace backend.Data.Migrations
                     b.ToTable("users", (string)null);
                 });
 
+            modelBuilder.Entity("backend.Data.Entities.Category", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer")
+                        .HasColumnName("position");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("slug");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.HasKey("Id")
+                        .HasName("pk_categories");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("ix_categories_name");
+
+                    b.HasIndex("Slug")
+                        .IsUnique()
+                        .HasDatabaseName("ix_categories_slug");
+
+                    b.ToTable("categories", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_categories_position", "position >= 1");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("3c9a7e52-8d14-4f6b-b2a7-5e1f0c6d9a01"),
+                            CreatedAt = new DateTime(2026, 11, 4, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Name = "Otros",
+                            Position = 1000,
+                            Slug = "otros",
+                            UpdatedAt = new DateTime(2026, 11, 4, 0, 0, 0, 0, DateTimeKind.Utc)
+                        });
+                });
+
+            modelBuilder.Entity("backend.Data.Entities.CategoryRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("category_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("Keyword")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("keyword");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("integer")
+                        .HasColumnName("priority");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.HasKey("Id")
+                        .HasName("pk_category_rules");
+
+                    b.HasIndex("CategoryId")
+                        .HasDatabaseName("ix_category_rules_category_id");
+
+                    b.HasIndex("Keyword")
+                        .IsUnique()
+                        .HasDatabaseName("ix_category_rules_keyword");
+
+                    b.ToTable("category_rules", (string)null);
+                });
+
             modelBuilder.Entity("backend.Data.Entities.Favorite", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -373,15 +482,9 @@ namespace backend.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<string>("CategoryCode")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("category_code");
-
-                    b.Property<string>("CategoryName")
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)")
-                        .HasColumnName("category_name");
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("category_id");
 
                     b.Property<string>("Code")
                         .IsRequired()
@@ -401,17 +504,15 @@ namespace backend.Data.Migrations
                         .HasColumnType("character varying(255)")
                         .HasColumnName("description");
 
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("display_name");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
-
-                    b.Property<DateTime?>("LastPurchaseAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_purchase_at");
-
-                    b.Property<DateTime?>("LastSaleAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_sale_at");
 
                     b.Property<decimal>("PublicPrice")
                         .HasPrecision(12, 2)
@@ -436,18 +537,21 @@ namespace backend.Data.Migrations
                     b.HasKey("Id")
                         .HasName("pk_products");
 
+                    b.HasIndex("CategoryId")
+                        .HasDatabaseName("ix_products_category_id");
+
                     b.HasIndex("Code")
                         .IsUnique()
                         .HasDatabaseName("ix_products_code");
 
-                    b.HasIndex("Description")
-                        .HasDatabaseName("ix_products_description");
+                    b.HasIndex("DisplayName")
+                        .HasDatabaseName("ix_products_display_name");
 
-                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Description"), "gin");
-                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Description"), new[] { "gin_trgm_ops" });
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("DisplayName"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("DisplayName"), new[] { "gin_trgm_ops" });
 
-                    b.HasIndex("IsActive", "CategoryCode")
-                        .HasDatabaseName("ix_products_is_active_category_code");
+                    b.HasIndex("IsActive", "CategoryId")
+                        .HasDatabaseName("ix_products_is_active_category_id");
 
                     b.ToTable("products", null, t =>
                         {
@@ -707,6 +811,18 @@ namespace backend.Data.Migrations
                         .HasConstraintName("fk_user_tokens_users_user_id");
                 });
 
+            modelBuilder.Entity("backend.Data.Entities.CategoryRule", b =>
+                {
+                    b.HasOne("backend.Data.Entities.Category", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_category_rules_categories_category_id");
+
+                    b.Navigation("Category");
+                });
+
             modelBuilder.Entity("backend.Data.Entities.Favorite", b =>
                 {
                     b.HasOne("backend.Data.Entities.Product", "Product")
@@ -736,6 +852,18 @@ namespace backend.Data.Migrations
                         .HasConstraintName("fk_featured_products_products_product_id");
 
                     b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("backend.Data.Entities.Product", b =>
+                {
+                    b.HasOne("backend.Data.Entities.Category", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_products_categories_category_id");
+
+                    b.Navigation("Category");
                 });
 
             modelBuilder.Entity("backend.Data.Entities.ProductImage", b =>
