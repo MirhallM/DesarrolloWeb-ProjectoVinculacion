@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Configuration;
+
 namespace SyncAgent.Aspel;
 
 /// <summary>Sección <c>Aspel</c> de la configuración.</summary>
@@ -15,6 +17,22 @@ public sealed class AspelOptions
     public int ConnectTimeoutSeconds { get; set; } = 15;
 
     public RetryOptions Retry { get; set; } = new();
+
+    /// <summary>
+    /// Lee la sección <c>Aspel</c>. El binder de .NET AGREGA los valores configurados a un arreglo que ya
+    /// trae valores por defecto (<c>[5,15,45]</c> + <c>[0,0,0]</c> daría <c>[5,15,45,0,0,0]</c>), así que
+    /// las esperas se leen aparte para que REEMPLACEN a las de fábrica.
+    /// </summary>
+    public static AspelOptions Load(IConfiguration configuration)
+    {
+        var section = configuration.GetSection(SectionName);
+        var options = section.Get<AspelOptions>() ?? new AspelOptions();
+
+        var delays = section.GetSection("Retry:DelaysSeconds").Get<int[]>();
+        if (delays is { Length: > 0 }) options.Retry.DelaysSeconds = delays;
+
+        return options;
+    }
 
     public sealed class RetryOptions
     {

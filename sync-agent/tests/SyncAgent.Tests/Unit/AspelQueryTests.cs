@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Configuration;
 using SyncAgent.Aspel;
 
 namespace SyncAgent.Tests.Unit;
@@ -53,6 +54,39 @@ public class AspelOptionsTests
     public void Los_valores_por_defecto_son_validos()
     {
         Assert.Empty(new AspelOptions().Validate());
+    }
+
+    private static AspelOptions Load(params (string Key, string Value)[] values) =>
+        AspelOptions.Load(new ConfigurationBuilder()
+            .AddInMemoryCollection(values.ToDictionary(v => v.Key, v => (string?)v.Value))
+            .Build());
+
+    [Fact]
+    public void Sin_configuracion_usa_las_esperas_de_fabrica()
+    {
+        Assert.Equal([5, 15, 45], Load().Retry.DelaysSeconds);
+        Assert.Equal(4, Load().Retry.MaxAttempts);
+    }
+
+    [Fact]
+    public void Las_esperas_configuradas_reemplazan_a_las_de_fabrica_y_no_se_agregan()
+    {
+        var options = Load(
+            ("Aspel:Retry:DelaysSeconds:0", "0"),
+            ("Aspel:Retry:DelaysSeconds:1", "1"),
+            ("Aspel:Retry:DelaysSeconds:2", "2"));
+
+        Assert.Equal([0, 1, 2], options.Retry.DelaysSeconds); // no [5,15,45,0,1,2]
+    }
+
+    [Fact]
+    public void Lee_el_resto_de_valores_de_la_seccion()
+    {
+        var options = Load(("Aspel:PriceList", "4"), ("Aspel:CommandTimeoutSeconds", "90"), ("Aspel:Retry:MaxAttempts", "2"));
+
+        Assert.Equal(4, options.PriceList);
+        Assert.Equal(90, options.CommandTimeoutSeconds);
+        Assert.Equal(2, options.Retry.MaxAttempts);
     }
 
     [Fact]
