@@ -209,12 +209,12 @@ Desde `sync-agent\` (con el SDK 10):
 dotnet test --solution SyncAgent.slnx -c Release
 ```
 
-Sin base de datos corren las **pruebas unitarias** (129). Las **17 pruebas de integración** (`Category=Integration`) usan la base de Docker y **se omiten solas** si no existe la variable `SYNCAGENT_TEST_CONNECTION`:
+Sin base de datos corren las **pruebas unitarias** (129) y el resumen de `dotnet test` muestra `total: 141`, `succeeded: 129` y `skipped: 12` (una prueba con 6 variantes cuenta como una sola cuando se omite). Las **17 pruebas de integración** (`Category=Integration`) usan la base de Docker y **se omiten solas** si no existe la variable `SYNCAGENT_TEST_CONNECTION`:
 
 ```powershell
 $p = ((Get-Content ..\.env | Where-Object { $_ -like 'CATALOGO_LECTURA_PASSWORD=*' }) -replace '^CATALOGO_LECTURA_PASSWORD=','').Trim()
 $env:SYNCAGENT_TEST_CONNECTION = "Server=127.0.0.1,14330;Database=SAE70Empre01;User Id=catalogo_lectura;Password=$p;TrustServerCertificate=True;"
-dotnet test --solution SyncAgent.slnx -c Release
+dotnet test --solution SyncAgent.slnx -c Release       # ahora: total: 146, succeeded: 146, skipped: 0
 ```
 
 > **Nunca apunte `SYNCAGENT_TEST_CONNECTION` a la base real de Aspel.** Algunas pruebas intentan escribir (para comprobar que falla). Por seguridad, antes de cada prueba se verifica que la base sea la de prueba (exactamente los 14 artículos sembrados); si no lo es, todas fallan sin hacer nada, y los intentos de escritura van dentro de una transacción que siempre se revierte.
