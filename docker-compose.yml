@@ -72,6 +72,9 @@ services:
         echo "== 1/4 Crear la base de prueba"
         $$SQLCMD -U sa -P "$$MSSQL_SA_PASSWORD" -i /scripts/dev/01-crear-base.sql
         echo "== 2/4 Crear la cuenta catalogo_lectura (script de la tienda)"
+        # Aquí SÍ se usa -v, pero solo en desarrollo: la clave es la aleatoria de .env, vive dentro de este contenedor y no
+        # se teclea en ninguna consola. En la tienda NO se hace así: se usa scripts/Set-CatalogoLecturaLogin.ps1, que pide
+        # la clave sin escribirla en la línea de comandos (ver sync-agent/README.md).
         $$SQLCMD -U sa -P "$$MSSQL_SA_PASSWORD" -v LoginPassword="$$CATALOGO_LECTURA_PASSWORD" -i /scripts/install/01-crear-login-lectura.sql
         echo "== 3/4 Cargar los datos de prueba"
         $$SQLCMD -U sa -P "$$MSSQL_SA_PASSWORD" -i /scripts/dev/02-datos-prueba.sql

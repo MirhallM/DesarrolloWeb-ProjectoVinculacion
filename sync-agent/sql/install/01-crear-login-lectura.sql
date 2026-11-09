@@ -2,18 +2,28 @@
    DIA DE LA INSTALACION: crea la cuenta de solo lectura que usa el agente (catalogo_lectura).
    Es el MISMO script que usa el entorno de desarrollo, asi que ya esta probado.
 
-   COMO EJECUTARLO (con una cuenta administradora de SQL Server, por ejemplo sa o un sysadmin):
+   COMO EJECUTARLO (con una cuenta administradora de SQL Server, sysadmin):
 
-     Opcion A - sqlcmd.exe (la clave se pasa con -v):
-         sqlcmd -S localhost -E -b -v LoginPassword="LaClaveNueva" -i 01-crear-login-lectura.sql
+     RECOMENDADO - scripts\Set-CatalogoLecturaLogin.ps1, desde PowerShell:
+         .\Set-CatalogoLecturaLogin.ps1
+         Pide la clave con Read-Host -AsSecureString: no queda en el historial de PowerShell ni en la lista de procesos,
+         valida la clave y al final comprueba que la cuenta puede iniciar sesion. Lee ESTE mismo archivo.
 
-     Opcion B - SQL Server Management Studio: menu Consulta > Modo SQLCMD (activarlo) y
-         definir la clave con la orden setvar de SQLCMD justo antes de ejecutar (setvar LoginPassword "LaClaveNueva",
-         escrita con dos puntos delante, al inicio de una linea propia fuera de este comentario).
+     Alternativa - SQL Server Management Studio: menu Consulta > Modo SQLCMD (activarlo) y definir la clave con la orden
+         setvar de SQLCMD justo antes de ejecutar (la orden setvar LoginPassword con la clave, escrita con dos puntos
+         delante, al inicio de una linea propia fuera de este comentario). La clave se teclea en el editor de SSMS,
+         no en la consola de PowerShell.
+
+     NO USAR: sqlcmd con la opcion -v LoginPassword=... escrita en la consola. La clave queda guardada en el historial
+         de PowerShell (ConsoleHost_history.txt) y visible en la lista de procesos mientras corre. (El entorno de
+         desarrollo con Docker si usa esa opcion, pero dentro de un contenedor y con una clave aleatoria de prueba.)
 
    LA CLAVE:
-     - Debe cumplir la directiva de Windows/SQL Server (8+ caracteres, mayuscula, minuscula, numero, simbolo).
-     - NO uses comillas simples (') ni el signo $ en la clave: romperian el script.
+     - Minimo 12 caracteres, con mayuscula, minuscula, numero y simbolo.
+     - Solo letras, numeros y estos simbolos:  -  _  .  !  *  +  @
+     - NO se permiten: comilla simple, comilla doble, punto y coma, signo de dolar, barra invertida ni espacios.
+       Motivo: la clave se escribe despues como texto en appsettings.Production.json y en este script, y en esos
+       lugares esos caracteres tienen otro significado (separan opciones, cierran el texto o inician una variable).
      - Anotala en el archivo appsettings.Production.json del agente; no se guarda en ningun otro lado.
 
    QUE HACE (todo es repetible: si ya existe, lo actualiza en vez de fallar):

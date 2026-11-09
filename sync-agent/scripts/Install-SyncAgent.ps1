@@ -51,7 +51,10 @@
     Minutos que espera después de encender el servidor antes del primer disparo. Por omisión: 3
 
 .PARAMETER AccountPassword
-    Contraseña de la cuenta como SecureString. Si no se indica, el script la pide por pantalla.
+    Contraseña de la cuenta como SecureString. LO NORMAL es NO usar este parámetro: si no se indica, el script la pide por
+    pantalla con Read-Host -AsSecureString (no queda en el historial de PowerShell). Existe solo para automatizar; no la
+    construya con texto escrito en la línea de comandos (por ejemplo con ConvertTo-SecureString -AsPlainText), porque
+    esa línea queda guardada en ConsoleHost_history.txt. La contraseña de esta cuenta puede llevar cualquier carácter.
 
 .PARAMETER SkipTestPrompt
     No preguntar al final si se quiere ejecutar la prueba de lectura (--test).
