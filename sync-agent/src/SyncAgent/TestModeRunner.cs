@@ -75,7 +75,7 @@ public sealed class TestModeRunner(
         Row("Vacías o solo espacios", s.DescriptionEmpty);
         Row("Con el texto literal \"NULL\"", s.DescriptionLiteralNull);
         Row("Activos sin descripción utilizable", s.ActiveWithoutUsableDescription);
-        Row("Longitud máxima de DESCR", s.MaxDescriptionLength, "(esperado: 40)");
+        Row("Longitud máxima de DESCR", s.MaxDescriptionLength, "(la columna admite hasta 40)");
 
         Line();
         Line("--- Códigos (CVE_ART) ---");
@@ -83,7 +83,7 @@ public sealed class TestModeRunner(
         Row("Con espacios al final", s.CodesWithTrailingSpaces,
             s.CodesWithTrailingSpaces > 0 ? "(la columna podría ser CHAR con relleno)" : null);
         Row("Grupos que solo difieren por espacios", s.CodeGroupsDifferingOnlyBySpaces, "(productos distintos; no se recortan)");
-        Row("Longitud máxima de CVE_ART", s.MaxCodeLength, "(esperado: 16)");
+        Row("Longitud máxima de CVE_ART", s.MaxCodeLength, "(la columna admite hasta 16)");
 
         Line();
         Line("--- Existencias ---");

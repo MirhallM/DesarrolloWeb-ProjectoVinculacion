@@ -98,6 +98,17 @@ public sealed class SyncStateTests : IDisposable
     }
 
     [Fact]
+    public void Los_acentos_se_guardan_legibles_y_no_escapados()
+    {
+        Store().Save(new SyncState { LastError = "Falló el inicio de sesión: contraseña incorrecta" });
+
+        var text = File.ReadAllText(Path.Combine(_dir, SyncStateStore.FileName));
+        Assert.Contains("Falló el inicio de sesión: contraseña incorrecta", text);
+        Assert.DoesNotContain("\\u00", text);
+        Assert.Equal("Falló el inicio de sesión: contraseña incorrecta", Store().Load().LastError);
+    }
+
+    [Fact]
     public void El_json_usa_nombres_en_camelCase()
     {
         Store().Save(new SyncState { LastSuccessAt = DateTimeOffset.UtcNow });

@@ -13,6 +13,8 @@ public sealed class SyncStateStore(string directory, ILogger<SyncStateStore> log
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = true,
+        // Sin esto los acentos salen escapados ("Falló"); el archivo lo leerá una persona en la tienda.
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
     public string FilePath => Path.Combine(directory, FileName);
