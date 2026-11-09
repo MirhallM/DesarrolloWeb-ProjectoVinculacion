@@ -42,7 +42,7 @@ flowchart TB
 | Backend                  | ASP.NET Core Web API (.NET 10, C#)                          | Servicio en Railway (red privada)                     | Lógica de negocio, autenticación, autorización, recepción de la sincronización y acceso a la base de datos y a los archivos.         |
 | Base de la aplicación    | PostgreSQL 17 con Entity Framework Core y Npgsql            | Servicio de base de datos en Railway                  | Usuarios, roles, favoritos, metadatos de imágenes, contenido del sitio y copia sincronizada de productos.                            |
 | Sistema de origen        | Aspel SAE 7.0 sobre SQL Server                              | Red del negocio                                       | Fuente oficial de códigos, descripciones, precios y existencias. Solo se consulta.                                                   |
-| Agente de sincronización | Proceso programado (por ejemplo, un Worker Service de .NET) | Máquina de la red del negocio con acceso a SQL Server | Lee SQL Server con una cuenta de solo lectura y envía los datos a la API. No recibe conexiones entrantes.                            |
+| Agente de sincronización | Tarea programada de Windows que ejecuta un programa .NET 10 autocontenido (`sync-agent/`) | Servidor de la tienda, junto a SQL Server, con una cuenta local dedicada sin privilegios de administrador | Lee SQL Server con una cuenta de solo lectura (`catalogo_lectura`) y, desde US-06, envía los datos a la API. No recibe conexiones entrantes. Ver [`sync-agent/README.md`](../sync-agent/README.md).                            |
 | Imágenes                 | Archivos en un volumen de Railway                           | Volumen montado en el backend                         | Los archivos viven en el volumen; sus rutas y metadatos se registran en PostgreSQL. El acceso se gestiona a través de la aplicación. |
 | HTTPS y dominio          | Dominio de Railway o dominio propio                         | Plataforma                                            | Railway emite y gestiona el certificado HTTPS del dominio público.                                                                   |
 
@@ -122,7 +122,7 @@ Reglas iniciales propuestas:
 
 - **Conexión solo saliente:** el agente inicia todas las conexiones. No se abre ningún puerto de SQL Server ni de la red del negocio hacia Internet.
 - **Credencial propia:** el agente se autentica con una clave dedicada a la sincronización, distinta de las cuentas de usuario. Se guarda como secreto, se puede rotar y se transmite solo por HTTPS. La ruta de sincronización rechaza cualquier otra credencial.
-- **Frecuencia inicial:** cada 5 a 10 minutos, sujeta a validación con el negocio y a pruebas de carga.
+- **Frecuencia inicial:** cada 15 minutos (una tarea programada que arranca, sincroniza y termina, sin proceso residente), sujeta a validación con el negocio y a pruebas de carga.
 - **Una sola ejecución a la vez:** evitar que se solapen dos sincronizaciones.
 - **Lotes pequeños e idempotentes:** reintentar un lote no debe duplicar productos (actualización por código de producto).
 - **Aplicación consistente:** el catálogo solo cambia cuando todos los lotes se recibieron y validaron, y se aplican en una transacción. Un error no deja el catálogo parcialmente actualizado.
@@ -175,7 +175,7 @@ Para prevenir ataques de denegación de servicio (DoS), consumo desmedido de rec
 | Costo: Railway cobra por uso y, tras el crédito de prueba, requiere un plan de pago                    | Definir quién paga, revisar los precios vigentes, configurar alertas o límites de uso y estimar el consumo antes de la Semana 9.                                                                                                                   |
 | Método de pago internacional y titularidad de la cuenta                                                | Confirmar con anticipación quién abre la cuenta y cómo se paga; acordar cómo se traspasa el proyecto al negocio al terminar.                                                                                                                       |
 | Datos de usuarios (correos, hashes de contraseña) alojados en un proveedor externo                     | Informar al negocio y al docente, guardar solo los datos necesarios y mantener las contraseñas con hash.                                                                                                                                           |
-| El agente depende de una máquina del negocio que debe estar encendida                                  | Instalarlo como servicio con inicio automático, mostrar el aviso de datos desactualizados (US-12) y documentar cómo reiniciarlo.                                                                                                                   |
+| El agente depende de una máquina del negocio que debe estar encendida                                  | Instalarlo como tarea programada con disparador al encender el servidor y repetición cada 15 minutos, mostrar el aviso de datos desactualizados (US-12) y documentar cómo reiniciarlo.                                                                                                                   |
 | Robo o filtración de la credencial de sincronización                                                   | Guardarla como secreto, rotarla, limitar el tamaño de lote y validar los datos recibidos.                                                                                                                                                          |
 | Pérdida de datos                                                                                       | Activar los respaldos programados del volumen de PostgreSQL y de imágenes, y mantener además un `pg_dump` periódico guardado fuera de Railway (US-20). Los respaldos de volumen viven en el mismo proyecto: no protegen contra borrar el proyecto. |
 | Almacenamiento de imágenes limitado por el plan y por el volumen                                       | Estimar el tamaño de las imágenes, limitar el tamaño de carga y verificar los límites del proxy de Next.js al subir archivos (US-16).                                                                                                              |
@@ -236,9 +236,13 @@ Los nombres de ramas y los mensajes de commit se escribirán en inglés, en min�
 | Agente de sincronización en la red del negocio (**propuesta**)       | Mantener Aspel SAE fuera de Internet. Solo hace conexiones salientes.                        |
 | Backend sin dominio público; solo el frontend es público             | Un único punto de entrada y cookies de un solo sitio.                                        |
 | PostgreSQL 17                                                        | Mantener la misma versión mayor en desarrollo y producción; confirmar que Railway la ofrece. |
-| Docker Compose solo para desarrollo                                  | Se utiliza para levantar PostgreSQL localmente.                                              |
+| Docker Compose solo para desarrollo                                  | Se utiliza para levantar PostgreSQL localmente y, con el perfil `sqlserver`, un SQL Server de prueba para el agente.                                              |
 | Secretos con User Secrets (local) y variables del servicio (Railway) | No guardar credenciales en el repositorio.                                                   |
 | Merge con squash y revisión del otro integrante                      | Mantener un historial de `main` claro y revisar los cambios antes de integrarlos.            |
+| Agente como tarea programada y no como servicio de Windows | El servidor de la tienda tiene 2 GB de RAM compartidos con SQL Server y Aspel: una tarea no ocupa memoria entre ejecuciones. El estado se guarda en disco (`sync-state.json`). |
+| Cuenta local dedicada para el agente, con el derecho de inicio de sesión por lotes | Mínimo privilegio: la cuenta solo lee el programa y solo escribe en `data\`. Windows no concede ese derecho por sí solo: el instalador lo concede y el desinstalador lo quita. |
+| Lectura con el aislamiento por defecto (READ COMMITTED) y sin `NOLOCK` | `NOLOCK` puede devolver filas duplicadas u omitidas; con unas 18 mil filas la lectura dura milisegundos. No se modifica la configuración de la base de Aspel. |
+| SDK de .NET 10 fijado en `sync-agent/global.json` | Lo que se compila en cada equipo es lo que ejecuta el CI. |
 | Sincronización periódica con Aspel SAE                               | Evitar que las consultas públicas dependan directamente de SQL Server.                       |
 
 ## 10. Pendientes
@@ -246,9 +250,11 @@ Los nombres de ramas y los mensajes de commit se escribirán en inglés, en min�
 - **Confirmar con el docente y el negocio** el uso de Railway en lugar de la máquina virtual con Windows 11.
 - Definir quién abre y paga la cuenta de Railway, y cómo se traspasa al terminar.
 - Confirmar con el negocio que se puede instalar un agente en su red, con salida HTTPS a Internet.
-- Validar con el negocio la lista de categorías y verificar la consulta a Aspel SAE (US-05).
-- Definir y probar la estrategia de sincronización por lotes (US-05 a US-07).
-- Definir la política de reintentos (*Exponential Backoff*) y detección de inactividad del agente local (*Heartbeat*).
+- Validar con el negocio la lista de categorías. La consulta a Aspel SAE (US-05) está implementada y probada contra una base de prueba; falta verificarla en la tienda con `sync-agent/sql/install/02` y el modo `--test`.
+- Definir y probar el envío por lotes a la API (US-06 y US-07). El agente ya deja el punto de conexión (`ICatalogPublisher`).
+- Reintentos de lectura de SQL Server: resueltos en el agente (4 intentos con esperas de 5, 15 y 45 segundos ante fallos transitorios). Pendientes: los reintentos del envío a la API y la detección de inactividad del agente (*Heartbeat*); `sync-state.json` ya guarda `lastSuccessAt` para ese aviso.
+- Confirmar con el negocio quién guarda las contraseñas de `catalogo_lectura` y de la cuenta de Windows del agente.
+- Windows Server 2016 sale de soporte el 12 de enero de 2027: planificar la actualización del sistema operativo de la tienda (ver `sync-agent/README.md`).
 - Configurar las políticas de *Rate Limiting* (`CatalogSearchPolicy`) en la API de .NET.
 - Configurar Cloudflare (plan gratuito) en el dominio público para la caché de imágenes y filtrado de bots.
 - Validar la integración del proxy de Next.js para reenviar la cabecera `X-Forwarded-For` a la API para identificar las IP reales de los clientes.
