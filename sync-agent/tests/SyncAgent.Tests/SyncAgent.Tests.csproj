@@ -17,6 +17,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- El appsettings.json REAL del agente, para que las pruebas de configuración usen el mismo archivo que se distribuye. -->
+    <Content Include="..\..\src\SyncAgent\appsettings.json" Link="shipped\appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\SyncAgent\SyncAgent.csproj" />
   </ItemGroup>
 
