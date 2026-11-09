@@ -1,0 +1,352 @@
+{
+  "version": 1,
+  "abbreviations": {
+    "PEQ": [
+      "pequeño",
+      "pequeña"
+    ],
+    "MED": [
+      "mediano",
+      "mediana"
+    ],
+    "GDE": [
+      "grande"
+    ],
+    "GRDE": [
+      "grande"
+    ],
+    "GRNADE": [
+      "grande"
+    ],
+    "PAQ": [
+      "paquete"
+    ],
+    "PQ": [
+      "paquete"
+    ],
+    "CJA": [
+      "caja"
+    ],
+    "BOL": [
+      "bolsa"
+    ],
+    "ENV": [
+      "envase"
+    ],
+    "DOB": [
+      "doble"
+    ],
+    "SENC": [
+      "sencillo",
+      "sencilla"
+    ],
+    "UN": [
+      "unidades"
+    ],
+    "UND": [
+      "unidades"
+    ],
+    "UNI": [
+      "unidades"
+    ],
+    "UNID": [
+      "unidades"
+    ],
+    "JGTE": [
+      "juguete"
+    ],
+    "JUEGUETE": [
+      "juguete"
+    ],
+    "JGO": [
+      "juego"
+    ],
+    "NAV": [
+      "navideño",
+      "navideña"
+    ],
+    "LEC": [
+      "leche"
+    ],
+    "ENT": [
+      "entera"
+    ],
+    "YOG": [
+      "yogurt"
+    ],
+    "NECT": [
+      "néctar"
+    ],
+    "DESL": [
+      "deslactosada"
+    ],
+    "DETER": [
+      "detergente"
+    ],
+    "DETERG": [
+      "detergente"
+    ],
+    "DESINF": [
+      "desinfectante"
+    ],
+    "SUAV": [
+      "suavizante"
+    ],
+    "LAVAPLAT": [
+      "lavaplatos"
+    ],
+    "GALLLETA": [
+      "galleta"
+    ],
+    "SHAMPOOO": [
+      "shampoo"
+    ],
+    "CARGDOR": [
+      "cargador"
+    ],
+    "SWICH": [
+      "switch"
+    ],
+    "MET": [
+      "metal"
+    ],
+    "PLAST": [
+      "plástico",
+      "plástica"
+    ],
+    "ALUM": [
+      "aluminio"
+    ],
+    "MAD": [
+      "madera"
+    ],
+    "NEG": [
+      "negro",
+      "negra"
+    ],
+    "BLC": [
+      "blanco",
+      "blanca"
+    ],
+    "BLCO": [
+      "blanco",
+      "blanca"
+    ],
+    "ROJ": [
+      "rojo",
+      "roja"
+    ],
+    "AZU": [
+      "azul"
+    ],
+    "DOR": [
+      "dorado",
+      "dorada"
+    ],
+    "AMA": [
+      "amarillo",
+      "amarilla"
+    ],
+    "ESTRE": [
+      "estrella"
+    ],
+    "CORT": [
+      "corte"
+    ],
+    "CONCR": [
+      "concreto"
+    ],
+    "HEXA": [
+      "hexagonal",
+      "hexagonal"
+    ],
+    "HEXAG": [
+      "hexagonal"
+    ],
+    "VIK": [
+      "Vikingo"
+    ]
+  },
+  "accents": {
+    "AZUCAR": "azúcar",
+    "NECTAR": "néctar",
+    "MELOCOTON": "melocotón",
+    "LIMON": "limón",
+    "PINA": "piña",
+    "METRICA": "métrica",
+    "METRICO": "métrico",
+    "POLICIA": "policía",
+    "PLASTICO": "plástico",
+    "PLASTICA": "plástica",
+    "LIQUIDO": "líquido",
+    "LIQUIDA": "líquida",
+    "ELECTRICO": "eléctrico",
+    "ELECTRICA": "eléctrica",
+    "BANO": "baño",
+    "JABON": "jabón",
+    "CAFE": "café",
+    "ATUN": "atún",
+    "MANI": "maní",
+    "ALGODON": "algodón",
+    "CAMION": "camión",
+    "AVION": "avión",
+    "BALON": "balón",
+    "CORAZON": "corazón",
+    "CAMARON": "camarón",
+    "JAMON": "jamón",
+    "SALCHICHON": "salchichón",
+    "CHICHARRON": "chicharrón",
+    "PANTALON": "pantalón",
+    "LAPIZ": "lápiz",
+    "BOLIGRAFO": "bolígrafo",
+    "CUMPLEANOS": "cumpleaños",
+    "NINO": "niño",
+    "NINA": "niña",
+    "NINOS": "niños",
+    "PEQUENO": "pequeño",
+    "PEQUENA": "pequeña",
+    "ANO": "año",
+    "UNAS": "uñas",
+    "PANAL": "pañal",
+    "PANALES": "pañales",
+    "MAIZ": "maíz",
+    "ARBOL": "árbol",
+    "ARNES": "arnés",
+    "CALCETIN": "calcetín",
+    "CINTURON": "cinturón",
+    "TELEFONO": "teléfono",
+    "BATERIA": "batería",
+    "ACIDO": "ácido",
+    "VITAMINA": "vitamina",
+    "ULTIMO": "último",
+    "MAGNETICO": "magnético",
+    "TERMICO": "térmico",
+    "HERMETICA": "hermética",
+    "ELASTICO": "elástico",
+    "GALON": "galón",
+    "ACRILICA": "acrílica",
+    "PLATANO": "plátano",
+    "SANDIA": "sandía",
+    "MARACUYA": "maracuyá",
+    "LIMPIACRISTALES": "limpiacristales"
+  },
+  "units": {
+    "ML": "ml",
+    "L": "L",
+    "LT": "L",
+    "LTS": "L",
+    "LTR": "L",
+    "LITRO": "L",
+    "LITROS": "L",
+    "G": "g",
+    "GR": "g",
+    "GRS": "g",
+    "KG": "kg",
+    "LB": "lb",
+    "LBS": "lb",
+    "LIBRA": "lb",
+    "LIBRAS": "lb",
+    "OZ": "oz",
+    "ONZ": "oz",
+    "GL": "gal",
+    "GLN": "gal",
+    "GLNS": "gal",
+    "MM": "mm",
+    "CM": "cm",
+    "MT": "m",
+    "MTS": "m",
+    "W": "W",
+    "V": "V",
+    "A": "A",
+    "GB": "GB",
+    "MB": "MB",
+    "PC": "piezas",
+    "PCS": "piezas",
+    "PZ": "piezas",
+    "PZA": "piezas",
+    "PZS": "piezas",
+    "UN": "unidades",
+    "UND": "unidades",
+    "UNI": "unidades",
+    "HJ": "hojas"
+  },
+  "acronyms": [
+    "AA",
+    "AAA",
+    "BBQ",
+    "BIC",
+    "CD",
+    "DVD",
+    "GB",
+    "HD",
+    "HDMI",
+    "LCD",
+    "LED",
+    "MB",
+    "MTB",
+    "PNR",
+    "PVC",
+    "RGB",
+    "SMS",
+    "SPF",
+    "TV",
+    "UHT",
+    "UHU",
+    "USB",
+    "XL",
+    "XXL",
+    "XXXL"
+  ],
+  "special": {
+    "IPHONE": "iPhone"
+  },
+  "lowerWords": [
+    "a",
+    "al",
+    "c/u",
+    "con",
+    "de",
+    "del",
+    "el",
+    "en",
+    "la",
+    "las",
+    "los",
+    "o",
+    "para",
+    "por",
+    "sin",
+    "y"
+  ],
+  "feminineWords": [
+    "ACEITUNA",
+    "CALCULADORA",
+    "CLAVE",
+    "CRUZ",
+    "FLOR",
+    "IMAGEN",
+    "LECHE",
+    "LLAVE",
+    "LUZ",
+    "MIEL",
+    "NIEVE",
+    "NUBE",
+    "PARED",
+    "PIEL",
+    "RED",
+    "SAL",
+    "SARTEN",
+    "TOS"
+  ],
+  "feminineExceptions": [
+    "COMETA",
+    "DIA",
+    "MAPA",
+    "PIJAMA",
+    "PLANETA",
+    "PROBLEMA",
+    "PROGRAMA",
+    "SISTEMA",
+    "TEMA"
+  ]
+}
