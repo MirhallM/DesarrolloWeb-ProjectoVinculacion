@@ -69,21 +69,39 @@ function Write-Info([string]$Text) { Write-Host "      $Text" }
 function Write-Ok([string]$Text) { Write-Host "      OK     $Text" -ForegroundColor Green }
 function Write-Warn([string]$Text) { Write-Host "      AVISO  $Text" -ForegroundColor Yellow }
 
-function Invoke-Native([string]$Program, [string[]]$Arguments, [int[]]$OkExitCodes = @(0)) {
-    # Ver el comentario equivalente en Install-SyncAgent.ps1: en PowerShell 5.1 hay que decidir por el código de salida.
-    $previous = $ErrorActionPreference
-    $ErrorActionPreference = 'Continue'
-    try {
-        $output = & $Program @Arguments 2>&1 | Out-String
-        $code = $LASTEXITCODE
+function Get-DeadIdentities([string]$Path, [string]$Sid) {
+    # Identidades de la lista de permisos de $Path que son la cuenta eliminada ($Sid) o que ya no corresponden a ninguna
+    # cuenta (Windows las muestra como un identificador "S-1-5-21-..."). Las cuentas que existen (Administradores, SYSTEM)
+    # se muestran con su nombre y nunca se tocan.
+    $result = New-Object System.Collections.Generic.List[object]
+    $seen = @{}
+    # Solo se lee la sección de permisos (Access): leer también la de auditoría exige un privilegio que no hace falta.
+    $item = Get-Item -LiteralPath $Path -Force
+    foreach ($rule in $item.GetAccessControl([System.Security.AccessControl.AccessControlSections]::Access).Access) {
+        $identity = $rule.IdentityReference
+        $value = [string]$identity.Value
+        $asSid = $value
+        try { $asSid = $identity.Translate([System.Security.Principal.SecurityIdentifier]).Value } catch { }
+        if ((($Sid) -and ($asSid -eq $Sid)) -or ($value -match '^S-1-\d+(-\d+)+$')) {
+            if (-not $seen.ContainsKey($value)) { $seen[$value] = $true; $result.Add($identity) }
+        }
     }
-    finally {
-        $ErrorActionPreference = $previous
-    }
-    if ($OkExitCodes -notcontains $code) {
-        throw "$Program terminó con código $code.`n$output"
-    }
-    return $output
+    # Se devuelven los elementos sueltos (no la lista envuelta en otra): quien llama los recoge con @( ).
+    return $result.ToArray()
+}
+
+function Remove-DeadIdentities([string]$Path, [string]$Sid) {
+    # Quita esos permisos. Se usa la API de permisos de .NET y NO icacls: icacls no puede quitar el permiso de una cuenta que
+    # ya no existe (termina con el error 1332, "no hay asignación entre nombres de cuenta e identificadores").
+    $dead = @(Get-DeadIdentities -Path $Path -Sid $Sid)
+    if ($dead.Count -eq 0) { return 0 }
+    # Solo se escribe la sección de permisos. Set-Acl reescribiría también propietario y auditoría, y eso pide el privilegio
+    # SeSecurityPrivilege, que no hace falta para quitar un permiso.
+    $item = Get-Item -LiteralPath $Path -Force
+    $acl = $item.GetAccessControl([System.Security.AccessControl.AccessControlSections]::Access)
+    foreach ($identity in $dead) { $acl.PurgeAccessRules($identity) }
+    $item.SetAccessControl($acl)
+    return $dead.Count
 }
 
 function Get-AgentProcesses([string]$Folder) {
@@ -398,15 +416,14 @@ try {
                 Remove-Item -Recurse -Force
             Write-Ok 'Programa eliminado. Se conservaron: appsettings.Production.json y data\.'
 
-            # Lo conservado tenía un permiso para la cuenta eliminada; ahora sería un identificador huérfano. Se quita.
-            if ($null -ne $accountSid) {
-                $targets = @($InstallPath, (Join-Path $InstallPath 'data'), (Join-Path $InstallPath 'appsettings.Production.json')) |
-                    Where-Object { Test-Path -LiteralPath $_ }
-                foreach ($target in $targets) {
-                    [void](Invoke-Native -Program 'icacls.exe' -Arguments @($target, '/remove', "*$accountSid", '/T', '/C', '/Q'))
-                }
-                Write-Ok 'Permisos de la cuenta eliminada quitados de lo conservado.'
+            # Lo conservado tenía permisos para la cuenta eliminada; ahora serían identificadores huérfanos. Se quitan (primero la
+            # carpeta raíz, para que el cambio se propague a lo de adentro, y luego lo que tiene permisos propios). Funciona
+            # también si la cuenta ya se había eliminado en una ejecución anterior: se quitan los identificadores huérfanos.
+            $removed = 0
+            foreach ($target in @($InstallPath, (Join-Path $InstallPath 'data'), (Join-Path $InstallPath 'appsettings.Production.json'))) {
+                if (Test-Path -LiteralPath $target) { $removed += Remove-DeadIdentities -Path $target -Sid $accountSid }
             }
+            Write-Ok "Permisos de la cuenta eliminada quitados de lo conservado ($removed identificador(es))."
         }
         else {
             Remove-Item -LiteralPath $InstallPath -Recurse -Force
@@ -447,10 +464,11 @@ try {
 
     if ($KeepData) {
         Write-Check "El programa ya no está en $InstallPath (solo data\ y la configuración)" (-not (Test-Path -LiteralPath (Join-Path $InstallPath 'SyncAgent.exe'))) 'SyncAgent.exe sigue ahí'
-        if ($null -ne $accountSid -and (Test-Path -LiteralPath $InstallPath)) {
-            $acl = Invoke-Native -Program 'icacls.exe' -Arguments @($InstallPath)
-            Write-Check 'Los permisos de la cuenta eliminada ya no aparecen en la carpeta' ($acl -notmatch [regex]::Escape($accountSid)) 'queda un permiso huérfano'
+        $deadLeft = 0
+        foreach ($target in @($InstallPath, (Join-Path $InstallPath 'data'), (Join-Path $InstallPath 'appsettings.Production.json'))) {
+            if (Test-Path -LiteralPath $target) { $deadLeft += @(Get-DeadIdentities -Path $target -Sid $accountSid).Count }
         }
+        Write-Check 'Los permisos de la cuenta eliminada ya no aparecen en lo conservado (carpeta, data\ y configuración)' ($deadLeft -eq 0) 'queda un permiso huérfano'
     }
     else {
         Write-Check "La carpeta $InstallPath ya no existe" (-not (Test-Path -LiteralPath $InstallPath)) 'sigue existiendo'
