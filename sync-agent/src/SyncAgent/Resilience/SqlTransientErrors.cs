@@ -13,6 +13,7 @@ public static class SqlTransientErrors
         40,     // no se pudo abrir la conexión con el servidor
         121,    // el tiempo del semáforo expiró
         233,    // el otro extremo cerró la conexión
+        258,    // se agotó el tiempo de espera de la conexión (TCP sin respuesta)
         1205,   // víctima de deadlock
         4060,   // no se pudo abrir la base (p. ej. aún está recuperándose tras un reinicio)
         10053,  // conexión abortada

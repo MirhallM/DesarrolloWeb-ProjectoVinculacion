@@ -87,6 +87,7 @@ public class SqlTransientErrorsTests
     [InlineData(40)]
     [InlineData(121)]
     [InlineData(233)]
+    [InlineData(258)]
     [InlineData(1205)]
     [InlineData(4060)]
     [InlineData(10053)]

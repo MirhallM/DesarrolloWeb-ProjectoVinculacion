@@ -98,6 +98,7 @@ public class CredentialSafetyTests
     [InlineData(208)]
     [InlineData(-2)]
     [InlineData(53)]
+    [InlineData(258)]
     public void Describer_tiene_explicacion_en_espanol_para_los_errores_comunes(int number)
     {
         Assert.DoesNotContain("no catalogado", SqlErrorDescriber.Explain(number));
