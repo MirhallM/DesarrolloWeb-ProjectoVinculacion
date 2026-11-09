@@ -454,11 +454,11 @@ Detiene y elimina la tarea y su carpeta del Programador, cierra los procesos de 
 - Instalación, ejecución de la tarea con la cuenta dedicada y sin sesión iniciada (`LastTaskResult 0`, estado en disco, sin la contraseña de SQL en `data\`), reinstalación que conserva configuración y datos, y desinstalación con perfil incluido (tras reiniciar) y segunda ejecución.
 - Desinstalación con `-KeepData`: conserva `data\` y la configuración y quita los permisos de la cuenta eliminada, tanto con la cuenta existente como cuando ya se había eliminado antes. Una primera prueba real dejó permisos huérfanos (`icacls` no puede quitar el permiso de una cuenta que ya no existe); se corrigió y se repitió sin errores.
 - Cambio de la clave de `catalogo_lectura` (la anterior deja de servir) y rechazo de claves inválidas.
+- `Set-CatalogoLecturaLogin.ps1` en una consola interactiva real: la clave tecleada en las líneas ocultas **no** aparece en `ConsoleHost_history.txt` (se buscó con una línea de control que demostró que el historial se estaba guardando). Al buscarla, la única coincidencia era el propio comando de búsqueda con la clave escrita completa, no el script.
 
 **Todavía sin probar**
 
-- La recuperación cuando alguien cambia la clave de la cuenta de Windows.
-- Que `Set-CatalogoLecturaLogin.ps1` no deje la clave en el historial en una consola interactiva real (por diseño no debe).
+- La recuperación cuando alguien cambia la clave de la cuenta de Windows (el procedimiento documentado es volver a ejecutar `Install-SyncAgent.ps1`, que fija la clave y vuelve a registrar la tarea; ya se probó que esa reinstalación actualiza la cuenta y la tarea, pero no el caso exacto de una clave cambiada por otro medio).
 
 **Falta verificar en la tienda**
 
