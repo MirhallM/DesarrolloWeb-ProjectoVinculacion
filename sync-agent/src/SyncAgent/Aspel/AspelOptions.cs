@@ -18,8 +18,8 @@ public sealed class AspelOptions
 
     public sealed class RetryOptions
     {
-        /// <summary>Intentos totales (incluye el primero).</summary>
-        public int MaxAttempts { get; set; } = 3;
+        /// <summary>Intentos totales (el primero más los reintentos). 4 = 1 intento + 3 reintentos con las esperas por defecto.</summary>
+        public int MaxAttempts { get; set; } = 4;
 
         /// <summary>Espera antes de cada reintento, en segundos. Si hay menos valores que reintentos, se repite el último.</summary>
         public int[] DelaysSeconds { get; set; } = [5, 15, 45];
