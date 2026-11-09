@@ -35,6 +35,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="SyncAgent.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- El ejemplo viaja con el programa publicado para que el script de instalación lo copie. -->
     <Content Update="appsettings.Production.example.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
