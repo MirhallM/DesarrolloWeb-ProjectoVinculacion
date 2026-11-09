@@ -7,6 +7,9 @@
 *.key
 CONTEXT.md
 
+# Configuración personal de Claude Code
+.claude/settings.local.json
+
 # Frontend (Node / Next.js)
 node_modules/
 /frontend/.next/
