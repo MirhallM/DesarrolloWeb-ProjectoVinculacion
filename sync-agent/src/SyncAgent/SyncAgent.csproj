@@ -18,6 +18,11 @@
 
     <!-- Solo se necesitan los recursos en inglés y español. -->
     <SatelliteResourceLanguages>en;es</SatelliteResourceLanguages>
+
+    <!-- Al publicar para un sistema concreto (-r win-x64) se precompila el código (ReadyToRun): el agente arranca cada
+         15 minutos como proceso nuevo y así gasta menos CPU en compilar al vuelo. Sin -r (compilar, probar, CI) no cambia nada.
+         No se activa el recorte (trimming): es arriesgado con SqlClient. -->
+    <PublishReadyToRun Condition="'$(RuntimeIdentifier)' != ''">true</PublishReadyToRun>
   </PropertyGroup>
 
   <ItemGroup>
