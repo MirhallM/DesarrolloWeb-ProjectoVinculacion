@@ -1,5 +1,7 @@
+using backend.Catalog;
 using backend.Data;
 using backend.Data.Entities;
+using backend.Data.Seed;
 using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,11 +20,20 @@ builder.Services
     .AddRoles<AppRole>()
     .AddEntityFrameworkStores<AppDbContext>();
 
+builder.Services.AddCatalogRules();
+builder.Services.AddScoped<CatalogSeeder>();
+
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+// "dotnet backend.dll seed": siembra categorías y reglas y termina, sin levantar el servidor (pre-deploy de Railway).
+if (CatalogSeedCommand.IsRequested(args))
+{
+    return await CatalogSeedCommand.RunAsync(app.Services);
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -37,5 +48,6 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+return 0;
 
 public partial class Program;
