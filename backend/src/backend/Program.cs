@@ -5,7 +5,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException(
-        "Falta ConnectionStrings:DefaultConnection. Configúrala con dotnet user-secrets (ver README).");
+        "Falta ConnectionStrings:DefaultConnection. ConfigÃºrala con dotnet user-secrets (ver README).");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
