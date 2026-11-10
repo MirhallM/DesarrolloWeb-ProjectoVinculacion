@@ -138,13 +138,28 @@ Femenino: la primera palabra termina en `A` (salvo `feminineExceptions`: DIA, MA
    ```
 
    Muestra la cobertura por categoría y las palabras más comunes en Otros, y genera `resultados/productos-categorizados.csv`.
-3. Abrir el PR con el antes y el después de la cobertura.
-4. Después del despliegue, ejecutar la recategorización (business-rules.md, sección 4).
+3. Regenerar los casos de la prueba de paridad y subirlos en el mismo PR:
 
-El backend en C# implementa el mismo algoritmo (US-06). [`tools/catalog-analysis/catalog.py`](../tools/catalog-analysis/catalog.py) es la implementación de referencia: si los resultados difieren, el comportamiento correcto es el de `catalog.py` hasta que el equipo decida otra cosa.
+   ```bash
+   python parity_cases.py data/inventario.csv
+   ```
+
+   Sin este paso, `dotnet test` falla en `CatalogParityTests`: el C# ya usa las reglas nuevas y el archivo todavía tiene los resultados anteriores.
+4. Abrir el PR con el antes y el después de la cobertura.
+5. Después del despliegue, sembrar las reglas (`dotnet backend.dll seed`, ver abajo) y ejecutar la recategorización (business-rules.md, sección 4).
+
+### Implementación en C#
+
+El backend implementa el mismo algoritmo en `backend/src/backend/Catalog/`: `CatalogText` (normalización y palabras), `Categorizer` y `DisplayNamer`, registrados con `AddCatalogRules()` para inyectarlos. [`tools/catalog-analysis/catalog.py`](../tools/catalog-analysis/catalog.py) es la implementación de referencia: si los resultados difieren, el comportamiento correcto es el de `catalog.py` hasta que el equipo decida otra cosa.
+
+- **En ejecución, las reglas salen de los JSON** (van embebidos en el ensamblado), no de la base de datos. Las tablas `categories` y `category_rules` son un espejo para resolver `slug → category_id` y para consultas.
+- **Siembra:** `dotnet backend.dll seed` deja esas tablas iguales a `categories.json`. Se puede ejecutar varias veces sin duplicar; una regla quitada del JSON se borra de la tabla. Una categoría quitada del JSON se borra solo si no tiene productos; si los tiene, se conserva y el comando imprime una advertencia. Debe correr **después de aplicar las migraciones** (en Railway, como comando de pre-deploy). Sale con código 1 si falla.
+- **Paridad:** `CatalogParityTests` compara el C# con `catalog.py` usando todas las descripciones únicas del inventario (`backend/tests/backend.Tests/Catalog/Data/catalog-parity-cases.jsonl`, sin códigos, precios ni existencias).
+- **Diferencias con `catalog.py`:** cuando dos reglas empatan en prioridad, largo y posición, el C# elige la de menor orden alfabético; `catalog.py` depende del orden de un `set` y puede reportar otra palabra clave (la categoría es siempre la misma). El C# usa `ToUpperInvariant()` en lugar de `str.upper()`: difieren en caracteres como `ß`, que no aparecen en el inventario.
+- **Requisito del entorno:** el runtime necesita ICU (no usar `InvariantGlobalization`); si falta, `Categorizer` y `DisplayNamer` fallan al crearse con un mensaje claro en lugar de quitar mal los acentos en silencio.
 
 ## 6. Pendientes
 
 - El negocio valida la lista de categorías y revisa `01-productos-con-categoria.csv`.
 - Los 24 productos que siguen en Otros tienen descripciones que nadie del equipo reconoce (`L`, `ÑÑÑ`, `FHJJGGJGG`, `CAYAMO`). Conviene que el negocio corrija esas descripciones en Aspel con nuevas reglas a partir de las palabras que reporta `analyze.py`.
-- Probar en C# que la categorización da el mismo resultado que `catalog.py` con el mismo inventario.
+- ~~Probar en C# que la categorización da el mismo resultado que `catalog.py` con el mismo inventario.~~ Hecho: con las 17 817 descripciones únicas del inventario, categoría y nombre coinciden, y el porcentaje categorizado es el mismo (18 247 de 18 271, 99.9 %).
