@@ -7,6 +7,9 @@
 *.key
 CONTEXT.md
 
+# Configuración personal de Claude Code
+.claude/settings.local.json
+
 # Frontend (Node / Next.js)
 node_modules/
 /frontend/.next/
@@ -25,6 +28,11 @@ yarn-error.log*
 /backend/.vscode/
 *.user
 *.suo
+
+# Agente de sincronización: configuración real de la tienda (contiene la contraseña) y datos locales
+**/appsettings.Production.json
+sync-agent/**/data/
+sync-agent/publish/
 
 # Docker y Bases de datos locales
 /pgdata/

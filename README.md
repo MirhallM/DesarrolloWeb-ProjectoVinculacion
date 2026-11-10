@@ -38,6 +38,7 @@ El frontend se comunica únicamente con la API del backend; el navegador nunca s
 .
 ├── backend/              # ASP.NET Core Web API
 ├── frontend/             # Next.js + TypeScript
+├── sync-agent/           # Agente de sincronización con Aspel SAE (solo lectura)
 ├── docs/                 # Documentación técnica
 ├── .github/
 │   ├── workflows/ci.yml  # CI: lint, build y pruebas
@@ -49,7 +50,7 @@ El frontend se comunica únicamente con la API del backend; el navegador nunca s
 ## Requisitos
 
 - [Git](https://git-scm.com/)
-- [.NET 10 SDK](https://dotnet.microsoft.com/download) (incluido con Visual Studio 2026)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download) (incluido con Visual Studio 2026). El agente de sincronización (`sync-agent/`) **requiere** el SDK 10: lo fija su `global.json`. Si no lo tiene, instálelo con `winget install --id Microsoft.DotNet.SDK.10 -e`.
 - [Node.js](https://nodejs.org/) 22 o superior (ver `engines` en `frontend/package.json`)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 
@@ -83,6 +84,14 @@ Usa en el último comando el usuario y la base que pusiste en `.env`.
 
 > Si cambias `POSTGRES_PASSWORD` después del primer arranque, PostgreSQL no lo actualiza: hay que recrear el volumen con `docker compose down -v`.
 
+**SQL Server de prueba (solo para el agente de sincronización).** `docker compose up -d` sigue levantando únicamente PostgreSQL. Para probar el agente hay un SQL Server 2022 que simula la base de Aspel, bajo el perfil `sqlserver` (escucha solo en `127.0.0.1:14330`):
+
+```powershell
+docker compose --profile sqlserver up -d
+```
+
+Necesita las variables `MSSQL_*` y `CATALOGO_LECTURA_PASSWORD` de `.env.example`. El backend **no** se conecta a SQL Server. Detalles en [`sync-agent/README.md`](sync-agent/README.md#4-base-de-prueba-sql-server-en-docker).
+
 ### 3. Backend
 
 ASP.NET Core no lee el archivo `.env`. Las cadenas de conexión y las claves se guardan con User Secrets, por cada integrante:
@@ -94,7 +103,7 @@ dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Po
 dotnet run
 ```
 
-La contraseña debe ser la misma que `POSTGRES_PASSWORD`. La URL del API aparece en la consola al iniciar. Las demás variables que se necesitarán más adelante (`AspelSaeConnection`, `Jwt:*`) están documentadas en `.env.example`.
+La contraseña debe ser la misma que `POSTGRES_PASSWORD`. La URL del API aparece en la consola al iniciar. Las demás variables que se necesitarán más adelante (`Jwt:*`) están documentadas en `.env.example`. La conexión a Aspel SAE **no** va en el backend: la usa únicamente el agente de sincronización (ver [`sync-agent/README.md`](sync-agent/README.md)).
 
 ### 4. Frontend
 

@@ -36,3 +36,20 @@ jobs:
       - run: dotnet restore
       - run: dotnet build --no-restore -c Release
       - run: dotnet test --no-build -c Release
+
+  sync-agent:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sync-agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet restore SyncAgent.slnx
+      - run: dotnet build SyncAgent.slnx --no-restore -c Release
+      # xunit v3 usa Microsoft.Testing.Platform (ver sync-agent/global.json), de ahí --solution y los argumentos tras "--".
+      # Las pruebas de integración (Category=Integration) necesitan el SQL Server de Docker y se omiten solas sin la variable
+      # SYNCAGENT_TEST_CONNECTION; el filtro las deja fuera de forma explícita.
+      - run: dotnet test --solution SyncAgent.slnx --no-build -c Release -- --filter-not-trait "Category=Integration"

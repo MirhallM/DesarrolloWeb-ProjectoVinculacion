@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>SyncAgent</RootNamespace>
+    <AssemblyName>SyncAgent</AssemblyName>
+    <UserSecretsId>5b1e0c52-8f0e-4d0a-9a43-6f6a4c0b7a11</UserSecretsId>
+
+    <!-- Bajo consumo de memoria (servidor de la tienda: 2 GB compartidos con SQL Server y Aspel).
+         GC de estación de trabajo y sin GC concurrente (evita un hilo extra en segundo plano). -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+
+    <!-- SqlClient depende de las colaciones/cultura del sistema: no activar InvariantGlobalization. -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+
+    <!-- Solo se necesitan los recursos en inglés y español. -->
+    <SatelliteResourceLanguages>en;es</SatelliteResourceLanguages>
+
+    <!-- Al publicar para un sistema concreto (-r win-x64) se precompila el código (ReadyToRun): el agente arranca cada
+         15 minutos como proceso nuevo y así gasta menos CPU en compilar al vuelo. Sin -r (compilar, probar, CI) no cambia nada.
+         No se activa el recorte (trimming): es arriesgado con SqlClient. -->
+    <PublishReadyToRun Condition="'$(RuntimeIdentifier)' != ''">true</PublishReadyToRun>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Tope duro del heap administrado: 64 MB (67 108 864 bytes). Se puede ajustar sin recompilar
+         con la variable de entorno DOTNET_GCHeapHardLimit (valor en hexadecimal). -->
+    <RuntimeHostConfigurationOption Include="System.GC.HeapHardLimit" Value="67108864" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.1.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.14" />
+    <!-- Dependencia transitiva de SqlClient fijada a la versión corregida (la 9.0.18 tiene
+         vulnerabilidades conocidas: GHSA-846f-f764-76mx y GHSA-2fmv-rv2c-59x7). -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.14" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="SyncAgent.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- El ejemplo viaja con el programa publicado para que el script de instalación lo copie. -->
+    <Content Update="appsettings.Production.example.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

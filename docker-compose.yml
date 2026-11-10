@@ -17,6 +17,72 @@ services:
       timeout: 5s
       retries: 5
  
+  # ---------------------------------------------------------------------------
+  # SQL Server 2022: SOLO para probar el agente de sincronización (sync-agent/).
+  # Simula la base de Aspel SAE. No arranca con "docker compose up -d"; hay que pedirlo:
+  #   docker compose --profile sqlserver up -d
+  # Las variables usan ":-" (valor vacío si faltan) y NO ":?" a propósito: Compose lee todo el archivo
+  # aunque el perfil esté apagado, y ":?" rompería "docker compose up -d" para quien solo usa PostgreSQL.
+  # ---------------------------------------------------------------------------
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    profiles: ["sqlserver"]
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-}
+      # Tope de memoria de SQL Server dentro del contenedor (no consume más en tu máquina).
+      MSSQL_MEMORY_LIMIT_MB: ${MSSQL_MEMORY_LIMIT_MB:-1024}
+    ports:
+      # Solo accesible desde tu propia máquina. Puerto 14330 para no chocar con un SQL Server local (1433).
+      - "127.0.0.1:${MSSQL_PORT:-14330}:1433"
+    volumes:
+      - mssqldata:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\" -b -o /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  # Prepara la base de prueba y termina (código 0 = todo bien). Ejecuta, en orden:
+  #   1. dev/01   crea SAE70Empre01 con INVE01 y PRECIO_X_PROD01 (versión mínima)
+  #   2. install/01  crea la cuenta catalogo_lectura: el MISMO script que se usará en la tienda
+  #   3. dev/02   carga los datos de prueba
+  #   4. dev/03   conectado como catalogo_lectura, comprueba que SELECT funciona y que INSERT/UPDATE/DELETE fallan
+  sqlserver-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    profiles: ["sqlserver"]
+    restart: "no"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-}
+      CATALOGO_LECTURA_PASSWORD: ${CATALOGO_LECTURA_PASSWORD:-}
+    volumes:
+      - ./sync-agent/sql:/scripts:ro
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -e
+        [ -n "$$CATALOGO_LECTURA_PASSWORD" ] || { echo "Falta CATALOGO_LECTURA_PASSWORD en .env"; exit 1; }
+        SQLCMD="/opt/mssql-tools18/bin/sqlcmd -C -S sqlserver -b"
+        echo "== 1/4 Crear la base de prueba"
+        $$SQLCMD -U sa -P "$$MSSQL_SA_PASSWORD" -i /scripts/dev/01-crear-base.sql
+        echo "== 2/4 Crear la cuenta catalogo_lectura (script de la tienda)"
+        # Aquí SÍ se usa -v, pero solo en desarrollo: la clave es la aleatoria de .env, vive dentro de este contenedor y no
+        # se teclea en ninguna consola. En la tienda NO se hace así: se usa scripts/Set-CatalogoLecturaLogin.ps1, que pide
+        # la clave sin escribirla en la línea de comandos (ver sync-agent/README.md).
+        $$SQLCMD -U sa -P "$$MSSQL_SA_PASSWORD" -v LoginPassword="$$CATALOGO_LECTURA_PASSWORD" -i /scripts/install/01-crear-login-lectura.sql
+        echo "== 3/4 Cargar los datos de prueba"
+        $$SQLCMD -U sa -P "$$MSSQL_SA_PASSWORD" -i /scripts/dev/02-datos-prueba.sql
+        echo "== 4/4 Verificar que catalogo_lectura es de solo lectura"
+        $$SQLCMD -U catalogo_lectura -P "$$CATALOGO_LECTURA_PASSWORD" -d SAE70Empre01 -i /scripts/dev/03-verificar-solo-lectura.sql
+        echo "== Base de prueba lista."
+
 volumes:
   pgdata:
+  mssqldata:
  
