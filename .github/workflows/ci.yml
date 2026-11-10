@@ -27,15 +27,17 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: backend    # ajusta si tu carpeta se llama distinto
+        working-directory: backend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 10.0.x       # debe coincidir con el TargetFramework de tu proyecto
-      - run: dotnet restore
-      - run: dotnet build --no-restore -c Release
-      - run: dotnet test --no-build -c Release
+          dotnet-version: 10.0.x
+      - run: dotnet restore Backend.slnx
+      - run: dotnet build Backend.slnx --no-restore -c Release
+      # xunit v3 usa Microsoft.Testing.Platform (ver backend/global.json), de ahí --solution y los argumentos tras "--".
+      # Mismo filtro que el agente: las pruebas de integración (Category=Integration) necesitan servicios externos y quedan fuera.
+      - run: dotnet test --solution Backend.slnx --no-build -c Release -- --filter-not-trait "Category=Integration"
 
   sync-agent:
     runs-on: ubuntu-latest

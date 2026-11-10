@@ -76,7 +76,7 @@ Aspel no tiene categorías útiles, así que **la aplicación las asigna con reg
 - **Coincidencia:** se compara la descripción en mayúsculas y sin acentos contra cada palabra clave, como palabras completas y seguidas; se acepta el plural con `S` o `ES`.
 - **Conflictos:** si varias reglas coinciden, gana la de mayor prioridad; si empatan, la palabra clave más larga (por ejemplo, `CHOCOLATE` antes que `LECHE` en "CHOCOLATE CON LECHE"); si siguen empatadas, la categoría que va primero.
 - **Sin coincidencia:** el producto va a la categoría **Otros**.
-- **Datos semilla:** `backend/Data/Seed/categories.json`. La lista propuesta, el algoritmo detallado y los resultados con el inventario real están en [catalog-categories.md](catalog-categories.md).
+- **Datos semilla:** `backend/src/backend/Data/Seed/categories.json`. La lista propuesta, el algoritmo detallado y los resultados con el inventario real están en [catalog-categories.md](catalog-categories.md).
 - **Cuándo se aplican:** al sincronizar un producto nuevo o modificado. Como la sincronización solo envía cambios, después de modificar las reglas se ejecuta una **recategorización** de todo el catálogo.
 
 ## 5. Nombre que ve el cliente
@@ -88,7 +88,7 @@ Las descripciones de Aspel vienen en mayúsculas y abreviadas (por ejemplo, `LEC
 
 `LECHE ENT 1LT` → `Leche Entera 1 L`
 
-- El diccionario lo mantiene el equipo, igual que las reglas de categorías: `backend/Data/Seed/display-dictionary.json`. Los pasos completos están en [catalog-categories.md](catalog-categories.md).
+- El diccionario lo mantiene el equipo, igual que las reglas de categorías: `backend/src/backend/Data/Seed/display-dictionary.json`. Los pasos completos están en [catalog-categories.md](catalog-categories.md).
 - Las abreviaturas que cambian con el género (`PEQ` → pequeño o pequeña) se ajustan a la primera palabra de la descripción.
 - Las abreviaturas sin entrada en el diccionario se dejan como vienen.
 - Si cambia el diccionario, se recalculan los nombres junto con la recategorización.

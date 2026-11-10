@@ -54,7 +54,7 @@ El orden de la tabla es el orden en que se muestran en el catálogo (`position`)
 
 ## 3. Cómo se asigna la categoría
 
-Las reglas están en [`backend/Data/Seed/categories.json`](../backend/Data/Seed/categories.json). Cada regla es una palabra clave con una prioridad.
+Las reglas están en [`backend/src/backend/Data/Seed/categories.json`](../backend/src/backend/Data/Seed/categories.json). Cada regla es una palabra clave con una prioridad.
 
 1. **Normalizar** la descripción: mayúsculas, sin acentos (`Ñ` → `N`).
 2. **Separar en palabras** por cualquier carácter que no sea letra o número (`P/PERRO` → `P`, `PERRO`).
@@ -100,7 +100,7 @@ Una palabra clave pertenece a **una sola** categoría.
 
 ## 4. Nombre para mostrar
 
-El diccionario está en [`backend/Data/Seed/display-dictionary.json`](../backend/Data/Seed/display-dictionary.json).
+El diccionario está en [`backend/src/backend/Data/Seed/display-dictionary.json`](../backend/src/backend/Data/Seed/display-dictionary.json).
 
 | Descripción en Aspel | Nombre en el catálogo |
 |---|---|

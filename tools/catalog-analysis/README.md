@@ -4,7 +4,7 @@ Herramienta del equipo para probar las reglas de categorías y el nombre para mo
 
 | Archivo | Qué hace |
 |---|---|
-| `catalog.py` | Implementación de referencia: `Categorizer` y `DisplayNamer`, que leen `backend/Data/Seed/*.json`. |
+| `catalog.py` | Implementación de referencia: `Categorizer` y `DisplayNamer`, que leen `backend/src/backend/Data/Seed/*.json`. |
 | `analyze.py` | Mide la cobertura por categoría y lista las palabras más comunes en Otros. |
 
 Requisitos: Python 3.10 o superior, sin dependencias externas.

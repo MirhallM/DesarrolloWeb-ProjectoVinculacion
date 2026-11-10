@@ -315,10 +315,10 @@ El área de preparación de los lotes de sincronización se define en US-06 y US
 
 | Archivo | Contenido |
 |---|---|
-| `backend/Data/AppDbContext.cs` | Hereda de `IdentityDbContext<AppUser, AppRole, Guid>`. Configura tablas, llaves, índices, restricciones y la semilla de roles y categorías. Llena `created_at` y `updated_at` al guardar. |
-| `backend/Data/SnakeCaseNaming.cs` | Convierte a `snake_case` tablas, columnas, llaves e índices, y quita el prefijo `AspNet` de las tablas de Identity. |
-| `backend/Data/Entities/` | Entidades: `AppUser`, `AppRole`, `Category`, `CategoryRule`, `Product`, `Favorite`, `ProductImage`, `FeaturedProduct`, `SiteContent`, `SyncRun`. |
-| `backend/Data/Migrations/` | Migraciones generadas con `dotnet ef`. |
+| `backend/src/backend/Data/AppDbContext.cs` | Hereda de `IdentityDbContext<AppUser, AppRole, Guid>`. Configura tablas, llaves, índices, restricciones y la semilla de roles y categorías. Llena `created_at` y `updated_at` al guardar. |
+| `backend/src/backend/Data/SnakeCaseNaming.cs` | Convierte a `snake_case` tablas, columnas, llaves e índices, y quita el prefijo `AspNet` de las tablas de Identity. |
+| `backend/src/backend/Data/Entities/` | Entidades: `AppUser`, `AppRole`, `Category`, `CategoryRule`, `Product`, `Favorite`, `ProductImage`, `FeaturedProduct`, `SiteContent`, `SyncRun`. |
+| `backend/src/backend/Data/Migrations/` | Migraciones generadas con `dotnet ef`. |
 
 Notas:
 
@@ -335,7 +335,7 @@ Notas:
 ```powershell
 dotnet tool install --global dotnet-ef --version "10.*"
 docker compose up -d
-cd backend
+cd backend/src/backend
 dotnet ef migrations add InitialCreate --output-dir Data/Migrations   # solo la primera vez
 dotnet ef database update
 ```
@@ -347,7 +347,7 @@ Para verificar que las migraciones crean todo desde cero:
 ```powershell
 docker compose down -v
 docker compose up -d
-cd backend
+cd backend/src/backend
 dotnet ef database update
 docker compose exec postgres-db psql -U admin -d nettes_db -c "\dt"
 ```
