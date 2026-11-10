@@ -18,6 +18,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Casos de paridad generados con catalog.py (tools/catalog-analysis/parity_cases.py). -->
+    <Content Include="Catalog\Data\*.jsonl" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\backend\backend.csproj" />
   </ItemGroup>
 
