@@ -97,7 +97,7 @@ Necesita las variables `MSSQL_*` y `CATALOGO_LECTURA_PASSWORD` de `.env.example`
 ASP.NET Core no lee el archivo `.env`. Las cadenas de conexión y las claves se guardan con User Secrets, por cada integrante:
 
 ```powershell
-cd backend
+cd backend/src/backend
 dotnet user-secrets init
 dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=nettes_db;Username=admin;Password=TU_PASSWORD"
 dotnet run

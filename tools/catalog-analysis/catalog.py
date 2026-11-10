@@ -1,7 +1,7 @@
 """Implementación de referencia de las reglas del catálogo (ver docs/business-rules.md).
 
-- categorize(): asigna la categoría según backend/Data/Seed/categories.json
-- display_name(): genera el nombre para mostrar según backend/Data/Seed/display-dictionary.json
+- categorize(): asigna la categoría según backend/src/backend/Data/Seed/categories.json
+- display_name(): genera el nombre para mostrar según backend/src/backend/Data/Seed/display-dictionary.json
 
 El backend en C# debe producir los mismos resultados. Este archivo sirve como
 especificación ejecutable y para analizar exportaciones de INVE01.
@@ -9,7 +9,7 @@ especificación ejecutable y para analizar exportaciones de INVE01.
 import json, re, unicodedata
 from pathlib import Path
 
-SEED = Path(__file__).resolve().parents[2] / 'backend' / 'Data' / 'Seed'
+SEED = Path(__file__).resolve().parents[2] / 'backend' / 'src' / 'backend' / 'Data' / 'Seed'
 
 
 def normalize(text):
