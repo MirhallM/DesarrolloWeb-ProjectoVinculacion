@@ -20,6 +20,12 @@ builder.Services
     .AddRoles<AppRole>()
     .AddEntityFrameworkStores<AppDbContext>();
 
+// Con "seed" EF registraría cada una de las miles de inserciones; solo interesan los avisos y errores.
+if (CatalogSeedCommand.IsRequested(args))
+{
+    builder.Logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Warning);
+}
+
 builder.Services.AddCatalogRules();
 builder.Services.AddScoped<CatalogSeeder>();
 
