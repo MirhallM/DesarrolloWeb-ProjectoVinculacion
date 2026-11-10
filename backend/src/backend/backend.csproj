@@ -8,6 +8,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Reglas del catálogo dentro del ensamblado: las lee el categorizador y también la siembra. -->
+    <EmbeddedResource Include="Data\Seed\categories.json" LogicalName="backend.Seed.categories.json" />
+    <EmbeddedResource Include="Data\Seed\display-dictionary.json" LogicalName="backend.Seed.display-dictionary.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
   </ItemGroup>
 	<ItemGroup>

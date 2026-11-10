@@ -6,6 +6,7 @@ Herramienta del equipo para probar las reglas de categorías y el nombre para mo
 |---|---|
 | `catalog.py` | Implementación de referencia: `Categorizer` y `DisplayNamer`, que leen `backend/src/backend/Data/Seed/*.json`. |
 | `analyze.py` | Mide la cobertura por categoría y lista las palabras más comunes en Otros. |
+| `parity_cases.py` | Genera los casos de la prueba de paridad con el backend en C# (ver más abajo). |
 
 Requisitos: Python 3.10 o superior, sin dependencias externas.
 
@@ -43,3 +44,16 @@ DisplayNamer()('LECHE ENT 1LT')             # 'Leche Entera 1 L'
 ```
 
 Las reglas y el algoritmo se explican en [docs/catalog-categories.md](../../docs/catalog-categories.md).
+
+## Casos de paridad con el backend
+
+El backend en C# debe dar la misma categoría y el mismo nombre que `catalog.py`. Las pruebas comparan ambos con un archivo de casos que se genera aquí:
+
+```bash
+cd tools/catalog-analysis
+python parity_cases.py data/inventario.csv
+```
+
+Escribe `backend/tests/backend.Tests/Catalog/Data/catalog-parity-cases.jsonl`: un JSON por línea con la descripción de Aspel, la categoría y el nombre para mostrar. **No lleva código, precio ni existencia** y no repite descripciones. Ese archivo sí se sube al repositorio.
+
+Hay que regenerarlo y subirlo en el mismo PR cada vez que cambien `categories.json`, `display-dictionary.json` o el algoritmo de `catalog.py`; si no, la prueba de paridad falla.
