@@ -1,12 +1,23 @@
 import type { Metadata } from "next";
-import { CatalogView } from "@/components/layout/CatalogView";
+import { CatalogSection } from "@/components/catalog/CatalogSection";
+import { getInitialCatalogPage } from "@/lib/catalog";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Catálogo Público",
   description:
-    "Explora todos los productos, precios y disponibilidad de Mini Super Nette's.",
+    "Explora todos los productos, categorías, precios y disponibilidad de Mini Super Nette's.",
 };
 
-export default function CatalogoPage() {
-  return <CatalogView />;
+export default async function CatalogoPage() {
+  const { data, categories, error } = await getInitialCatalogPage({ page: 1 });
+
+  return (
+    <CatalogSection
+      initialData={data}
+      initialCategories={categories}
+      initialError={error}
+    />
+  );
 }

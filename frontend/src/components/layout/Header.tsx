@@ -90,7 +90,6 @@ export function Header() {
     <header className="sticky top-0 z-30 bg-brand shadow-[0_1px_0_rgba(0,0,0,0.06)]">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-2 py-3 sm:gap-3 lg:gap-6">
-          {/* Botón de menú hamburguesa: móvil y tablet */}
           <button
             type="button"
             onClick={() => setMobileOpen((o) => !o)}
@@ -144,7 +143,6 @@ export function Header() {
               </button>
             )}
 
-            {/* Controles de cuenta en escritorio */}
             <div className="hidden lg:block">
               {user ? (
                 <div className="relative" ref={menuRef}>
@@ -216,13 +214,11 @@ export function Header() {
           </nav>
         </div>
 
-        {/* Buscador en su propia fila para móvil y tablet */}
         <div className="pb-3 lg:hidden">
           <SearchField value={query} onChange={onSearch} />
         </div>
       </div>
 
-      {/* Menú desplegable para móvil y tablet */}
       <div
         id="mobile-menu"
         className={`grid overflow-hidden transition-[grid-template-rows] duration-300 lg:hidden ${
@@ -449,4 +445,3 @@ function MenuButton({
     </button>
   );
 }
-
