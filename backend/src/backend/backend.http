@@ -1,6 +1,33 @@
 @backend_HostAddress = http://localhost:5039
 
-GET {{backend_HostAddress}}/weatherforecast/
+### Swagger UI (abrir en el navegador en modo Development):
+# {{backend_HostAddress}}/swagger
+# OpenAPI JSON: {{backend_HostAddress}}/openapi/v1.json
+
+### Listar productos paginados (valores por defecto: page=1, pageSize=24, sort=name, order=asc)
+GET {{backend_HostAddress}}/api/products
 Accept: application/json
 
 ###
+
+### Listar productos ordenados por precio descendente (página 1, 10 por página)
+GET {{backend_HostAddress}}/api/products?page=1&pageSize=10&sort=price&order=desc
+Accept: application/json
+
+###
+
+### Detalle de un producto visible (reemplaza el GUID por un id devuelto en GET /api/products)
+GET {{backend_HostAddress}}/api/products/00000000-0000-0000-0000-000000000000
+Accept: application/json
+
+###
+
+### Listar categorías ordenadas por posición (con "Otros" al final) y conteo de productos visibles
+GET {{backend_HostAddress}}/api/categories
+Accept: application/json
+
+###
+
+### Validación de parámetros inválidos (debe responder 400 ProblemDetails)
+GET {{backend_HostAddress}}/api/products?page=0&pageSize=101&sort=code
+Accept: application/problem+json
