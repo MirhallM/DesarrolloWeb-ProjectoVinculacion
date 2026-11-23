@@ -18,13 +18,18 @@ const nextConfig: NextConfig = {
       .replace(/\/+$/, "")
       .replace(/\/api$/i, "");
 
-    // Todo /api/* se reenvía al backend (en Railway, por la red privada). Las rutas propias de Next.js
-    // (src/app/api/...) tienen prioridad: estas reglas solo aplican cuando no hay un archivo que coincida.
-    // OJO: las reglas se calculan en "next build", así que API_URL debe existir también al compilar.
     return [
       {
-        source: "/api/:path*",
-        destination: `${backendOrigin}/api/:path*`,
+        source: "/api/products/:path*",
+        destination: `${backendOrigin}/api/products/:path*`,
+      },
+      {
+        source: "/api/products",
+        destination: `${backendOrigin}/api/products`,
+      },
+      {
+        source: "/api/categories",
+        destination: `${backendOrigin}/api/categories`,
       },
     ];
   },
