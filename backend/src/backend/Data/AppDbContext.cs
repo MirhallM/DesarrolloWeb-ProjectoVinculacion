@@ -1,4 +1,5 @@
 using backend.Data.Entities;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,10 +8,10 @@ namespace backend.Data;
 /// <summary>
 /// Contexto de la base de datos de la aplicación.
 /// IdentityDbContext aporta las tablas de usuarios, roles y de apoyo;
-/// aquí se agregan las tablas del catálogo.
+/// aquí se agregan las tablas del catálogo y las llaves de Data Protection.
 /// </summary>
 public class AppDbContext(DbContextOptions<AppDbContext> options)
-    : IdentityDbContext<AppUser, AppRole, Guid>(options)
+    : IdentityDbContext<AppUser, AppRole, Guid>(options), IDataProtectionKeyContext
 {
     // Ids fijos para que la semilla de roles no cambie entre migraciones.
     private static readonly Guid UserRoleId = new("6f1f6c3a-6b3e-4b8e-9a51-1d6c2a7b8e01");
@@ -35,6 +36,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<SyncRun> SyncRuns => Set<SyncRun>();
 
+    /// <summary>
+    /// Llaves de Data Protection (cifran las cookies de Identity). Viven en PostgreSQL y no en el disco del
+    /// contenedor: cada despliegue de Railway arranca un contenedor nuevo, y con llaves en disco se perderían
+    /// y todas las sesiones quedarían inválidas.
+    /// </summary>
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         // Primero Identity: define sus tablas, llaves e índices.
@@ -52,6 +60,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
         ConfigureFeaturedProducts(builder);
         ConfigureSiteContent(builder);
         ConfigureSyncRuns(builder);
+
+        // ApplySnakeCaseNames solo renombra las tablas de Identity; las demás se nombran explícitamente.
+        builder.Entity<DataProtectionKey>().ToTable("data_protection_keys");
 
         // Al final, cuando el modelo ya está completo.
         builder.ApplySnakeCaseNames();
