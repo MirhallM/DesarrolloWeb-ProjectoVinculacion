@@ -41,3 +41,4 @@ sync-agent/publish/
 # Sistema Operativo
 .DS_Store
 Thumbs.db
+/docs/Inventario.csv
