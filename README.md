@@ -111,6 +111,14 @@ dotnet run -- seed
 
 Se puede repetir sin problema; deja las tablas iguales a `Data/Seed/categories.json`. En Railway se ejecuta como comando de pre-deploy: `dotnet backend.dll seed`.
 
+Si aún no estás ejecutando la sincronización con Aspel y quieres poblar productos de prueba en desarrollo local (`Development`):
+
+```powershell
+dotnet run -- seed-dev
+```
+
+Con la API corriendo (`dotnet run`), puedes probar los endpoints desde **Swagger UI** en `http://localhost:5039/swagger` o usando [`backend/src/backend/backend.http`](backend/src/backend/backend.http). Más detalles en [`backend/README.md`](backend/README.md).
+
 La contraseña debe ser la misma que `POSTGRES_PASSWORD`. La URL del API aparece en la consola al iniciar. Las demás variables que se necesitarán más adelante (`Jwt:*`) están documentadas en `.env.example`. La conexión a Aspel SAE **no** va en el backend: la usa únicamente el agente de sincronización (ver [`sync-agent/README.md`](sync-agent/README.md)).
 
 ### 4. Frontend
