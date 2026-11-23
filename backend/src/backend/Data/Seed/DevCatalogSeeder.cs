@@ -58,15 +58,6 @@ public sealed class DevCatalogSeeder(
         new("DEV-022", "DETERGENTE EN POLVO 1KG", 72.50m, -2m),
         new("DEV-023", "MANZANA ROJA GALA POR LB", 48.00m, 0m, ImagePath: "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&w=800&q=80"),
 
-        // Productos adicionales para superar el tamaño de página por defecto (24) y probar paginación en frontend
-        new("DEV-024", "ACEITE VEGETAL ORISOL 900ML", 64.00m, 19m),
-        new("DEV-025", "QUESO SEMISECO POR LB", 115.00m, 8m),
-        new("DEV-026", "ZAMBOS PICOSITOS LIMON Y SAL", 18.00m, 45m),
-        new("DEV-027", "AGUA OXIGENADA RK 120ML", 28.00m, 14m),
-        new("DEV-028", "SARTEN CON ESPATULA 20CM", 295.00m, 5m),
-        new("DEV-029", "FOCO LED RECARGABLE VIKINGO", 165.00m, 11m),
-        new("DEV-030", "PELOTA DE CUERO INFANTIL", 130.00m, 0m),
-
         // Productos ocultos según docs/business-rules.md (no deben aparecer en /api/products y responden 404 en detalle)
         new("DEV-H01", "PRODUCTO DADO DE BAJA", 30.00m, 5m, IsActive: false),
         new("DEV-H02", "PRODUCTO SIN PRECIO EN LISTA", 0m, 5m),
