@@ -1,5 +1,8 @@
+name: nettes
+
 services:
   postgres-db:
+    container_name: nettes-postgres
     image: postgres:17
     restart: unless-stopped
     environment:

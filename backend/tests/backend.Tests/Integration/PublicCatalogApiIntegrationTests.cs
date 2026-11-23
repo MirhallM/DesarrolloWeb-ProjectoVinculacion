@@ -166,20 +166,20 @@ public sealed class PublicCatalogApiIntegrationTests : IAsyncLifetime
         {
             var seeder = scope.ServiceProvider.GetRequiredService<DevCatalogSeeder>();
             var first = await seeder.SeedAsync(ct);
-            Assert.Equal(27, first.Inserted);
+            Assert.Equal(34, first.Inserted);
             Assert.Equal(0, first.Updated);
 
             var second = await seeder.SeedAsync(ct);
             Assert.Equal(0, second.Inserted);
-            Assert.Equal(27, second.Updated);
+            Assert.Equal(34, second.Updated);
         }
 
-        // De los 27 registros dev, 4 están ocultos (baja, precio 0, precio sospechoso, nombre vacío) -> 23 visibles
+        // De los 34 registros dev, 4 están ocultos (baja, precio 0, precio sospechoso, nombre vacío) -> 30 visibles
         var result = await _client!.GetFromJsonAsync<PagedResult<PublicProductDto>>(
             "/api/products?pageSize=50", JsonOptions, ct);
         Assert.NotNull(result);
-        Assert.Equal(23, result.TotalCount);
-        Assert.Equal(23, result.Items.Count);
+        Assert.Equal(30, result.TotalCount);
+        Assert.Equal(30, result.Items.Count);
         Assert.Contains(result.Items, p => p.Available);
         Assert.Contains(result.Items, p => !p.Available);
         Assert.Contains(result.Items, p => p.ImageUrl is null);

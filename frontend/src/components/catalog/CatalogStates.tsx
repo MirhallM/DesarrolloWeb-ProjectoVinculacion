@@ -49,6 +49,7 @@ interface CatalogErrorStateProps {
 
 /**
  * Estado de error cuando falla la comunicación con el backend.
+ * Mantiene intacto el resto de la página y ofrece reintento.
  */
 export function CatalogErrorState({
   message = "No pudimos cargar los productos en este momento. Verifica tu conexión o intenta de nuevo.",
@@ -108,15 +109,15 @@ export function CatalogErrorState({
 }
 
 interface CatalogEmptyStateProps {
-  hasActiveFilters: boolean;
+  hasActiveFilters?: boolean;
   onResetFilters?: () => void;
 }
 
 /**
- * Estado vacío cuando no hay coincidencias con los filtros o el catálogo aún no tiene productos activos.
+ * Estado vacío cuando no hay coincidencias con los filtros o el catálogo aún no tiene productos visibles.
  */
 export function CatalogEmptyState({
-  hasActiveFilters,
+  hasActiveFilters = false,
   onResetFilters,
 }: CatalogEmptyStateProps) {
   return (
@@ -164,4 +165,3 @@ export function CatalogEmptyState({
     </div>
   );
 }
-

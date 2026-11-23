@@ -9,10 +9,31 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { DEFAULT_BANNERS, DEFAULT_FEATURED } from "@/lib/data";
 import type { Banner, UserSession } from "@/types";
 
-type Updater<T> = (fn: (prev: T) => T) => void;
+const DEFAULT_BANNERS: Banner[] = [
+  {
+    id: "b1",
+    title: "Semana fresca: hasta 30% de descuento en frutas y verduras",
+    subtitle: "Productos recién cosechados, reabastecidos cada mañana.",
+    cta: "Ver ofertas frescas",
+    image:
+      "https://images.unsplash.com/photo-1609126986933-e3c84f19d49c?auto=format&fit=crop&w=1600&q=80",
+    active: true,
+    createdAt: "2026-05-02",
+  },
+  {
+    id: "b2",
+    title: "Pan calientito de nuestra panadería, todos los días",
+    subtitle:
+      "Masa madre, panecillos y pan dulce horneados en tienda desde las 6 a.m.",
+    cta: "Ver la panadería",
+    image:
+      "https://images.unsplash.com/photo-1559811814-e2c57b5e69df?auto=format&fit=crop&w=1600&q=80",
+    active: true,
+    createdAt: "2026-04-21",
+  },
+];
 
 interface Store {
   user: UserSession | null;
@@ -22,12 +43,8 @@ interface Store {
   toggleFavorite: (id: string) => void;
   isFavorite: (id: string) => boolean;
   banners: Banner[];
-  setBanners: Updater<Banner[]>;
-  featured: Record<string, boolean>;
-  setFeatured: Updater<Record<string, boolean>>;
   query: string;
   setQuery: (q: string) => void;
-  /** Redirige al visitante a /login y regresa a `next` tras autenticarse. */
   requireLogin: (next: string, reason?: string) => void;
   loginReason: string | null;
   resetLoginIntent: () => void;
@@ -35,19 +52,11 @@ interface Store {
 
 const StoreContext = createContext<Store | null>(null);
 
-/**
- * Proveedor de estado de la interfaz.
- * Nota de seguridad (frontend/CONTEXT.md): Prohibido almacenar tokens JWT
- * o sesiones sensibles en localStorage/sessionStorage. La sesión real se
- * gestiona mediante cookies HTTP-only en /api/auth.
- */
 export function StoreProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<UserSession | null>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
-  const [banners, setBannersState] = useState<Banner[]>(DEFAULT_BANNERS);
-  const [featured, setFeaturedState] =
-    useState<Record<string, boolean>>(DEFAULT_FEATURED);
+  const [banners] = useState<Banner[]>(DEFAULT_BANNERS);
   const [query, setQuery] = useState("");
   const [redirectTo, setRedirectTo] = useState("/");
   const [loginReason, setLoginReason] = useState<string | null>(null);
@@ -102,9 +111,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       toggleFavorite,
       isFavorite: (id: string) => favorites.includes(id),
       banners,
-      setBanners: setBannersState,
-      featured,
-      setFeatured: setFeaturedState,
       query,
       setQuery,
       requireLogin,
@@ -118,7 +124,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       favorites,
       toggleFavorite,
       banners,
-      featured,
       query,
       requireLogin,
       loginReason,
@@ -136,4 +141,3 @@ export function useStore() {
   if (!ctx) throw new Error("useStore debe usarse dentro de <StoreProvider>");
   return ctx;
 }
-

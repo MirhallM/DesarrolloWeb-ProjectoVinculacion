@@ -40,7 +40,7 @@ API REST desarrollada con **ASP.NET Core (.NET 10 / `net10.0`)**, **Entity Frame
 | Comando (desde `backend/src/backend`) | Uso | Qué carga |
 | :--- | :--- | :--- |
 | `dotnet run -- seed` | **Producción y Desarrollo** | Siembra únicamente las tablas `categories` y `category_rules` desde `Data/Seed/categories.json`. Idempotente; seguro para pre-deploy. |
-| `dotnet run -- seed-dev` | **Solo `Development`** | Ejecuta primero `seed` y carga **27 productos de prueba** (prefijo `DEV-`) categorizados con las reglas reales (23 visibles entre disponibles, agotados, con imagen y sin imagen + 4 ocultos para probar reglas de visibilidad). Es idempotente y se bloquea fuera de `Development`. |
+| `dotnet run -- seed-dev` | **Solo `Development`** | Ejecuta primero `seed` y carga **34 productos de prueba** (prefijo `DEV-`) categorizados con las reglas reales (30 visibles entre disponibles, agotados, con imagen y sin imagen para probar 2 páginas con `pageSize=24` + 4 ocultos para probar reglas de visibilidad). Es idempotente y se bloquea fuera de `Development`. |
 
 ---
 

@@ -2,30 +2,30 @@
 
 import { useEffect } from "react";
 import { SlidersHorizontal, X } from "@/components/ui/Icons";
+import type { PublicCategory } from "@/types";
 
 interface FilterSidebarProps {
-  categories: { name: string; count: number }[];
+  categories: PublicCategory[];
   totalCount: number;
-  selected: string | null;
-  onSelect: (category: string | null) => void;
+  selectedSlug: string | null;
+  onSelect: (slug: string | null) => void;
   inStockOnly: boolean;
   onInStockOnlyChange: (value: boolean) => void;
   resultCount: number;
   onReset: () => void;
-  /** Estado del drawer en móvil/tablet. En escritorio (`lg`+) la barra lateral es fija. */
   open: boolean;
   onClose: () => void;
 }
 
 /**
- * Barra lateral de filtros:
+ * Barra lateral de filtros conectada a las categorías reales de GET /api/categories:
  * - Móvil y Tablet (< lg): Drawer deslizable accesible con soporte de tecla Escape y backdrop.
  * - Escritorio (lg+): Columna lateral izquierda fija.
  */
 export function FilterSidebar({
   categories,
   totalCount,
-  selected,
+  selectedSlug,
   onSelect,
   inStockOnly,
   onInStockOnlyChange,
@@ -86,20 +86,20 @@ export function FilterSidebar({
           <p className="text-xs font-bold tracking-[0.12em] text-muted uppercase lg:hidden">
             Categorías
           </p>
-          <ul className="mt-3 flex flex-col gap-0.5">
+          <ul className="mt-3 flex flex-col gap-0.5 lg:max-h-[420px] lg:overflow-y-auto lg:pr-1">
             <CategoryItem
               label="Todos los productos"
               count={totalCount}
-              active={!selected}
+              active={!selectedSlug}
               onClick={() => onSelect(null)}
             />
             {categories.map((c) => (
               <CategoryItem
-                key={c.name}
+                key={c.slug}
                 label={c.name}
-                count={c.count}
-                active={selected === c.name}
-                onClick={() => onSelect(c.name)}
+                count={c.productCount}
+                active={selectedSlug === c.slug}
+                onClick={() => onSelect(c.slug)}
               />
             ))}
           </ul>
@@ -176,4 +176,3 @@ function CategoryItem({
     </li>
   );
 }
-

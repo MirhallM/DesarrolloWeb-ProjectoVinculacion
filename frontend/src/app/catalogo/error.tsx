@@ -1,6 +1,6 @@
 "use client";
 
-import { CatalogErrorState } from "@/components/ui/CatalogStates";
+import { CatalogErrorState } from "@/components/catalog/CatalogStates";
 
 export default function CatalogoError({
   reset,
@@ -9,9 +9,8 @@ export default function CatalogoError({
   reset: () => void;
 }) {
   return (
-    <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+    <main className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
       <CatalogErrorState onRetry={reset} />
     </main>
   );
 }
-
