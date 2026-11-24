@@ -7,8 +7,10 @@ Esqueleto de la aplicación en Railway (#47): frontend, backend y PostgreSQL en 
 | Servicio | Origen | Acceso | Notas |
 |---|---|---|---|
 | `frontend` | Rama `main`, Root Directory `frontend` | **Único dominio público** (`*.up.railway.app`) | Next.js. Reenvía todo `/api/*` al backend por la red privada. |
-| `backend` | Rama `main`, Root Directory `backend` | Solo red privada (`backend.railway.internal`) | ASP.NET Core 10 con [`backend/Dockerfile`](../backend/Dockerfile) y [`backend/railway.json`](../backend/railway.json). |
-| `Postgres` | Plantilla de PostgreSQL 17 de Railway | Solo red privada | Sin TCP proxy público. |
+| `backend` | Rama `main`, Root Directory `/backend` | Solo red privada (`backend.railway.internal`) | ASP.NET Core 10 con [`backend/Dockerfile`](../backend/Dockerfile). Configurado a mano en el panel ([sección 4](#4-pasos-en-el-panel-de-railway-primera-vez)). |
+| `Postgres` | Plantilla de PostgreSQL de Railway: **PostgreSQL 18.7**, imagen `ghcr.io/railwayapp-templates/postgres-ssl` | Solo red privada | Sin TCP proxy público. En local se usa `postgres:18`, la misma versión mayor. |
+
+La configuración de los servicios vive **en el panel de Railway**, no en el repositorio. Railway marcó Config as Code (`railway.json`) como obsoleto, así que se quitó `backend/railway.json`. La migración a Infrastructure as Code está en [Pendientes](#7-pendientes).
 
 ```
 Internet ──HTTPS──► frontend (Next.js) ──/api/* por red privada──► backend (:8080) ──► Postgres
@@ -18,7 +20,7 @@ Internet ──HTTPS──► frontend (Next.js) ──/api/* por red privada─
 
 ### Imagen
 
-[`backend/Dockerfile`](../backend/Dockerfile) compila con `dotnet/sdk:10.0` y ejecuta con `dotnet/aspnet:10.0`. Son las etiquetas predeterminadas: en .NET 10 son **Ubuntu 24.04**. Traen ICU, que la API necesita para quitar acentos. **No usar Alpine ni chiseled**, porque no lo traen. La imagen corre con el usuario sin privilegios de la imagen oficial y no incluye `tests/`.
+[`backend/Dockerfile`](../backend/Dockerfile) compila con `dotnet/sdk:10.0` y ejecuta con `dotnet/aspnet:10.0`. Son las etiquetas predeterminadas de .NET 10, basadas en **Ubuntu 24.04**, y traen ICU, que la API necesita para quitar acentos. **No usar Alpine ni chiseled**, porque no lo traen. La imagen corre con el usuario sin privilegios de la imagen oficial y no incluye `tests/`.
 
 ### Comandos
 
@@ -31,7 +33,9 @@ El mismo `backend.dll` levanta la API o ejecuta un comando y termina:
 | `seed` | Siembra categorías y reglas desde `categories.json` | Pre-deploy, después de `migrate` |
 | `dp-check protect <texto>` / `dp-check unprotect <protegido>` | Diagnóstico de las llaves de Data Protection ([sección 5](#5-llaves-de-data-protection)) | A mano |
 
-### Pre-deploy y healthcheck (`railway.json`)
+### Pre-deploy y healthcheck
+
+Se configuran en el panel del servicio `backend` ([sección 4](#4-pasos-en-el-panel-de-railway-primera-vez)).
 
 - **Pre-deploy:** `sh -c "dotnet backend.dll migrate && dotnet backend.dll seed"`. Si cualquiera falla (código distinto de 0), Railway **no** pasa a la versión nueva y la anterior sigue en línea.
 - **Healthcheck:** `GET /api/health` responde `200 Healthy` si PostgreSQL contesta y `503 Unhealthy` si no. Railway espera hasta 120 s a que responda 200 antes de dar el despliegue por bueno.
@@ -68,18 +72,39 @@ Ningún valor va en el repositorio. Se configuran en **Variables** de cada servi
 ## 4. Pasos en el panel de Railway (primera vez)
 
 1. Crear el proyecto y conectar el repositorio de GitHub.
-2. **Postgres:** agregar *Database → PostgreSQL*. En *Settings → Networking*, **eliminar el TCP proxy público** si lo creó.
+2. **Postgres:** agregar *Database → PostgreSQL*. La plantilla crea PostgreSQL 18 con la imagen `ghcr.io/railwayapp-templates/postgres-ssl`. **Sin acceso público:** en *Settings → Networking*, no agregar TCP proxy, y eliminarlo si lo creó.
 3. **backend:** *New → GitHub Repo*, rama `main`.
-   - *Settings → Source → Root Directory:* `backend`.
-   - *Settings → Config-as-code:* `/backend/railway.json`. El archivo de configuración **no** sigue el Root Directory, así que hay que dar la ruta desde la raíz del repositorio.
-   - *Settings → Watch Paths:* `/backend/**`, para que un cambio solo del frontend no redespliegue el backend.
-   - *Networking:* **no** generar dominio público.
-   - Variables de la [sección 3](#3-variables-nombres-sin-valores).
-4. **frontend:** *New → GitHub Repo*, rama `main`.
-   - *Root Directory:* `frontend`. Railway detecta Next.js y usa `npm run build` y `npm start`, que respeta `PORT`.
-   - *Watch Paths:* `/frontend/**`.
-   - *Networking → Generate Domain:* el único dominio público.
-   - Variable `API_URL`.
+
+   > **Ojo: nombre del servicio.** Railway le pone al servicio el nombre del repositorio. **Hay que renombrarlo a `backend`** (*Settings → Service Name*), porque las variables de referencia del frontend usan ese nombre (`${{backend.*}}`).
+
+   | Ajuste (*Settings*) | Valor |
+   |---|---|
+   | *Source → Root Directory* | `/backend` |
+   | *Build → Builder* | Dockerfile |
+   | *Build → Dockerfile Path* | `/backend/Dockerfile`. Se da desde la raíz del repositorio. |
+   | *Build → Watch Paths* | `/backend/**`, para que un cambio solo del frontend no redespliegue el backend |
+   | *Deploy → Pre-deploy Command* | `sh -c "dotnet backend.dll migrate && dotnet backend.dll seed"` |
+   | *Deploy → Start Command* | **Vacío**: usa el `ENTRYPOINT` del Dockerfile (`dotnet backend.dll`) |
+   | *Deploy → Healthcheck Path* | `/api/health` |
+   | *Deploy → Healthcheck Timeout* | `120` |
+   | *Deploy → Restart Policy* | On Failure, máximo `5` reintentos |
+   | *Deploy → Serverless* | Apagado |
+   | *Source → Wait for CI* | Encendido: no despliega hasta que pase el CI de GitHub Actions |
+   | *Networking* | **Sin** dominio público |
+   | *Variables* | `ConnectionStrings__DefaultConnection`, `ASPNETCORE_ENVIRONMENT=Production` y `PORT=8080` (ver [sección 3](#3-variables-nombres-sin-valores)) |
+
+   > **Ojo: no usar "Add Variable" del aviso *Trying to connect a database?*.** Ese botón agrega `DATABASE_URL`, que .NET no usa. La conexión va en `ConnectionStrings__DefaultConnection`, con las referencias `${{Postgres.*}}` de la sección 3.
+
+4. **frontend:** *New → GitHub Repo*, rama `main`. **Renombrarlo a `frontend`**, igual que el backend.
+
+   | Ajuste (*Settings*) | Valor |
+   |---|---|
+   | *Source → Root Directory* | `/frontend` |
+   | *Build → Builder* | Railpack. Detecta Next.js y usa `npm run build` y `npm start`, que respeta `PORT`. |
+   | *Build → Watch Paths* | `/frontend/**` |
+   | *Source → Wait for CI* | Encendido |
+   | *Networking → Generate Domain* | El único dominio público (`*.up.railway.app`) |
+   | *Variables* | `API_URL=http://${{backend.RAILWAY_PRIVATE_DOMAIN}}:${{backend.PORT}}` |
 5. Desplegar y comprobar:
    - `https://<dominio>.up.railway.app/api/health` debe responder `Healthy`.
    - En los logs del pre-deploy del backend deben aparecer `Migraciones aplicadas.` y el resumen de la siembra.
@@ -129,6 +154,7 @@ La prueba de integración `DeploymentIntegrationTests` cubre lo mismo con dos ho
 
 ## 7. Pendientes
 
+- **Migrar la configuración a Infrastructure as Code, antes o durante US-21 (#29).** Railway marcó Config as Code como obsoleto: los servicios nuevos ya no pueden usarlo, y los archivos `railway.json` / `railway.toml` existentes dejan de leerse el 2026-12-01. Por eso hoy todo se configura a mano en el panel ([sección 4](#4-pasos-en-el-panel-de-railway-primera-vez)). El reemplazo es un archivo `.railway/railway.ts` que maneja la CLI (`railway config init`, `railway config pull` para partir de lo que ya está en el panel, `railway config plan` y `railway config apply`). Guía: <https://docs.railway.com/infrastructure-as-code>.
 - **Forwarded headers.** El backend está detrás del proxy de Railway y del reenvío de Next.js, así que hoy ve HTTP y la IP del frontend, no la del usuario. Hay que configurar `UseForwardedHeaders` (`X-Forwarded-For` y `X-Forwarded-Proto`), confiando solo en la red privada, **antes de**:
   - las historias de login y roles (#21 y #22): cookies `Secure` y esquema HTTPS correctos;
   - el rate limiting (#48): limitar por la IP real del cliente y no por la del frontend.
