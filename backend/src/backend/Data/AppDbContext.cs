@@ -36,6 +36,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<SyncRun> SyncRuns => Set<SyncRun>();
 
+    /// <summary>Área de preparación de la sincronización: artículos recibidos en lotes, antes de aplicarlos.</summary>
+    public DbSet<SyncRunItem> SyncRunItems => Set<SyncRunItem>();
+
     /// <summary>
     /// Llaves de Data Protection (cifran las cookies de Identity). Viven en PostgreSQL y no en el disco del
     /// contenedor: cada despliegue de Railway arranca un contenedor nuevo, y con llaves en disco se perderían
@@ -209,8 +212,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             product.Property(p => p.Code).HasMaxLength(50).IsRequired();
             product.Property(p => p.Description).HasMaxLength(255).IsRequired();
             product.Property(p => p.DisplayName).HasMaxLength(255).IsRequired();
-            product.Property(p => p.PublicPrice).HasPrecision(12, 2);
-            product.Property(p => p.Stock).HasPrecision(14, 4);
+            // Aspel trae precios de 15 000 000 000 y existencias de 500 000 000 000 (valores de relleno):
+            // la precisión debe admitirlos aunque no se muestren (ver docs/business-rules.md).
+            product.Property(p => p.PublicPrice).HasPrecision(ProductPrecision.PriceDigits, ProductPrecision.PriceScale);
+            product.Property(p => p.Stock).HasPrecision(ProductPrecision.StockDigits, ProductPrecision.StockScale);
             product.Property(p => p.CreatedAt).HasDefaultValueSql("now()");
             product.Property(p => p.UpdatedAt).HasDefaultValueSql("now()");
 
@@ -350,11 +355,17 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
                 t.HasCheckConstraint(
                     "ck_sync_runs_finished_at",
                     "finished_at IS NULL OR finished_at >= started_at");
+                t.HasCheckConstraint(
+                    "ck_sync_runs_mode",
+                    $"mode IN ('{SyncRunModes.Full}', '{SyncRunModes.Unchanged}')");
             });
 
             run.HasKey(r => r.Id);
 
             run.Property(r => r.Status).HasMaxLength(20).IsRequired();
+            run.Property(r => r.Mode).HasMaxLength(20).IsRequired().HasDefaultValue(SyncRunModes.Full);
+            run.Property(r => r.InventoryHash).HasMaxLength(64);
+            run.Property(r => r.ProductsRejected).HasDefaultValue(0);
 
             // Solo una sincronización en ejecución a la vez.
             run.HasIndex(r => r.Status)
@@ -363,6 +374,24 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
 
             // Para obtener la última sincronización exitosa (US-12).
             run.HasIndex(r => new { r.Status, r.FinishedAt });
+        });
+
+        builder.Entity<SyncRunItem>(item =>
+        {
+            item.ToTable("sync_run_items");
+
+            // La llave incluye el código: un código repetido dentro de una corrida lo rechaza la base.
+            item.HasKey(i => new { i.RunId, i.Code });
+
+            // Sin límite de largo: se guarda lo que llegó y se valida al completar.
+            item.Property(i => i.Code).IsRequired();
+
+            item.HasIndex(i => new { i.RunId, i.Sequence });
+
+            item.HasOne<SyncRun>()
+                .WithMany()
+                .HasForeignKey(i => i.RunId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
