@@ -79,7 +79,8 @@
 #Requires -Version 5.1
 [CmdletBinding()]
 param(
-    [string]$SourcePath = (Join-Path $PSScriptRoot '..\publish'),
+    # Sin valor por omisión aquí: con "powershell -File", $PSScriptRoot llega vacío a los valores de param(). Se calcula en el cuerpo.
+    [string]$SourcePath,
     [string]$InstallPath = 'C:\NettesSyncAgent',
     [ValidatePattern('^[A-Za-z0-9._-]{1,20}$')]
     [string]$AccountName = 'svc-nettes-sync',
@@ -120,6 +121,12 @@ function Write-Step([int]$Number, [string]$Text) {
 function Write-Info([string]$Text) { Write-Host "      $Text" }
 function Write-Ok([string]$Text) { Write-Host "      OK     $Text" -ForegroundColor Green }
 function Write-Warn([string]$Text) { Write-Host "      AVISO  $Text" -ForegroundColor Yellow }
+
+function Resolve-FullPath([string]$Path) {
+    # Ruta absoluta respecto de la ubicación ACTUAL de PowerShell. No se usa [IO.Path]::GetFullPath: resuelve contra
+    # [Environment]::CurrentDirectory, que Set-Location no cambia (en una consola de administrador suele ser System32).
+    return $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
+}
 
 function Test-DomainController {
     # Win32_ComputerSystem.DomainRole: 0-1 estación de trabajo, 2-3 servidor, 4 controlador de dominio de reserva, 5 principal.
@@ -319,6 +326,8 @@ try {
     }
     Write-Ok "Consola de administrador ($($identity.Name))."
 
+    if ([string]::IsNullOrWhiteSpace($SourcePath)) { $SourcePath = Join-Path $PSScriptRoot '..\publish' }
+    $SourcePath = Resolve-FullPath $SourcePath
     if (-not (Test-Path -LiteralPath $SourcePath -PathType Container)) {
         throw "No existe la carpeta con el programa publicado: $SourcePath`nGénérela con: dotnet publish src\SyncAgent -c Release -r win-x64 --self-contained -o publish"
     }
@@ -329,7 +338,7 @@ try {
     }
     Write-Ok "Programa publicado encontrado en $SourcePath"
 
-    $InstallPath = [IO.Path]::GetFullPath($InstallPath).TrimEnd('\')
+    $InstallPath = (Resolve-FullPath $InstallPath).TrimEnd('\')
     if ($InstallPath.Length -le 3) {
         throw "La carpeta de instalación no puede ser la raíz de un disco ($InstallPath)."
     }

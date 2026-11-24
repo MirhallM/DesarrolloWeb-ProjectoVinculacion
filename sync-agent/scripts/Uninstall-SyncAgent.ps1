@@ -111,6 +111,12 @@ function Remove-DeadIdentities([string]$Path, [string]$Sid) {
     return $dead.Count
 }
 
+function Resolve-FullPath([string]$Path) {
+    # Ruta absoluta respecto de la ubicación ACTUAL de PowerShell. No se usa [IO.Path]::GetFullPath: resuelve contra
+    # [Environment]::CurrentDirectory, que Set-Location no cambia (en una consola de administrador suele ser System32).
+    return $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
+}
+
 function Test-DomainController {
     # Win32_ComputerSystem.DomainRole: 4 = controlador de dominio de reserva, 5 = principal.
     return ([int](Get-CimInstance -ClassName Win32_ComputerSystem).DomainRole -ge 4)
@@ -306,7 +312,7 @@ try {
     }
     Write-Ok "Consola de administrador ($($identity.Name))."
 
-    $InstallPath = [IO.Path]::GetFullPath($InstallPath).TrimEnd('\')
+    $InstallPath = (Resolve-FullPath $InstallPath).TrimEnd('\')
     if ($InstallPath.Length -le 3) {
         throw "La carpeta de instalación no puede ser la raíz de un disco ($InstallPath)."
     }
