@@ -19,6 +19,11 @@
       6. Registra la tarea programada con las opciones descritas más abajo.
       7. Muestra un resumen y cómo verificar todo a mano.
 
+    SI LA CONFIGURACIÓN ESTÁ INCOMPLETA (cadena de conexión con la contraseña de ejemplo, o Api:BaseUrl / Api:AgentKey
+    sin completar), la tarea se registra DESHABILITADA: así no corre, ni falla, ni deja un estado de error (ni intenta
+    iniciar sesión en SQL Server con una contraseña falsa) antes de tiempo. Al terminar de configurar se habilita con
+    Enable-ScheduledTask (el resumen final muestra el comando exacto).
+
     Se puede ejecutar varias veces: si la cuenta, los archivos o la tarea ya existen, los ACTUALIZA en lugar de fallar.
     Para deshacerlo todo: Uninstall-SyncAgent.ps1.
 
@@ -165,6 +170,65 @@ function Set-ConfigPermissions([string]$Config, [string]$AgentSid, [string[]]$Re
     foreach ($sid in $RemoveSids) {
         [void](Invoke-Native -Program 'icacls.exe' -Arguments @($Config, '/remove:g', "*$sid"))
     }
+}
+
+function Get-ConfigValue($Object, [string]$Name) {
+    # Lee una propiedad de un objeto de ConvertFrom-Json SIN fallar bajo Set-StrictMode cuando no existe (o cuando el objeto
+    # está vacío o es nulo): devuelve $null.
+    if ($null -eq $Object) { return $null }
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) { return $null }
+    return $property.Value
+}
+
+function Initialize-ConfigSections([string]$Path) {
+    # Garantiza que appsettings.Production.json tenga las secciones ConnectionStrings y Api con sus claves, para que quien lo
+    # edite (o un script) pueda asignarlas sin que falle por una sección ausente. Solo reescribe si falta algo, y lo hace
+    # SOBRE EL MISMO ARCHIVO (conserva sus permisos). Devuelve los nombres de lo que agregó.
+    $config = [IO.File]::ReadAllText($Path) | ConvertFrom-Json
+    if ($null -eq $config) { $config = [pscustomobject]@{} }
+    $added = New-Object System.Collections.Generic.List[string]
+    $wanted = [ordered]@{
+        ConnectionStrings = [ordered]@{ AspelSae = '' }
+        Api               = [ordered]@{ BaseUrl = ''; AgentKey = '' }
+    }
+    foreach ($section in $wanted.Keys) {
+        $value = Get-ConfigValue $config $section
+        if ($value -isnot [System.Management.Automation.PSCustomObject]) {
+            $value = [pscustomobject]@{}
+            $config | Add-Member -NotePropertyName $section -NotePropertyValue $value -Force
+            $added.Add($section)
+        }
+        foreach ($key in $wanted[$section].Keys) {
+            if ($null -eq $value.PSObject.Properties[$key]) {
+                $value | Add-Member -NotePropertyName $key -NotePropertyValue $wanted[$section][$key]
+                $added.Add("${section}:$key")
+            }
+        }
+    }
+    if ($added.Count -gt 0) {
+        [IO.File]::WriteAllText($Path, ($config | ConvertTo-Json -Depth 10), (New-Object System.Text.UTF8Encoding($false)))
+    }
+    return $added.ToArray()
+}
+
+function Get-ConfigGaps([string]$Path) {
+    # Qué falta completar en la configuración. No se muestra ningún valor (podrían ser secretos).
+    $config = [IO.File]::ReadAllText($Path) | ConvertFrom-Json
+    $gaps = New-Object System.Collections.Generic.List[string]
+    $connection = [string](Get-ConfigValue (Get-ConfigValue $config 'ConnectionStrings') 'AspelSae')
+    if ([string]::IsNullOrWhiteSpace($connection) -or $connection -match '(?i)Password\s*=\s*CAMBIAR\s*(;|$)') {
+        $gaps.Add('ConnectionStrings:AspelSae (la contraseña de catalogo_lectura)')
+    }
+    $baseUrl = [string](Get-ConfigValue (Get-ConfigValue $config 'Api') 'BaseUrl')
+    if ([string]::IsNullOrWhiteSpace($baseUrl) -or $baseUrl -match '[<>]') {
+        $gaps.Add('Api:BaseUrl (la URL pública del sitio)')
+    }
+    $key = [string](Get-ConfigValue (Get-ConfigValue $config 'Api') 'AgentKey')
+    if ([string]::IsNullOrWhiteSpace($key) -or $key.Trim() -ieq 'CAMBIAR') {
+        $gaps.Add('Api:AgentKey (la llave: New-SyncAgentKey.ps1)')
+    }
+    return $gaps.ToArray()
 }
 
 function Test-DomainController {
@@ -615,10 +679,13 @@ try {
         Write-Ok "Archivo protegido: escritura solo para Administradores; la cuenta de la tarea ($taskAccountLabel) solo lo lee."
     }
 
-    $configNeedsEdit = Select-String -LiteralPath $configPath -Pattern 'Password=CAMBIAR' -SimpleMatch -Quiet
-    if ($configNeedsEdit) {
-        Write-Warn 'La cadena de conexión todavía tiene la contraseña de ejemplo ("CAMBIAR"). Hay que editarla (ver el resumen final).'
-    }
+    $addedSections = @(Initialize-ConfigSections -Path $configPath)
+    if ($addedSections.Count -gt 0) { Write-Ok "Se agregó lo que faltaba en la configuración: $($addedSections -join ', ')." }
+
+    # ¿Está completa? Si no, la tarea se registra DESHABILITADA (paso 6): no corre antes de tiempo ni deja un estado de fallo.
+    $configGaps = @(Get-ConfigGaps -Path $configPath)
+    $configNeedsEdit = ($configGaps.Count -gt 0)
+    foreach ($gap in $configGaps) { Write-Warn "Falta completar: $gap." }
 
     # =================================================================================================================
     Write-Step 6 "Registrar la tarea programada $TaskFolder$TaskName"
@@ -627,6 +694,8 @@ try {
     # corresponde a una casilla de la ventana del Programador y no depende de cómo se comporten los cmdlets en cada versión de Windows.
     # Las tareas se escriben en hora LOCAL del servidor.
 
+    $taskEnabled = -not $configNeedsEdit
+    $taskEnabledXml = if ($taskEnabled) { 'true' } else { 'false' }
     $firstRun = (Get-Date).AddMinutes(2).ToString('yyyy-MM-ddTHH:mm:ss')
     $e = { param($text) [Security.SecurityElement]::Escape($text) }   # escapa &, <, > y comillas dentro del XML
 
@@ -700,7 +769,8 @@ $tokenXml
     <ExecutionTimeLimit>PT$($TimeLimitMinutes)M</ExecutionTimeLimit>
     <AllowHardTerminate>true</AllowHardTerminate>
     <AllowStartOnDemand>true</AllowStartOnDemand>
-    <Enabled>true</Enabled>
+    <!-- Enabled = false cuando la configuración está incompleta: la tarea no corre hasta que se habilite (Enable-ScheduledTask). -->
+    <Enabled>$taskEnabledXml</Enabled>
     <Hidden>false</Hidden>
     <IdleSettings>
       <StopOnIdleEnd>false</StopOnIdleEnd>
@@ -744,6 +814,9 @@ $tokenXml
 
     $task = Get-ScheduledTask -TaskName $TaskName -TaskPath $TaskFolder
     Write-Ok "Tarea registrada: $TaskFolder$TaskName (estado: $($task.State))."
+    if (-not $taskEnabled) {
+        Write-Warn 'La tarea quedó DESHABILITADA porque la configuración está incompleta. No correrá hasta que la habilite (ver el resumen final).'
+    }
 
     if ($useLocalServiceMode) {
         if ([string]$task.Principal.ProcessTokenSidType -ne 'Unrestricted') {
@@ -780,18 +853,21 @@ $tokenXml
     Write-Host ''
     Write-Host '      PRÓXIMOS PASOS' -ForegroundColor Cyan
     if ($configNeedsEdit) {
-        Write-Host "      1. Edite $configPath (como administrador) y ponga la contraseña real de 'catalogo_lectura'." -ForegroundColor Yellow
-        Write-Host '         La cuenta de SQL Server se crea antes con sql\install\01-crear-login-lectura.sql.' -ForegroundColor Yellow
+        Write-Host "      1. Complete la configuración en $configPath (como administrador). Falta:" -ForegroundColor Yellow
+        foreach ($gap in $configGaps) { Write-Host "           - $gap" -ForegroundColor Yellow }
+        Write-Host "         Api:BaseUrl y la cadena de conexión se editan a mano; la llave la escribe: & '$(Join-Path $PSScriptRoot 'New-SyncAgentKey.ps1')' -ConfigPath '$configPath'" -ForegroundColor Yellow
+        Write-Host '         (el hash que muestra va a Sync__AgentKeyHashes en Railway). La cuenta de SQL Server se crea antes con Set-CatalogoLecturaLogin.ps1.' -ForegroundColor Yellow
+        Write-Host "      2. Pruebe la lectura y la API (no envía productos):  & '$exePath' --test"
+        Write-Host "      3. HABILITE la tarea (hoy está deshabilitada y no corre):  Enable-ScheduledTask -TaskPath '$TaskFolder' -TaskName '$TaskName'" -ForegroundColor Yellow
     }
     else {
-        Write-Host '      1. La cadena de conexión ya está configurada.'
+        Write-Host '      1. La configuración está completa y la tarea está habilitada.'
+        Write-Host "      2. Pruebe la lectura y la API (no envía productos ni escribe en disco):  & '$exePath' --test"
+        Write-Host '      3. Si cambia la llave: New-SyncAgentKey.ps1 y el hash nuevo en Railway (ver README, rotación).'
     }
-    Write-Host "      2. Configure la llave del agente:  & '$(Join-Path $PSScriptRoot 'New-SyncAgentKey.ps1')' -ConfigPath '$configPath'"
-    Write-Host "         (y Api.BaseUrl en el mismo archivo; el hash que muestra va a Sync__AgentKeyHashes en Railway)"
-    Write-Host "      3. Pruebe la lectura y la API (no envía productos ni escribe en disco):  & '$exePath' --test"
     Write-Host "      4. Verifique la tarea:   Get-ScheduledTask -TaskPath '$TaskFolder' | Get-ScheduledTaskInfo"
     Write-Host "      5. Verifique permisos:   icacls '$InstallPath'   y   icacls '$dataPath'"
-    Write-Host "      6. Para ejecutarla ya:   Start-ScheduledTask -TaskPath '$TaskFolder' -TaskName '$TaskName'"
+    Write-Host "      6. Para ejecutarla ya:   Start-ScheduledTask -TaskPath '$TaskFolder' -TaskName '$TaskName'   (la tarea debe estar habilitada)"
     if ($useLocalServiceMode) {
         Write-Host "      7. Para desinstalar:     & '$(Join-Path $PSScriptRoot 'Uninstall-SyncAgent.ps1')' -InstallPath '$InstallPath'   (detecta LOCAL SERVICE; no toca cuentas)"
     }

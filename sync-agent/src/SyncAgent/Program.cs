@@ -62,6 +62,15 @@ catch (Exception ex) when (ex is ArgumentException or FormatException)
     return ExitCodes.InvalidConfiguration;
 }
 
+if (ConnectionStringChecks.HasPlaceholderPassword(connectionString))
+{
+    // Sin tocar SQL Server: una clave falsa repetida cada 15 minutos puede bloquear la cuenta de solo lectura.
+    Console.Error.WriteLine(
+        "La cadena de conexión ConnectionStrings:AspelSae todavía tiene la contraseña de ejemplo (CAMBIAR). " +
+        "Escriba la contraseña real de catalogo_lectura (ver sync-agent/README.md).");
+    return ExitCodes.InvalidConfiguration;
+}
+
 var options = AspelOptions.Load(builder.Configuration);
 
 AgentOptions agentOptions;
