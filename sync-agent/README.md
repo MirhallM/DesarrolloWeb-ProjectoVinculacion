@@ -67,7 +67,7 @@ Servidor de la tienda (Windows Server 2016)                          Internet
 └──────────────────────────────────────────────────────┘
 ```
 
-**Por qué una tarea programada y no un servicio de Windows.** El servidor tiene solo 2 GB de RAM compartidos con SQL Server y Aspel.
+**Por qué una tarea programada y no un servicio de Windows.** El servidor tiene solo 4 GB de RAM compartidos con SQL Server, Aspel y los servicios del controlador de dominio.
 
 | | Servicio de Windows | Tarea programada (la elegida) |
 |---|---|---|
@@ -219,10 +219,18 @@ Extracto del informe (con la base de prueba de Docker):
 
 Si la API no está configurada, la sección dice `Sin configurar` y el código de salida sigue siendo 0. Si está configurada pero no responde o rechaza la llave, dice `NO SE PUDO COMPROBAR: …` y el código es 5.
 
-**Cómo leerlo en la tienda.** Las cifras de la exportación de noviembre de 2026 (unos 18 460 artículos, unos 121 activos sin precio, unos 14 pares de códigos con espacios) son **aproximadas**: el inventario cambia. Una diferencia pequeña es normal. Lo que importa es:
+**Cómo leerlo en la tienda.** Las cifras cambian con el inventario. La primera ejecución en la tienda (2026-11-24) dio:
+
+- **artículos:** 18 665 (18 615 activos y 50 de baja), con «Códigos distintos» igual al total;
+- **precios:** 0 activos sin precio en la lista 1, 120 activos con precio 0 y 2 con precio de 100 000 o más;
+- **descripciones:** 10 nulas y 23 vacías (27 activos sin descripción utilizable);
+- **códigos:** 18 con espacios al inicio, en 14 grupos que solo difieren por espacios;
+- **existencias:** 398 con decimales y 118 de un millón o más.
+
+Lo que importa es:
 
 - que **«Códigos distintos» sea igual al total de filas** (si es menor, la consulta duplica artículos y hay que revisarla);
-- que los **activos sin precio aparezcan** (no se pierden);
+- que los **activos sin precio o con precio 0 aparezcan** (no se pierden; la API los guarda con precio 0 y no los muestra);
 - que haya **pares de códigos con espacios** (se entregan como productos distintos);
 - los **tiempos** y la **memoria máxima** reales del servidor.
 
@@ -258,7 +266,7 @@ Sin base de datos corren las **pruebas unitarias** (181) y el resumen de `dotnet
 ```powershell
 $p = ((Get-Content ..\.env | Where-Object { $_ -like 'CATALOGO_LECTURA_PASSWORD=*' }) -replace '^CATALOGO_LECTURA_PASSWORD=','').Trim()
 $env:SYNCAGENT_TEST_CONNECTION = "Server=127.0.0.1,14330;Database=SAE70Empre01;User Id=catalogo_lectura;Password=$p;TrustServerCertificate=True;"
-dotnet test --solution SyncAgent.slnx -c Release       # ahora: total: 198, succeeded: 198, skipped: 0
+dotnet test --solution SyncAgent.slnx -c Release       # ahora ninguna se omite
 ```
 
 > **Nunca apunte `SYNCAGENT_TEST_CONNECTION` a la base real de Aspel.** Algunas pruebas intentan escribir (para comprobar que falla). Por seguridad, antes de cada prueba se verifica que la base sea la de prueba (exactamente los 14 artículos sembrados); si no lo es, todas fallan sin hacer nada, y los intentos de escritura van dentro de una transacción que siempre se revierte.
@@ -335,21 +343,43 @@ Pide la clave nueva dos veces (ver [Contraseñas](#10-contraseñas)), crea `cata
 Pide la contraseña de la cuenta de Windows `svc-nettes-sync` (dos veces) y hace, mostrando cada paso:
 
 1. Verifica que es administrador y que existe la carpeta publicada.
-2. Crea la **cuenta local dedicada**, sin privilegios de administrador, y le concede **un único derecho especial**: «Iniciar sesión como trabajo por lotes». Windows **no** lo concede solo; sin él la tarea nunca arranca (ver [solución de problemas](#12-solución-de-problemas)).
+2. Crea la **cuenta local dedicada**, sin privilegios de administrador, y le concede **un único derecho especial**: «Iniciar sesión como trabajo por lotes». Windows **no** lo concede solo; sin él la tarea nunca arranca (ver [solución de problemas](#12-solución-de-problemas)). **En un controlador de dominio no crea ninguna cuenta y usa LOCAL SERVICE** (ver abajo).
 3. Copia el programa a `C:\NettesSyncAgent` sin tocar la configuración ni los datos que ya existan.
 4. Aplica permisos NTFS de mínimo privilegio (tabla siguiente).
 5. Crea `appsettings.Production.json` a partir del ejemplo y lo protege.
 6. Registra la tarea programada.
 7. Muestra un resumen y los comandos para verificar.
 
-Se puede ejecutar varias veces: lo que ya existe se **actualiza**. `Get-Help .\Install-SyncAgent.ps1 -Full` muestra todas las opciones (`-InstallPath`, `-AccountName`, `-IntervalMinutes`…).
+Se puede ejecutar varias veces: lo que ya existe se **actualiza**. `Get-Help .\Install-SyncAgent.ps1 -Full` muestra todas las opciones (`-InstallPath`, `-AccountName`, `-IntervalMinutes`, `-UseLocalService`…).
+
+**En un controlador de dominio (el servidor de la tienda lo es)**
+
+Un controlador de dominio **no tiene cuentas locales**: `New-LocalUser` crea la cuenta **en el dominio** y el grupo local «Usuarios» (`S-1-5-32-545`) no existe. Por eso el instalador revisa el rol del equipo (`Win32_ComputerSystem.DomainRole` 4 o 5) y, si es controlador de dominio:
+
+- **no crea ninguna cuenta** ni pide contraseña. Antes de cualquier `New-LocalUser`, `Set-LocalUser`, `Add-LocalGroupMember` o `Remove-LocalUser`, los scripts vuelven a comprobar el rol y abortan si es un controlador de dominio;
+- registra la tarea con la cuenta integrada **LOCAL SERVICE** (`S-1-5-19`, `LogonType ServiceAccount`, privilegios mínimos, sin el derecho de inicio de sesión por lotes);
+- aplica los mismos permisos NTFS a `S-1-5-19`:
+  - lectura y ejecución en el programa;
+  - modificación solo en `data\`;
+  - solo lectura en `appsettings.Production.json`, que sigue sin heredar: Administradores, SYSTEM y la cuenta de la tarea.
+
+En un equipo que no es controlador de dominio nada cambia: se crea `svc-nettes-sync`. Para probar el camino de LOCAL SERVICE en otro equipo: `.\Install-SyncAgent.ps1 -UseLocalService`. `Uninstall-SyncAgent.ps1` detecta el modo solo, por el rol del equipo, por la cuenta de la tarea registrada o por los permisos de la carpeta. En modo LOCAL SERVICE no busca ni elimina ninguna cuenta.
+
+**Desventaja de LOCAL SERVICE y por qué se acepta.** LOCAL SERVICE la comparten varios servicios de Windows. Cualquiera de ellos podría leer `appsettings.Production.json`, que tiene la contraseña de `catalogo_lectura` **y la llave del agente**. Con la llave se podría enviar a la API un inventario falso, por ejemplo con precios cambiados. El freno de seguridad solo detiene desactivaciones masivas. Se acepta por dos razones:
+
+- **Para leer el archivo, alguien tendría que ejecutar código como un servicio dentro del controlador de dominio.** Con ese acceso ya tendría el dominio, Aspel y SQL Server, que es mucho peor que el catálogo web.
+- **La llave se rota en minutos**, sin cortar la sincronización, con los dos hashes de Railway ([paso 7](#7-configurar-la-llave-del-agente)). La contraseña de `catalogo_lectura` solo da `SELECT` sobre dos tablas.
+
+*Mejora futura:* una cuenta de servicio administrada de grupo (**gMSA**), que da al agente una identidad propia en el dominio sin contraseña que guardar.
+
+**Red:** LOCAL SERVICE sale a la red como **anónimo** (sin las credenciales del equipo). No afecta al agente: se conecta a SQL Server en el mismo servidor con usuario de SQL (`catalogo_lectura`) y a Railway por HTTPS sin autenticación de Windows. Solo sería un problema si la red usara un proxy que pide usuario de Windows; en la tienda la salida HTTPS a Railway funciona directa.
 
 **Permisos NTFS**
 
 | | `C:\NettesSyncAgent` | `data\` | `appsettings.Production.json` |
 |---|---|---|---|
 | Administradores y SYSTEM | Control total | Control total | Control total |
-| Cuenta `svc-nettes-sync` | Lectura y ejecución | **Modificar** (única carpeta donde escribe) | Solo lectura |
+| Cuenta de la tarea (`svc-nettes-sync` o, en un controlador de dominio, LOCAL SERVICE) | Lectura y ejecución | **Modificar** (única carpeta donde escribe) | Solo lectura |
 | Los demás usuarios | Sin acceso | Sin acceso | Sin acceso |
 
 **Opciones de la tarea** (`\NettesSyncAgent\Sincronizacion`), cada una corresponde a una casilla del Programador de tareas:
@@ -449,7 +479,7 @@ Hay **dos** contraseñas y una **llave**, y no se confunden.
 | | Para qué sirve | Dónde vive | Quién la guarda |
 |---|---|---|---|
 | `catalogo_lectura` (SQL Server) | El agente se conecta con ella a la base de Aspel. | Solo en `appsettings.Production.json` del servidor, con permisos restringidos. | La persona responsable del servidor de la tienda, en su gestor de contraseñas. |
-| `svc-nettes-sync` (cuenta de Windows) | La tarea inicia sesión con ella sin que nadie esté conectado. | Solo la conocen Windows y el Programador de tareas; no se escribe en ningún archivo. | La misma persona. Nadie la necesita en el día a día. |
+| `svc-nettes-sync` (cuenta de Windows) | La tarea inicia sesión con ella sin que nadie esté conectado. **No existe en un controlador de dominio** (la tienda): ahí la tarea usa LOCAL SERVICE, que no tiene contraseña. | Solo la conocen Windows y el Programador de tareas; no se escribe en ningún archivo. | La misma persona. Nadie la necesita en el día a día. |
 | Llave del agente (`Api:AgentKey`) | El agente se identifica ante la API. | Solo en `appsettings.Production.json`. En Railway está **su hash**, no la llave. | Nadie necesita conocerla: la genera `New-SyncAgentKey.ps1` y no se muestra. Si se pierde o se filtra, se genera otra ([paso 7](#7-configurar-la-llave-del-agente)). |
 
 - **Nunca** van en el repositorio, en este README, en el chat ni en capturas de pantalla. `appsettings.Production.json` está en `.gitignore`; el repositorio solo trae el ejemplo con `CAMBIAR`.
@@ -490,6 +520,8 @@ No use `Start-Transcript` mientras escribe claves en la línea de comandos: el r
 
 Detiene y elimina la tarea y su carpeta del Programador, cierra los procesos de la cuenta, le quita el derecho de inicio de sesión por lotes, elimina la cuenta y su perfil, y borra la carpeta de instalación. Al final **comprueba** que no quedó nada y lo informa. Se puede ejecutar varias veces: lo que ya no existe se informa como «ya no existía».
 
+Si la tarea corría como **LOCAL SERVICE** (controlador de dominio o `-UseLocalService`), lo detecta solo y **no busca ni elimina ninguna cuenta**, ni cierra procesos de LOCAL SERVICE, porque son servicios de Windows. Con `-KeepData` quita los permisos de LOCAL SERVICE de lo que conserva. En un controlador de dominio nunca elimina cuentas, ni siquiera con `-Force`.
+
 - **No toca SQL Server.** La cuenta `catalogo_lectura` se quita con el bloque comentado al final de [`sql/install/01-crear-login-lectura.sql`](sql/install/01-crear-login-lectura.sql).
 - **Perfil de usuario:** Windows puede seguir marcando como «cargado» el perfil `C:\Users\svc-nettes-sync` aunque ya nadie lo use. El script espera hasta 60 s y, si no se libera, lo informa como aviso (no es un error). En las pruebas se eliminó **después de reiniciar el equipo y volver a ejecutar el mismo script**.
 
@@ -513,6 +545,8 @@ Detiene y elimina la tarea y su carpeta del Programador, cierra los procesos de 
 | Código `5`, *«No se pudo conectar con la API»* o *«no respondió»* | Sin Internet, DNS o el sitio caído. Se reintenta 3 veces. | Pruebe el sitio en un navegador del servidor y `Test-NetConnection <dominio> -Port 443`. |
 | Código `5`, *«respondió con una redirección»* | `Api:BaseUrl` con `http://` o con otro dominio que redirige. | Use exactamente `https://<dominio>` del sitio. |
 | Código `5`, *«no encontró la ruta» (404)* | `Api:BaseUrl` apunta a otro sitio o incluye una ruta. | Solo el dominio, sin `/api`. |
+| `Install-SyncAgent.ps1` falla en el paso 2 con *«No se encontró el grupo S-1-5-32-545»* (o *«Group … was not found»*) | Versión anterior del instalador en un **controlador de dominio**: ahí no hay grupos locales. Antes de fallar, `New-LocalUser` pudo crear `svc-nettes-sync` **en el dominio**. | Use el instalador actual (detecta el controlador de dominio y usa LOCAL SERVICE). Compruebe y borre la cuenta creada por error, en una consola de administrador del dominio: `Get-ADUser svc-nettes-sync -Properties Description,whenCreated` (la descripción es *«NettesSyncAgent: cuenta del agente»* y la fecha, la del intento) y, si coincide, `Remove-ADUser svc-nettes-sync -Confirm`. No use `Remove-LocalUser` ni `Uninstall-SyncAgent.ps1` de una versión anterior para esto. |
+| La tarea corre como LOCAL SERVICE y no puede escribir en `data\` | Permisos cambiados a mano o una instalación anterior con otra cuenta. | Ejecute otra vez `Install-SyncAgent.ps1` (repone los permisos) y compruebe con `icacls C:\NettesSyncAgent\data`: debe aparecer `NT AUTHORITY\LOCAL SERVICE:(OI)(CI)(M)`. |
 | *«The term '.\scripts\…' is not recognized»* | La ventana de PowerShell abrió en `C:\Windows\System32`. | `Set-Location` a la carpeta de los scripts. |
 | *«running scripts is disabled on this system»* | Política de ejecución de scripts. | `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force` (solo vale para esa ventana). |
 | *«A compatible .NET SDK was not found»* al compilar | No está instalado el SDK 10. | `winget install --id Microsoft.DotNet.SDK.10 -e` |
@@ -543,6 +577,10 @@ Detiene y elimina la tarea y su carpeta del Programador, cierra los procesos de 
 - **.NET 10 y Windows Server 2016.** La [matriz oficial de sistemas soportados de .NET 10](https://github.com/dotnet/core/blob/main/release-notes/10.0/supported-os.md) incluye Windows Server 2016 x64.
 - **Riesgo del sistema operativo.** El soporte de Windows Server 2016 termina el **12 de enero de 2027** ([ciclo de vida de Microsoft](https://learn.microsoft.com/lifecycle/products/windows-server-2016)). La misma matriz aclara que las versiones sin soporte del fabricante del sistema no se prueban ni se soportan en .NET. El agente seguirá funcionando después de esa fecha, pero sin garantía oficial; el riesgo es del sistema operativo de la tienda, no del agente.
 - **Espacio en disco.** El programa ocupa ~89 MB y los logs se conservan 14 días como máximo.
+- **Servidor de la tienda (2026-11-24).**
+  - Windows Server 2016, **controlador de dominio**, con 4 GB de RAM.
+  - SQL Server 2017 en modo mixto, base `SAE70Empre01` con colación `Latin1_General_BIN`. Esa colación es binaria: distingue mayúsculas, minúsculas y acentos, y deja como distintos los códigos que difieren por espacios al inicio, igual que el agente y la API.
+- **Memoria de SQL Server.** `max server memory` está **sin límite**. Con 4 GB compartidos, se recomienda al negocio fijar un tope que deje memoria a Windows, a Aspel y al agente. Es una recomendación: el proyecto no cambia la configuración de SQL Server.
 
 ## 15. Qué se probó y qué falta verificar en la tienda
 
@@ -559,6 +597,14 @@ Detiene y elimina la tarea y su carpeta del Programador, cierra los procesos de 
 - Cambio de la clave de `catalogo_lectura` (la anterior deja de servir) y rechazo de claves inválidas.
 - `Set-CatalogoLecturaLogin.ps1` en una consola interactiva real: la clave tecleada en las líneas ocultas **no** aparece en `ConsoleHost_history.txt` (se buscó con una línea de control que demostró que el historial se estaba guardando). Al buscarla, la única coincidencia era el propio comando de búsqueda con la clave escrita completa, no el script.
 
+**Probado en la tienda** (2026-11-24, por acceso remoto):
+
+- `--test` con `catalogo_lectura` contra la base real: las cifras de la [sección 6](#6-modos-de-uso-y-códigos-de-salida), con el JOIN sin duplicados.
+  - Tiempos: conexión 126 ms, consulta 164 ms y 389 ms en total.
+  - Memoria: working set máximo de 49.8 MB, con el tope del GC de 64 MB activo.
+- Salida HTTPS: TCP 443 a Railway correcta, `/api/health` responde `Healthy` y la primera petición tarda unos 590 ms.
+- El instalador anterior falló en el controlador de dominio. Creó `svc-nettes-sync` en el dominio, que ya se borró con `Remove-ADUser`, y luego no encontró el grupo `S-1-5-32-545`. Se corrigió: ver [En un controlador de dominio](#3-instalar-la-tarea-programada).
+
 **Todavía sin probar**
 
 - La prueba de punta a punta local: SQL Server de Docker → `--once` → frontend → backend → `/api/products`.
@@ -567,17 +613,16 @@ Detiene y elimina la tarea y su carpeta del Programador, cierra los procesos de 
 
 **Falta verificar en la tienda**
 
-1. Los **tipos reales de las columnas** (`char` o `varchar`, `float`), la colación y el aislamiento de la base: `sql/install/02`.
-2. Que el resumen de `--test` se parezca a la exportación de noviembre de 2026 (cifras **aproximadas**): códigos distintos igual al total, activos sin precio presentes, pares de códigos con espacios.
-3. La **duración de la consulta** y la **memoria máxima** reales, con Aspel y SQL Server trabajando.
-4. `max server memory` de SQL Server: `sql/install/03`.
-5. Los permisos efectivos de `catalogo_lectura`: `sql/install/04`.
-6. Que la tarea corre sin sesión iniciada **y después de reiniciar el servidor**.
-7. Que no hay reglas de firewall entrantes nuevas.
-8. Quién custodia las dos contraseñas.
-9. Que el servidor sale por HTTPS al dominio de Railway (`--test` → *«Responde y la llave es válida»*), sin proxy que lo bloquee.
-10. La **primera carga real**: duración del envío y de «completar» con la latencia real y unos 18 460 artículos, y que el freno no se active.
-11. Que la llave quedó en `appsettings.Production.json` con los permisos restringidos y que el hash de Railway coincide.
+1. La **instalación con el instalador corregido** (LOCAL SERVICE en el controlador de dominio) y que **no** se cree ninguna cuenta en el dominio: `Get-ADUser -Filter "Name -eq 'svc-nettes-sync'"` no debe devolver nada.
+2. El **primer ciclo de la tarea** como LOCAL SERVICE: `LastTaskResult 0`, `sync-state.json` y el log en `data\`.
+3. Los **tipos reales de las columnas** (`char` o `varchar`, `float`) y el aislamiento de la base: `sql/install/02`.
+4. Los permisos efectivos de `catalogo_lectura`: `sql/install/04`.
+5. Que la tarea corre sin sesión iniciada **y después de reiniciar el servidor**.
+6. Que no hay reglas de firewall entrantes nuevas.
+7. Quién custodia la contraseña de `catalogo_lectura`.
+8. Que la API acepta la llave desde el servidor (`--test` → *«Responde y la llave es válida»*).
+9. La **primera carga real**: duración del envío y de «completar» con la latencia real y unos 18 665 artículos, y que el freno no se active.
+10. Que la llave quedó en `appsettings.Production.json` con los permisos restringidos y que el hash de Railway coincide.
 
 ## 16. Estructura de la carpeta
 

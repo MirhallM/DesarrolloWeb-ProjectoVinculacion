@@ -3,7 +3,7 @@ using System.Diagnostics;
 namespace SyncAgent.Diagnostics;
 
 /// <summary>Memoria del proceso en un instante, para medir el consumo real en el servidor de la tienda.</summary>
-/// <param name="PeakWorkingSetBytes">Máximo de memoria física usada por el proceso (lo que importa en un servidor de 2 GB).</param>
+/// <param name="PeakWorkingSetBytes">Máximo de memoria física usada por el proceso (lo que importa en un servidor de 4 GB compartido con SQL Server y Aspel).</param>
 /// <param name="PeakPagedBytes">Máximo de memoria virtual paginable comprometida.</param>
 /// <param name="ManagedHeapBytes">Tamaño actual del heap administrado de .NET.</param>
 /// <param name="TotalAllocatedBytes">Total asignado por el programa durante su vida (indica cuánto trabajó el GC).</param>

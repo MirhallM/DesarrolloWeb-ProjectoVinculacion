@@ -9,6 +9,7 @@
       2. Detiene y elimina la tarea programada y su carpeta del Programador de tareas.
       3. Espera a que termine (o cierra) cualquier ejecución del agente que siga en curso.
       4. Quita a la cuenta local del agente el derecho de inicio de sesión por lotes, la elimina y borra su perfil de usuario.
+         En modo LOCAL SERVICE (controlador de dominio, o instalado con -UseLocalService) NO toca ninguna cuenta.
       5. Elimina la carpeta de instalación (o, con -KeepData, solo el programa) y los permisos que quedaron.
 
     Al final comprueba que la tarea, la cuenta y la carpeta ya no existen y lo informa.
@@ -24,13 +25,17 @@
 .PARAMETER AccountName
     Cuenta local que ejecutaba la tarea. Por omisión: svc-nettes-sync
 
+.PARAMETER LocalService
+    Trata la instalación como hecha con LOCAL SERVICE: no busca ni elimina cuentas. Normalmente no hace falta: se detecta
+    solo (controlador de dominio, tarea registrada como LOCAL SERVICE o permisos de LOCAL SERVICE en la carpeta).
+
 .PARAMETER KeepData
     Conserva appsettings.Production.json y la carpeta data\ (estado y logs); elimina todo lo demás. Sirve para
     reinstalar después sin volver a escribir la configuración. Los permisos de la cuenta eliminada también se quitan.
 
 .PARAMETER Force
     Elimina la cuenta aunque no la haya creado el instalador, y la carpeta aunque no parezca una instalación del agente.
-    Úselo solo si está seguro.
+    Úselo solo si está seguro. Nunca elimina cuentas en un controlador de dominio.
 
 .EXAMPLE
     .\Uninstall-SyncAgent.ps1
@@ -45,6 +50,7 @@ param(
     [string]$InstallPath = 'C:\NettesSyncAgent',
     [ValidatePattern('^[A-Za-z0-9._-]{1,20}$')]
     [string]$AccountName = 'svc-nettes-sync',
+    [switch]$LocalService,
     [switch]$KeepData,
     [switch]$Force
 )
@@ -59,6 +65,7 @@ $TaskName = 'Sincronizacion'
 $TaskFolder = '\NettesSyncAgent\'
 $TaskFolderName = 'NettesSyncAgent'
 $AccountMarker = 'NettesSyncAgent: cuenta del agente'
+$LocalServiceSid = 'S-1-5-19'
 $TotalSteps = 5
 
 function Write-Step([int]$Number, [string]$Text) {
@@ -102,6 +109,39 @@ function Remove-DeadIdentities([string]$Path, [string]$Sid) {
     foreach ($identity in $dead) { $acl.PurgeAccessRules($identity) }
     $item.SetAccessControl($acl)
     return $dead.Count
+}
+
+function Test-DomainController {
+    # Win32_ComputerSystem.DomainRole: 4 = controlador de dominio de reserva, 5 = principal.
+    return ([int](Get-CimInstance -ClassName Win32_ComputerSystem).DomainRole -ge 4)
+}
+
+function Assert-NotDomainController([string]$Action) {
+    # En un controlador de dominio *-LocalUser actúa sobre cuentas DEL DOMINIO: nunca se borra nada ahí.
+    if (Test-DomainController) {
+        throw ("PROTECCIÓN: este equipo es un controlador de dominio y '$Action' actuaría sobre una cuenta DEL DOMINIO. " +
+               'No se hizo nada. Para quitar una cuenta creada por error en el dominio, vea la tabla de problemas de sync-agent\README.md.')
+    }
+}
+
+function Get-SidRuleCount([string]$Path, [string]$Sid) {
+    # Cuántas reglas de permiso de $Path son de $Sid (incluidas las heredadas).
+    $item = Get-Item -LiteralPath $Path -Force
+    $rules = $item.GetAccessControl([System.Security.AccessControl.AccessControlSections]::Access).GetAccessRules(
+        $true, $true, [System.Security.Principal.SecurityIdentifier])
+    return @($rules | Where-Object { $_.IdentityReference.Value -eq $Sid }).Count
+}
+
+function Remove-SidRules([string]$Path, [string]$Sid) {
+    # Quita los permisos EXPLÍCITOS de $Sid en $Path (p. ej. LOCAL SERVICE, que es una cuenta que sigue existiendo).
+    $item = Get-Item -LiteralPath $Path -Force
+    $acl = $item.GetAccessControl([System.Security.AccessControl.AccessControlSections]::Access)
+    $identity = New-Object System.Security.Principal.SecurityIdentifier($Sid)
+    $before = @($acl.GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]) | Where-Object { $_.IdentityReference.Value -eq $Sid }).Count
+    if ($before -eq 0) { return 0 }
+    $acl.PurgeAccessRules($identity)
+    $item.SetAccessControl($acl)
+    return $before
 }
 
 function Get-AgentProcesses([string]$Folder) {
@@ -271,10 +311,29 @@ try {
         throw "La carpeta de instalación no puede ser la raíz de un disco ($InstallPath)."
     }
 
-    # SID de la cuenta, anotado ANTES de borrarla: sirve para quitar sus permisos y su perfil después.
-    $account = Get-LocalUser -Name $AccountName -ErrorAction SilentlyContinue
+    # ¿Con qué cuenta corría la tarea? En modo LOCAL SERVICE no se busca ni se elimina ninguna cuenta.
+    $isDomainController = Test-DomainController
+    $existingTask = Get-ScheduledTask -TaskName $TaskName -TaskPath $TaskFolder -ErrorAction SilentlyContinue
+    $taskUsesServiceAccount = ($null -ne $existingTask) -and (
+        ([string]$existingTask.Principal.LogonType -eq 'ServiceAccount') -or
+        ([string]$existingTask.Principal.UserId -match '^(S-1-5-19|(NT AUTHORITY\\)?LOCAL ?SERVICE)$'))
+    $folderHasLocalService = (Test-Path -LiteralPath $InstallPath) -and ((Get-SidRuleCount -Path $InstallPath -Sid $LocalServiceSid) -gt 0)
+
+    $localServiceMode = $isDomainController -or $LocalService -or $taskUsesServiceAccount -or
+                        (($null -eq $existingTask) -and $folderHasLocalService)
+
+    $account = $null
     $accountSid = $null
-    if ($null -ne $account) { $accountSid = $account.SID.Value }
+    if ($localServiceMode) {
+        if ($isDomainController) { Write-Ok 'Controlador de dominio: modo LOCAL SERVICE. No se busca ni se elimina ninguna cuenta.' }
+        else { Write-Ok 'La instalación usa LOCAL SERVICE: no se busca ni se elimina ninguna cuenta.' }
+    }
+    else {
+        # SID de la cuenta, anotado ANTES de borrarla: sirve para quitar sus permisos y su perfil después.
+        $account = Get-LocalUser -Name $AccountName -ErrorAction SilentlyContinue
+        if ($null -ne $account) { $accountSid = $account.SID.Value }
+        Write-Ok "La instalación usa la cuenta local '$AccountName'."
+    }
 
     # =================================================================================================================
     Write-Step 2 "Eliminar la tarea programada $TaskFolder$TaskName"
@@ -338,7 +397,11 @@ try {
 
     # Cualquier otro proceso que siga corriendo CON LA CUENTA DEDICADA (por ejemplo el anfitrión de una tarea) mantiene
     # cargado su perfil y impediría borrarlo. Solo se tocan procesos de esa cuenta; nunca los de otros usuarios.
-    $ownProcesses = @(Get-Process -IncludeUserName -ErrorAction SilentlyContinue | Where-Object { $_.UserName -like "*\$AccountName" })
+    # En modo LOCAL SERVICE NO: esa cuenta la usan servicios de Windows.
+    $ownProcesses = @()
+    if (-not $localServiceMode) {
+        $ownProcesses = @(Get-Process -IncludeUserName -ErrorAction SilentlyContinue | Where-Object { $_.UserName -like "*\$AccountName" })
+    }
     if ($ownProcesses.Count -gt 0) {
         Write-Warn "Hay $($ownProcesses.Count) proceso(s) ejecutándose con la cuenta '$AccountName': $((($ownProcesses | ForEach-Object { $_.ProcessName }) | Sort-Object -Unique) -join ', '). Se cierran."
         $ownProcesses | Stop-Process -Force -ErrorAction SilentlyContinue
@@ -346,54 +409,67 @@ try {
     }
 
     # =================================================================================================================
-    Write-Step 4 "Eliminar la cuenta local '$AccountName' y su perfil"
+    if ($localServiceMode) {
+        Write-Step 4 'Cuenta de la tarea: LOCAL SERVICE (integrada en Windows; no se elimina)'
     # =================================================================================================================
-    if ($null -eq $account) {
-        Write-Info 'La cuenta ya no existía.'
-    }
-    elseif (($account.Description -ne $AccountMarker) -and -not $Force) {
-        Write-Warn "La cuenta '$AccountName' NO fue creada por el instalador del agente (su descripción es distinta): no se elimina."
-        Write-Warn 'Si está seguro de que es la cuenta del agente, vuelva a ejecutar con -Force.'
+        Write-Ok 'No se toca ninguna cuenta.'
+        if (-not $isDomainController) {
+            $leftover = Get-LocalUser -Name $AccountName -ErrorAction SilentlyContinue
+            if (($null -ne $leftover) -and ($leftover.Description -eq $AccountMarker)) {
+                Write-Warn "Existe la cuenta local '$AccountName' de una instalación anterior con cuenta dedicada; esta desinstalación no la toca."
+            }
+        }
     }
     else {
-        # Antes de borrar la cuenta se le quita el derecho de inicio de sesión por lotes que concedió el instalador;
-        # si no, quedaría un identificador huérfano en la directiva de seguridad del equipo.
-        if ($null -ne $accountSid) {
-            [NettesLsaRights]::Remove($accountSid, 'SeBatchLogonRight')
-            Write-Ok "Derecho 'Iniciar sesión como trabajo por lotes' quitado a '$AccountName'."
+        Write-Step 4 "Eliminar la cuenta local '$AccountName' y su perfil"
+        if ($null -eq $account) {
+            Write-Info 'La cuenta ya no existía.'
         }
-        Remove-LocalUser -Name $AccountName
-        Write-Ok "Cuenta '$AccountName' eliminada."
-    }
+        elseif (($account.Description -ne $AccountMarker) -and -not $Force) {
+            Write-Warn "La cuenta '$AccountName' NO fue creada por el instalador del agente (su descripción es distinta): no se elimina."
+            Write-Warn 'Si está seguro de que es la cuenta del agente, vuelva a ejecutar con -Force.'
+        }
+        else {
+            # Antes de borrar la cuenta se le quita el derecho de inicio de sesión por lotes que concedió el instalador;
+            # si no, quedaría un identificador huérfano en la directiva de seguridad del equipo.
+            if ($null -ne $accountSid) {
+                [NettesLsaRights]::Remove($accountSid, 'SeBatchLogonRight')
+                Write-Ok "Derecho 'Iniciar sesión como trabajo por lotes' quitado a '$AccountName'."
+            }
+            Assert-NotDomainController 'Remove-LocalUser'
+            Remove-LocalUser -Name $AccountName
+            Write-Ok "Cuenta '$AccountName' eliminada."
+        }
 
-    # El perfil de usuario (C:\Users\<cuenta>) lo crea Windows la primera vez que la tarea corre con esa cuenta y
-    # NO se borra al eliminar la cuenta. Se busca por SID y también por nombre de carpeta (por si la cuenta ya no existía).
-    $cuentaEliminada = ($null -eq (Get-LocalUser -Name $AccountName -ErrorAction SilentlyContinue))
-    $profiles = @()
-    if ($cuentaEliminada) {
-        $profiles = @(Get-CimInstance -ClassName Win32_UserProfile -ErrorAction SilentlyContinue |
-            Where-Object { (($null -ne $accountSid) -and ($_.SID -eq $accountSid)) -or ($_.LocalPath -like "*\$AccountName") })
-    }
-    foreach ($userProfile in $profiles) {
-        # Aunque la tarea ya no exista, Windows puede tardar un poco en descargar el perfil (hasta que se cierre la última
-        # sesión de la cuenta). Se espera hasta 60 s a que lo suelte.
-        $waited = 0
-        while ($userProfile -and $userProfile.Loaded -and $waited -lt 60) {
-            if ($waited -eq 0) { Write-Info 'El perfil de la cuenta sigue cargado; esperando a que Windows lo descargue (máximo 60 s)...' }
-            Start-Sleep -Seconds 5
-            $waited += 5
-            $userProfile = Get-CimInstance -ClassName Win32_UserProfile -Filter "SID='$($userProfile.SID)'" -ErrorAction SilentlyContinue
+        # El perfil de usuario (C:\Users\<cuenta>) lo crea Windows la primera vez que la tarea corre con esa cuenta y
+        # NO se borra al eliminar la cuenta. Se busca por SID y también por nombre de carpeta (por si la cuenta ya no existía).
+        $cuentaEliminada = ($null -eq (Get-LocalUser -Name $AccountName -ErrorAction SilentlyContinue))
+        $profiles = @()
+        if ($cuentaEliminada) {
+            $profiles = @(Get-CimInstance -ClassName Win32_UserProfile -ErrorAction SilentlyContinue |
+                Where-Object { (($null -ne $accountSid) -and ($_.SID -eq $accountSid)) -or ($_.LocalPath -like "*\$AccountName") })
         }
-        if (-not $userProfile) { Write-Ok 'El perfil ya había desaparecido.'; continue }
-        if ($userProfile.Loaded) {
-            Write-Warn "El perfil $($userProfile.LocalPath) sigue en uso por Windows y no se pudo eliminar ahora."
-            Write-Warn 'Se elimina al reiniciar el equipo y volver a ejecutar este script (es seguro repetirlo).'
-            continue
+        foreach ($userProfile in $profiles) {
+            # Aunque la tarea ya no exista, Windows puede tardar un poco en descargar el perfil (hasta que se cierre la última
+            # sesión de la cuenta). Se espera hasta 60 s a que lo suelte.
+            $waited = 0
+            while ($userProfile -and $userProfile.Loaded -and $waited -lt 60) {
+                if ($waited -eq 0) { Write-Info 'El perfil de la cuenta sigue cargado; esperando a que Windows lo descargue (máximo 60 s)...' }
+                Start-Sleep -Seconds 5
+                $waited += 5
+                $userProfile = Get-CimInstance -ClassName Win32_UserProfile -Filter "SID='$($userProfile.SID)'" -ErrorAction SilentlyContinue
+            }
+            if (-not $userProfile) { Write-Ok 'El perfil ya había desaparecido.'; continue }
+            if ($userProfile.Loaded) {
+                Write-Warn "El perfil $($userProfile.LocalPath) sigue en uso por Windows y no se pudo eliminar ahora."
+                Write-Warn 'Se elimina al reiniciar el equipo y volver a ejecutar este script (es seguro repetirlo).'
+                continue
+            }
+            $userProfile | Remove-CimInstance
+            Write-Ok "Perfil eliminado: $($userProfile.LocalPath)"
         }
-        $userProfile | Remove-CimInstance
-        Write-Ok "Perfil eliminado: $($userProfile.LocalPath)"
+        if ($cuentaEliminada -and $profiles.Count -eq 0) { Write-Info 'No había perfil de usuario que eliminar.' }
     }
-    if ($cuentaEliminada -and $profiles.Count -eq 0) { Write-Info 'No había perfil de usuario que eliminar.' }
 
     # =================================================================================================================
     Write-Step 5 "Eliminar los archivos de $InstallPath"
@@ -421,9 +497,13 @@ try {
             # también si la cuenta ya se había eliminado en una ejecución anterior: se quitan los identificadores huérfanos.
             $removed = 0
             foreach ($target in @($InstallPath, (Join-Path $InstallPath 'data'), (Join-Path $InstallPath 'appsettings.Production.json'))) {
-                if (Test-Path -LiteralPath $target) { $removed += Remove-DeadIdentities -Path $target -Sid $accountSid }
+                if (Test-Path -LiteralPath $target) {
+                    if ($localServiceMode) { $removed += Remove-SidRules -Path $target -Sid $LocalServiceSid }
+                    else { $removed += Remove-DeadIdentities -Path $target -Sid $accountSid }
+                }
             }
-            Write-Ok "Permisos de la cuenta eliminada quitados de lo conservado ($removed identificador(es))."
+            if ($localServiceMode) { Write-Ok "Permisos de LOCAL SERVICE quitados de lo conservado ($removed regla(s))." }
+            else { Write-Ok "Permisos de la cuenta eliminada quitados de lo conservado ($removed identificador(es))." }
         }
         else {
             Remove-Item -LiteralPath $InstallPath -Recurse -Force
@@ -449,39 +529,54 @@ try {
     if ($folderGone) { Write-Check "La carpeta $TaskFolder del Programador de tareas ya no existe" $true '' }
     else { Write-Host "      AVISO  La carpeta $TaskFolder del Programador de tareas sigue existiendo (puede contener otras tareas)." -ForegroundColor Yellow }
 
-    $accountGone = ($null -eq (Get-LocalUser -Name $AccountName -ErrorAction SilentlyContinue))
-    if ($accountGone) { Write-Check "La cuenta '$AccountName' ya no existe" $true '' }
-    elseif (($account -ne $null) -and ($account.Description -ne $AccountMarker) -and -not $Force) {
-        Write-Host "      AVISO  La cuenta '$AccountName' se conservó a propósito (no la creó el instalador)." -ForegroundColor Yellow
+    if ($localServiceMode) {
+        Write-Check 'No se tocó ninguna cuenta (modo LOCAL SERVICE)' $true ''
     }
-    else { Write-Check "La cuenta '$AccountName' ya no existe" $false 'sigue existiendo' }
+    else {
+        $accountGone = ($null -eq (Get-LocalUser -Name $AccountName -ErrorAction SilentlyContinue))
+        if ($accountGone) { Write-Check "La cuenta '$AccountName' ya no existe" $true '' }
+        elseif (($account -ne $null) -and ($account.Description -ne $AccountMarker) -and -not $Force) {
+            Write-Host "      AVISO  La cuenta '$AccountName' se conservó a propósito (no la creó el instalador)." -ForegroundColor Yellow
+        }
+        else { Write-Check "La cuenta '$AccountName' ya no existe" $false 'sigue existiendo' }
 
-    # El derecho concedido por el instalador no debe quedar como identificador huérfano en la directiva del equipo.
-    if ($accountGone -and ($null -ne $accountSid)) {
-        $rightLeft = [NettesLsaRights]::Has($accountSid, 'SeBatchLogonRight')
-        Write-Check 'El derecho de inicio de sesión por lotes de la cuenta ya no figura en la directiva del equipo' (-not $rightLeft) 'queda un identificador huérfano'
+        # El derecho concedido por el instalador no debe quedar como identificador huérfano en la directiva del equipo.
+        if ($accountGone -and ($null -ne $accountSid)) {
+            $rightLeft = [NettesLsaRights]::Has($accountSid, 'SeBatchLogonRight')
+            Write-Check 'El derecho de inicio de sesión por lotes de la cuenta ya no figura en la directiva del equipo' (-not $rightLeft) 'queda un identificador huérfano'
+        }
     }
 
     if ($KeepData) {
         Write-Check "El programa ya no está en $InstallPath (solo data\ y la configuración)" (-not (Test-Path -LiteralPath (Join-Path $InstallPath 'SyncAgent.exe'))) 'SyncAgent.exe sigue ahí'
         $deadLeft = 0
         foreach ($target in @($InstallPath, (Join-Path $InstallPath 'data'), (Join-Path $InstallPath 'appsettings.Production.json'))) {
-            if (Test-Path -LiteralPath $target) { $deadLeft += @(Get-DeadIdentities -Path $target -Sid $accountSid).Count }
+            if (Test-Path -LiteralPath $target) {
+                if ($localServiceMode) { $deadLeft += Get-SidRuleCount -Path $target -Sid $LocalServiceSid }
+                else { $deadLeft += @(Get-DeadIdentities -Path $target -Sid $accountSid).Count }
+            }
         }
-        Write-Check 'Los permisos de la cuenta eliminada ya no aparecen en lo conservado (carpeta, data\ y configuración)' ($deadLeft -eq 0) 'queda un permiso huérfano'
+        if ($localServiceMode) {
+            Write-Check 'LOCAL SERVICE ya no tiene permisos en lo conservado (carpeta, data\ y configuración)' ($deadLeft -eq 0) 'queda un permiso de LOCAL SERVICE'
+        }
+        else {
+            Write-Check 'Los permisos de la cuenta eliminada ya no aparecen en lo conservado (carpeta, data\ y configuración)' ($deadLeft -eq 0) 'queda un permiso huérfano'
+        }
     }
     else {
         Write-Check "La carpeta $InstallPath ya no existe" (-not (Test-Path -LiteralPath $InstallPath)) 'sigue existiendo'
     }
 
-    $profilesLeft = @(Get-CimInstance -ClassName Win32_UserProfile -ErrorAction SilentlyContinue |
-        Where-Object { (($null -ne $accountSid) -and ($_.SID -eq $accountSid)) -or ($_.LocalPath -like "*\$AccountName") })
-    if (@($profilesLeft | Where-Object { $_.Loaded }).Count -gt 0) {
-        # Windows aún lo tiene cargado: no es un fallo del script, pero se informa claro y no se da por "todo limpio".
-        Write-Host "      AVISO  El perfil de usuario de '$AccountName' sigue cargado por Windows. Reinicie el equipo y vuelva a ejecutar este script para eliminarlo." -ForegroundColor Yellow
-    }
-    else {
-        Write-Check "El perfil de usuario de '$AccountName' ya no existe" ($profilesLeft.Count -eq 0) 'queda un perfil en C:\Users'
+    if (-not $localServiceMode) {
+        $profilesLeft = @(Get-CimInstance -ClassName Win32_UserProfile -ErrorAction SilentlyContinue |
+            Where-Object { (($null -ne $accountSid) -and ($_.SID -eq $accountSid)) -or ($_.LocalPath -like "*\$AccountName") })
+        if (@($profilesLeft | Where-Object { $_.Loaded }).Count -gt 0) {
+            # Windows aún lo tiene cargado: no es un fallo del script, pero se informa claro y no se da por "todo limpio".
+            Write-Host "      AVISO  El perfil de usuario de '$AccountName' sigue cargado por Windows. Reinicie el equipo y vuelva a ejecutar este script para eliminarlo." -ForegroundColor Yellow
+        }
+        else {
+            Write-Check "El perfil de usuario de '$AccountName' ya no existe" ($profilesLeft.Count -eq 0) 'queda un perfil en C:\Users'
+        }
     }
 
     Write-Host ''
