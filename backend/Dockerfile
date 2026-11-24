@@ -1,6 +1,6 @@
 # Imagen del backend para Railway. Contexto de compilación: la carpeta backend/ (Root Directory del servicio).
 #
-# Se usan las etiquetas predeterminadas de .NET 10, NO Alpine ni chiseled: la API necesita ICU para quitar acentos
+# Se usan las etiquetas predeterminadas de .NET 10 (Ubuntu 24.04), NO Alpine ni chiseled: la API necesita ICU para quitar acentos
 # (categorización y nombre para mostrar) y esas variantes no lo traen.
 
 # ---- Compilación ----

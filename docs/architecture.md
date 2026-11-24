@@ -40,7 +40,7 @@ flowchart TB
 | ------------------------ | ----------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Frontend                 | Next.js con TypeScript                                      | Servicio en Railway (dominio público)                 | Interfaz pública del catálogo y panel administrativo. Consume la API y no se conecta directamente a las bases de datos.              |
 | Backend                  | ASP.NET Core Web API (.NET 10, C#)                          | Servicio en Railway (red privada)                     | Lógica de negocio, autenticación, autorización, recepción de la sincronización y acceso a la base de datos y a los archivos.         |
-| Base de la aplicación    | PostgreSQL 17 con Entity Framework Core y Npgsql            | Servicio de base de datos en Railway                  | Usuarios, roles, favoritos, metadatos de imágenes, contenido del sitio y copia sincronizada de productos.                            |
+| Base de la aplicación    | PostgreSQL 18 con Entity Framework Core y Npgsql            | Servicio de base de datos en Railway                  | Usuarios, roles, favoritos, metadatos de imágenes, contenido del sitio y copia sincronizada de productos.                            |
 | Sistema de origen        | Aspel SAE 7.0 sobre SQL Server                              | Red del negocio                                       | Fuente oficial de códigos, descripciones, precios y existencias. Solo se consulta.                                                   |
 | Agente de sincronización | Tarea programada de Windows que ejecuta un programa .NET 10 autocontenido (`sync-agent/`) | Servidor de la tienda, junto a SQL Server, con una cuenta local dedicada sin privilegios de administrador | Lee SQL Server con una cuenta de solo lectura (`catalogo_lectura`) y, desde US-06, envía los datos a la API. No recibe conexiones entrantes. Ver [`sync-agent/README.md`](../sync-agent/README.md).                            |
 | Imágenes                 | Archivos en un volumen de Railway                           | Volumen montado en el backend                         | Los archivos viven en el volumen; sus rutas y metadatos se registran en PostgreSQL. El acceso se gestiona a través de la aplicación. |
@@ -235,7 +235,7 @@ Los nombres de ramas y los mensajes de commit se escribirán en inglés, en min�
 | Hospedar frontend, backend y PostgreSQL en Railway (**propuesta**)   | No cargar la máquina virtual del negocio. Requiere confirmación del docente y del negocio.   |
 | Agente de sincronización en la red del negocio (**propuesta**)       | Mantener Aspel SAE fuera de Internet. Solo hace conexiones salientes.                        |
 | Backend sin dominio público; solo el frontend es público             | Un único punto de entrada y cookies de un solo sitio.                                        |
-| PostgreSQL 17                                                        | Mantener la misma versión mayor en desarrollo y producción; confirmar que Railway la ofrece. |
+| PostgreSQL 18                                                        | Misma versión mayor en desarrollo y producción (Railway usa la 18.7).                        |
 | Docker Compose solo para desarrollo                                  | Se utiliza para levantar PostgreSQL localmente y, con el perfil `sqlserver`, un SQL Server de prueba para el agente.                                              |
 | Secretos con User Secrets (local) y variables del servicio (Railway) | No guardar credenciales en el repositorio.                                                   |
 | Merge con squash y revisión del otro integrante                      | Mantener un historial de `main` claro y revisar los cambios antes de integrarlos.            |
@@ -262,4 +262,4 @@ Los nombres de ramas y los mensajes de commit se escribirán en inglés, en min�
 - Reglas de carga de imágenes, tamaño del volumen y límites del proxy (US-16).
 - Respaldos de Railway y copia externa con `pg_dump` (US-20).
 - `Dockerfile` del backend, servicios de Railway, variables, dominio y HTTPS (US-21).
-- Confirmar la región de Railway y la versión de PostgreSQL.
+- Confirmar la región de Railway.

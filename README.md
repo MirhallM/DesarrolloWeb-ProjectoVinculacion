@@ -24,7 +24,7 @@ Aplicación web para que los clientes de Mini Super Nettes consulten el catálog
 |---|---|
 | Frontend | Next.js con TypeScript |
 | Backend | ASP.NET Core Web API (.NET 10, C#) |
-| Base de datos de la aplicación | PostgreSQL 17 |
+| Base de datos de la aplicación | PostgreSQL 18 |
 | ORM | Entity Framework Core con Npgsql |
 | Sistema de origen | Aspel SAE 7.0 (SQL Server, **solo lectura**) |
 | Imágenes | Archivos en el servidor; rutas y metadatos en PostgreSQL |
@@ -79,10 +79,50 @@ Usa en el último comando el usuario y la base que pusiste en `.env`.
 | Comando | Efecto |
 |---|---|
 | `docker compose down` | Apaga la base de datos y **conserva** los datos |
-| `docker compose down -v` | Apaga la base y **borra** los datos |
+| `docker compose down -v` | Apaga todo y **borra los datos de PostgreSQL y también los del SQL Server de prueba** (`mssqldata`). Para borrar solo PostgreSQL, usa los comandos de abajo. |
 | `docker compose logs postgres-db` | Muestra los registros del contenedor |
 
-> Si cambias `POSTGRES_PASSWORD` después del primer arranque, PostgreSQL no lo actualiza: hay que recrear el volumen con `docker compose down -v`.
+> Si cambias `POSTGRES_PASSWORD` después del primer arranque, PostgreSQL no lo actualiza: hay que recrear el volumen de PostgreSQL con los comandos de [Recrear solo la base de PostgreSQL](#recrear-solo-la-base-de-postgresql).
+
+#### Recrear solo la base de PostgreSQL
+
+Borra **únicamente** el volumen de PostgreSQL (`nettes_pgdata`). El nombre es fijo por `name: nettes` en `docker-compose.yml`. El SQL Server de prueba no se toca.
+
+```powershell
+docker compose stop postgres-db
+docker compose rm -f postgres-db      # el volumen no se puede borrar mientras exista el contenedor, aunque esté detenido
+docker volume rm nettes_pgdata
+docker compose up -d postgres-db
+docker compose ps                     # esperar a "healthy"
+```
+
+Después hay que volver a crear las tablas y los datos, desde `backend/src/backend`:
+
+```powershell
+dotnet run -- migrate      # o: dotnet ef database update
+dotnet run -- seed
+dotnet run -- seed-dev     # opcional: productos de prueba en Development
+```
+
+- Va `-- migrate`, **con espacio** entre `--` y `migrate`. `dotnet run --migrate` no migra: levanta la API sobre una base sin tablas y llena la consola de errores.
+- En una base vacía, `migrate` muestra una vez `Failed executing DbCommand ... FROM "__EFMigrationsHistory"`. Es normal: EF busca su tabla de historial antes de crearla. Lo que importa es que termine con `Migraciones aplicadas.`.
+
+#### Pasar de PostgreSQL 17 a 18
+
+El proyecto usa PostgreSQL 18, la misma versión mayor que Railway. Si tu base local se creó con la 17, sus datos **no se pueden abrir** con la 18. Además, la imagen oficial de la 18 guarda los datos en `/var/lib/postgresql/18/docker`, así que `docker-compose.yml` ahora monta el volumen en `/var/lib/postgresql`.
+
+Si después de actualizar el repositorio `docker compose ps` muestra `nettes-postgres` como `Restarting`, y `docker compose logs postgres-db` dice:
+
+```
+Error: in 18+, these Docker images are configured to store database data in a
+       format which is compatible with "pg_ctlcluster" ...
+       Counter to that, there appears to be PostgreSQL data in:
+         /var/lib/postgresql
+```
+
+entonces tu volumen todavía es de la 17. Los datos locales son de desarrollo y se regeneran: sigue los pasos de [Recrear solo la base de PostgreSQL](#recrear-solo-la-base-de-postgresql). No hace falta `pg_upgrade`.
+
+> Si tienes un volumen viejo llamado `desarrolloweb-projectovinculacion_pgdata`, es de antes de `name: nettes` y ya no se usa. Puedes borrarlo con `docker volume rm desarrolloweb-projectovinculacion_pgdata`.
 
 **SQL Server de prueba (solo para el agente de sincronización).** `docker compose up -d` sigue levantando únicamente PostgreSQL. Para probar el agente hay un SQL Server 2022 que simula la base de Aspel, bajo el perfil `sqlserver` (escucha solo en `127.0.0.1:14330`):
 

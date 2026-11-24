@@ -3,7 +3,8 @@ name: nettes
 services:
   postgres-db:
     container_name: nettes-postgres
-    image: postgres:17
+    # Misma versión mayor que Railway (18.7).
+    image: postgres:18
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?Falta POSTGRES_USER en .env}
@@ -13,7 +14,9 @@ services:
       # Solo accesible desde tu propia máquina, no desde la red local
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # Desde la 18 la imagen oficial guarda los datos en /var/lib/postgresql/18/docker, así que el volumen se monta en
+      # /var/lib/postgresql (no en .../data). Un volumen creado con la 17 no sirve: ver "Pasar de PostgreSQL 17 a 18" en el README.
+      - pgdata:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
