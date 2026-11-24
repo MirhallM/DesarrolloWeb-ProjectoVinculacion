@@ -231,6 +231,36 @@ function Get-ConfigGaps([string]$Path) {
     return $gaps.ToArray()
 }
 
+function Write-DomainAccountWarning([string]$Name, [string]$Marker) {
+    # SOLO LECTURA. En un controlador de dominio busca una cuenta del dominio con este nombre (p. ej. creada por error por una
+    # versión anterior del instalador, que usaba New-LocalUser) y, si existe, AVISA y muestra cómo revisarla y borrarla a mano.
+    # Nunca borra ni cambia nada. Se usa ADSI para no depender del módulo ActiveDirectory.
+    try {
+        $searcher = [adsisearcher]"(&(objectCategory=person)(objectClass=user)(sAMAccountName=$Name))"
+        $searcher.PropertiesToLoad.AddRange(@('distinguishedName', 'whenCreated', 'description')) | Out-Null
+        $found = $searcher.FindOne()
+    }
+    catch {
+        Write-Info "No se pudo consultar el dominio para buscar una cuenta '$Name' (no es un error). Revísela a mano si hace falta."
+        return
+    }
+    if ($null -eq $found) {
+        Write-Ok "No hay ninguna cuenta '$Name' en el dominio."
+        return
+    }
+    $description = if ($found.Properties['description'].Count -gt 0) { [string]$found.Properties['description'][0] } else { '' }
+    $created = if ($found.Properties['whencreated'].Count -gt 0) { [string]$found.Properties['whencreated'][0] } else { '?' }
+    Write-Warn "Existe una cuenta '$Name' en el DOMINIO (creada: $created; descripción: '$description')."
+    Write-Warn 'Este script NO la toca. Si la creó por error un instalador anterior, revísela y bórrela a mano, en una consola de administrador del dominio:'
+    Write-Info "  1. Get-ADUser $Name -Properties whenCreated,Description,MemberOf"
+    if ($description -eq $Marker) { Write-Info "     (la descripción coincide con la del instalador: '$Marker')" }
+    Write-Info '  2. ¿Le quedó el derecho de inicio de sesión por lotes? Busque el SID de la cuenta (Get-ADUser ... | Select SID) en:'
+    Write-Info '       secedit /export /areas USER_RIGHTS /cfg C:\Temp\derechos.inf'
+    Write-Info '       Select-String C:\Temp\derechos.inf -Pattern SeBatchLogonRight'
+    Write-Info '     Si aparece, quítelo en la directiva "Default Domain Controllers Policy" (Iniciar sesión como trabajo por lotes).'
+    Write-Info "  3. Remove-ADUser $Name -Confirm"
+}
+
 function Test-DomainController {
     # Win32_ComputerSystem.DomainRole: 0-1 estación de trabajo, 2-3 servidor, 4 controlador de dominio de reserva, 5 principal.
     return ([int](Get-CimInstance -ClassName Win32_ComputerSystem).DomainRole -ge 4)
@@ -469,6 +499,7 @@ try {
         if ($PSBoundParameters.ContainsKey('AccountName') -or $PSBoundParameters.ContainsKey('AccountPassword')) {
             Write-Warn '-AccountName y -AccountPassword se ignoran en un controlador de dominio.'
         }
+        Write-DomainAccountWarning -Name $AccountName -Marker $AccountMarker
     }
     elseif ($UseLocalService) {
         Write-Ok "Modo LOCAL SERVICE pedido con -UseLocalService (DomainRole $domainRole): no se crea ninguna cuenta."
