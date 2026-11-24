@@ -66,12 +66,20 @@ public sealed class ApiPublishingSupportTests
 
     [Theory]
     [InlineData("http://localhost:3000")]
+    [InlineData("http://localhost")]
+    [InlineData("HTTP://LOCALHOST:3000")]
     [InlineData("http://127.0.0.1:5039/")]
+    [InlineData("http://[::1]:3000")]
     public void Http_solo_se_admite_en_este_equipo(string url) =>
         Assert.Empty(Load(("BaseUrl", url), ("AgentKey", Key)).Validate());
 
     [Theory]
     [InlineData("http://nettes.up.railway.app", "https")]
+    [InlineData("http://localhost.example.test", "https")]        // empieza con "localhost" pero no es loopback
+    [InlineData("http://127.0.0.1.example.test", "https")]
+    [InlineData("http://10.1.2.3:3000", "https")]                  // red local: tampoco
+    [InlineData("http://0.0.0.0:3000", "https")]
+    [InlineData("http://user@localhost:3000", "URL válida")]
     [InlineData("ftp://nettes.example.test", "URL válida")]
     [InlineData("nettes.up.railway.app", "URL válida")]
     [InlineData("https://<dominio>.up.railway.app", "URL válida")]

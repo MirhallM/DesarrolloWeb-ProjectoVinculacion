@@ -174,7 +174,7 @@ Un archivo junto al `.exe`, **fuera de git** (está en `.gitignore`). El reposit
 | `Agent:LogRetentionDays` | `14` | Días que se conservan los logs. |
 | `Api:BaseUrl` | *(obligatorio para `--once`)* | URL pública del sitio. |
 | `Api:AgentKey` | *(obligatorio para `--once`)* | Llave del agente (43 caracteres). |
-| `Api:BatchSize` | `1000` | Artículos por lote (entre 100 y 2000). Con 1000, cada lote mide unos 200 KB; el reenvío de Next.js trunca a partir de 10 MB. |
+| `Api:BatchSize` | `1000` | Artículos por lote (entre 100 y 2000). Con 1000, cada lote mide unos 106 KB; el reenvío de Next.js corta a partir de 10 MB (el cliente recibe `500`). |
 | `Api:RequestTimeoutSeconds` | `30` | Tiempo máximo de cada solicitud (iniciar, lote, comprobar). |
 | `Api:CompleteTimeoutSeconds` | `120` | Tiempo máximo de "completar". Si el proxy corta antes (30 s), el reintento recibe el resumen ya confirmado. |
 | `Api:TotalTimeoutMinutes` | `8` | Tiempo máximo de todo el envío, por debajo del límite de 10 min de la tarea. |

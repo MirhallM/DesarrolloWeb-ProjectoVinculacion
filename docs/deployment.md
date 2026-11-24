@@ -167,14 +167,14 @@ Revisado con Next.js 16.4.6 (la versión instalada) para los lotes de US-06:
 
 | Límite | Valor | Qué pasa si se supera |
 |---|---|---|
-| Cuerpo en el reenvío `/api/*` (`experimental.proxyClientMaxBodySize`) | 10 MB por defecto | Next.js **trunca el cuerpo sin fallar**: solo escribe un aviso en el log y el backend recibe un JSON cortado (responde `400`). |
+| Cuerpo en el reenvío `/api/*` (`experimental.proxyClientMaxBodySize`) | 10 MB por defecto | Next.js escribe un aviso en el log (*«Request body exceeded 10MB… Only the first 10MB will be available»*) y el cliente recibe **`500`**; el backend no recibe el cuerpo completo. Medido con Next.js 16.4.6: cuerpos de 6.5 y 8.6 MB pasan íntegros con el encabezado de la llave; uno de 14 MB da `500`. |
 | Tiempo de espera del reenvío (`experimental.proxyTimeout`) | 30 s por defecto | El agente recibe un error, aunque el backend siga trabajando. |
 | Kestrel | 30 MB | `413`. |
 | `POST /api/sync/runs/{id}/batches` | 4 MB (`[RequestSizeLimit]`) | `413`. |
 
 Decisiones:
 
-- Lotes de **1000 artículos** (unos 200 KB), con un máximo de 2000 en el servidor: muy por debajo de los 10 MB. No hace falta cambiar `next.config.ts`.
+- Lotes de **1000 artículos** (unos 106 KB medidos con datos parecidos a los reales; 213 KB con 2000), con un máximo de 2000 en el servidor: muy por debajo de los 10 MB. El inventario completo (unos 18 700 artículos) viaja en unos 19 lotes, nunca en una sola solicitud. No hace falta cambiar `next.config.ts`.\n- El encabezado `X-Sync-Agent-Key` llega al backend por el reenvío (se comprobó con un servidor eco detrás de la misma regla `rewrites`). El backend no tiene dominio público: el agente entra siempre por el dominio del frontend.
 - **Completar** aplica unos 18 500 artículos en **6 a 7 s** en un portátil (prueba `Carga_de_18500_articulos_registra_cuanto_tarda_completar`), por debajo de los 30 s. Si alguna vez tarda más, no se pierde: la transacción no depende de la conexión del cliente y el reintento del agente recibe el resumen ya confirmado.
 
 ## 8. Pendientes
