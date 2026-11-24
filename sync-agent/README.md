@@ -1,8 +1,11 @@
-# Agente de sincronización con Aspel SAE (US-05)
+# Agente de sincronización con Aspel SAE (US-05 y US-06)
 
-Programa de .NET 10 que corre en el servidor de la tienda y **lee** la base de Aspel SAE (SQL Server) en modo de solo lectura. Aspel SAE nunca se expone a Internet: el agente es el único que lo consulta, y lo hace desde el mismo servidor.
+Programa de .NET 10 que corre en el servidor de la tienda, **lee** la base de Aspel SAE (SQL Server) en modo de solo lectura y **envía** el inventario a la API por HTTPS. Aspel SAE nunca se expone a Internet: el agente es el único que lo consulta, lo hace desde el mismo servidor y solo abre conexiones salientes.
 
-> **Alcance de esta historia (US-05):** el agente lee, resume y guarda su estado en disco. **Todavía no envía datos a la API**: eso es US-06. El punto donde se conectará ya existe (`ICatalogPublisher`).
+> **Alcance:**
+> - **US-05:** leer, resumir y guardar el estado en disco.
+> - **US-06:** enviar el inventario **completo** en cada ciclo, con la llave propia del agente. Si no cambió desde la última corrida aplicada (huella SHA-256), la API lo registra como "sin cambios" y no se envían los productos; aun así, al menos una vez al día se envía todo.
+> - **US-07 (pendiente):** envío solo de los productos que cambiaron, huellas por producto, aborto en el agente si la lectura se reduce mucho y reconciliación diaria.
 
 El agente entrega los datos **tal como vienen de Aspel**. El redondeo del precio, el nombre para mostrar, la categoría y la visibilidad los aplica la API ([reglas comerciales](../docs/business-rules.md)).
 
@@ -35,15 +38,19 @@ El agente entrega los datos **tal como vienen de Aspel**. El redondeo del precio
 - Los artículos **sin precio** en la lista 1 no se pierden (por eso es `LEFT JOIN`): llegan con el precio vacío.
 - Entrega `CVE_ART` **sin recortar ni normalizar**: hay códigos que difieren solo por espacios al inicio y son productos distintos.
 - Reintenta ante fallos transitorios (red, tiempos de espera, bloqueos) y registra el servidor y la base, **nunca** el usuario ni la contraseña.
+- Envía el inventario a la API en lotes de 1000 artículos, con la llave del agente en el encabezado `X-Sync-Agent-Key` ([protocolo](../docs/architecture.md#51-protocolo-us-06)). El catálogo solo cambia cuando la API recibió todo y lo aplicó en una transacción.
+- Reintenta los fallos transitorios de la API (red, tiempo de espera, `429`, `5xx`) con esperas de 5, 15 y 45 segundos. Cada paso es idempotente: un reintento no duplica nada.
 - Guarda su estado en `data\sync-state.json` y sus registros en `data\logs\` (se borran a los 14 días).
-- Tiene un modo de prueba (`--test`) que resume lo leído y mide tiempos y memoria, sin enviar ni guardar nada.
+- Tiene un modo de prueba (`--test`) que resume lo leído, mide tiempos y memoria y comprueba que la API responde y acepta la llave, **sin enviar productos ni guardar nada**.
 
 **No hace**
 
 - No escribe en Aspel: la cuenta `catalogo_lectura` solo tiene `SELECT` sobre dos tablas.
 - No usa `NOLOCK`: puede devolver filas duplicadas u omitidas. Lee con el aislamiento por defecto (`READ COMMITTED`); con unas 18 mil filas la lectura dura milisegundos.
 - No abre ningún puerto: no recibe conexiones.
-- No envía datos a la API (US-06).
+- No aplica reglas comerciales: el redondeo del precio, el nombre para mostrar, la categoría y la visibilidad los aplica la API.
+- No sigue redirecciones HTTP: una redirección podría reenviar la llave a otro destino.
+- No escribe la llave en logs, mensajes ni en `sync-state.json`.
 
 ## 2. Cómo encaja
 
@@ -56,7 +63,7 @@ Servidor de la tienda (Windows Server 2016)                          Internet
 │  Tarea programada cada 15 min:                        │
 │     SyncAgent.exe --once ──► data\sync-state.json     │
 │                         └──► data\logs\agent-*.log    │
-│                         └──► (US-06) HTTPS saliente ──┼──► API (Railway)
+│                         └──► HTTPS saliente, lotes ───┼──► sitio (Railway) /api/sync
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -109,7 +116,7 @@ Simula la base de Aspel con versiones mínimas de `dbo.INVE01` y `dbo.PRECIO_X_P
 
 ## 5. Configuración
 
-El agente lee `appsettings.json` (valores de fábrica, sin secretos), luego `appsettings.Production.json` y, en desarrollo, los *User Secrets*. **El único valor obligatorio es la cadena de conexión** (`ConnectionStrings:AspelSae`). Si falta o está mal escrita, el programa termina con el código 1 y lo dice.
+El agente lee `appsettings.json` (valores de fábrica, sin secretos), luego `appsettings.Production.json` y, en desarrollo, los *User Secrets*. Los valores obligatorios son la cadena de conexión (`ConnectionStrings:AspelSae`) y, para `--once`, la sección `Api` (`Api:BaseUrl` y `Api:AgentKey`). Si falta alguno o está mal escrito, el programa termina con el código 1 y dice cuál. `--test` funciona sin la sección `Api`: solo avisa que no la comprobó.
 
 ### En desarrollo: User Secrets
 
@@ -125,20 +132,34 @@ dotnet run -c Release --project src\SyncAgent -- --test
 
 El secreto vive fuera del repositorio (`%APPDATA%\Microsoft\UserSecrets`). Para borrarlo: `dotnet user-secrets clear` dentro de `src\SyncAgent`. El backend **nunca** se conecta a SQL Server; esta cadena es solo del agente.
 
+Para la API, desde la raíz del repositorio:
+
+```powershell
+.\sync-agent\scripts\New-SyncAgentKey.ps1 -Development          # Api:BaseUrl = http://localhost:3000
+```
+
+El script genera una llave de desarrollo y la guarda en los User Secrets del agente (`Api:AgentKey` y `Api:BaseUrl`). En los del backend guarda el hash (`Sync:AgentKeyHashes`). Con `-BaseUrl http://localhost:5039` el agente habla directo con el backend. Por omisión pasa por el frontend (`npm run dev`), como en Railway. Después hay que reiniciar el backend.
+
 ### En la tienda: `appsettings.Production.json`
 
-Un archivo junto al `.exe`, **fuera de git** (está en `.gitignore`). El repositorio solo trae [`appsettings.Production.example.json`](src/SyncAgent/appsettings.Production.example.json), con la contraseña `CAMBIAR`. El instalador lo copia y le restringe los permisos (ver [paso 4 de la instalación](#4-configurar-la-conexión)). Se prefiere un archivo a las variables de entorno de máquina porque estas las puede leer cualquier proceso del servidor, mientras que el archivo solo lo leen Administradores, SYSTEM y la cuenta del agente.
+Un archivo junto al `.exe`, **fuera de git** (está en `.gitignore`). El repositorio solo trae [`appsettings.Production.example.json`](src/SyncAgent/appsettings.Production.example.json), con la contraseña `CAMBIAR`. El instalador lo copia y le restringe los permisos (ver [paso 4](#4-configurar-la-conexión) y [paso 7 de la instalación](#7-configurar-la-llave-del-agente)). Se prefiere un archivo a las variables de entorno de máquina porque estas las puede leer cualquier proceso del servidor, mientras que el archivo solo lo leen Administradores, SYSTEM y la cuenta del agente.
 
 ```json
 {
   "ConnectionStrings": {
     "AspelSae": "Server=localhost;Database=SAE70Empre01;User Id=catalogo_lectura;Password=<la clave>;TrustServerCertificate=True;"
   },
-  "Api": { "BaseUrl": "", "AgentKey": "" }
+  "Api": {
+    "BaseUrl": "https://<dominio>.up.railway.app",
+    "AgentKey": "<la escribe New-SyncAgentKey.ps1>"
+  }
 }
 ```
 
-La sección `Api` queda preparada para US-06 (la clave propia del agente irá en este mismo archivo).
+- `Api:BaseUrl` es la URL **pública** del sitio, la misma que abre el cliente. El frontend reenvía `/api/*` al backend.
+  - Debe usar `https`; `http` solo se acepta con `localhost` o `127.0.0.1`.
+  - Va sin ruta, sin `?` y sin `#`.
+- `Api:AgentKey` **no se escribe a mano**: la genera y la escribe `New-SyncAgentKey.ps1 -ConfigPath …` ([paso 7 de la instalación](#7-configurar-la-llave-del-agente)). El ejemplo trae `CAMBIAR`, que el agente interpreta como "sin llave".
 
 ### Opciones
 
@@ -151,17 +172,27 @@ La sección `Api` queda preparada para US-06 (la clave propia del agente irá en
 | `Aspel:Retry:DelaysSeconds` | `[5, 15, 45]` | Espera antes de cada reintento. Si el archivo la define, **reemplaza por completo** a la de fábrica. No puede estar vacía ni tener valores negativos: el agente no arranca y dice por qué. |
 | `Agent:DataDirectory` | `data` | Carpeta de estado y logs (relativa a la del programa). |
 | `Agent:LogRetentionDays` | `14` | Días que se conservan los logs. |
+| `Api:BaseUrl` | *(obligatorio para `--once`)* | URL pública del sitio. |
+| `Api:AgentKey` | *(obligatorio para `--once`)* | Llave del agente (43 caracteres). |
+| `Api:BatchSize` | `1000` | Artículos por lote (entre 100 y 2000). Con 1000, cada lote mide unos 200 KB; el reenvío de Next.js trunca a partir de 10 MB. |
+| `Api:RequestTimeoutSeconds` | `30` | Tiempo máximo de cada solicitud (iniciar, lote, comprobar). |
+| `Api:CompleteTimeoutSeconds` | `120` | Tiempo máximo de "completar". Si el proxy corta antes (30 s), el reintento recibe el resumen ya confirmado. |
+| `Api:TotalTimeoutMinutes` | `8` | Tiempo máximo de todo el envío, por debajo del límite de 10 min de la tarea. |
+| `Api:MaxAttempts` | `4` | Intentos por solicitud ante fallos transitorios, con esperas de 5, 15 y 45 s. |
 
-Solo se reintentan los fallos transitorios. Un inicio de sesión fallido (error 18456) **no** se reintenta: repetirlo solo bloquearía la cuenta.
+Solo se reintentan los fallos transitorios. Un inicio de sesión fallido (error 18456) **no** se reintenta: repetirlo solo bloquearía la cuenta. Con la API pasa lo mismo con `400`, `401`, `403`, `404`, `409` y `422`: esperar no los arregla.
 
 ## 6. Modos de uso y códigos de salida
 
 ```powershell
-SyncAgent.exe --test     # una lectura y un resumen en pantalla; no envía ni guarda nada
-SyncAgent.exe --once     # una sincronización completa (la que ejecuta la tarea programada)
+SyncAgent.exe --test     # una lectura, un resumen y una comprobación de la API; no envía productos ni guarda nada
+SyncAgent.exe --once     # una sincronización completa: lee y envía (la que ejecuta la tarea programada)
 ```
 
-`--test` es lo que se usa en la tienda para validar la consulta contra la base real. Solo escribe en la consola (no crea archivos), de modo que se puede ejecutar a mano como Administrador sin ensuciar `data\`.
+`--test` es lo que se usa en la tienda para validar la consulta contra la base real y, cuando ya hay llave, la conexión con la API.
+
+- Solo escribe en la consola (no crea archivos), de modo que se puede ejecutar a mano como Administrador sin ensuciar `data\`.
+- La comprobación de la API es un `GET /api/sync/ping` con la llave: no envía productos ni cambia nada en el catálogo.
 
 Extracto del informe (con la base de prueba de Docker):
 
@@ -180,7 +211,13 @@ Extracto del informe (con la base de prueba de Docker):
 --- Memoria del proceso ---
   Máximo en memoria física (working set):     48.7 MB
   Memoria disponible según el GC:             64.0 MB   (con el tope activo debe ser 64)
+
+--- API ---
+  URL: https://<dominio>.up.railway.app
+  Responde y la llave es válida. (No se envió ningún producto.)
 ```
+
+Si la API no está configurada, la sección dice `Sin configurar` y el código de salida sigue siendo 0. Si está configurada pero no responde o rechaza la llave, dice `NO SE PUDO COMPROBAR: …` y el código es 5.
 
 **Cómo leerlo en la tienda.** Las cifras de la exportación de noviembre de 2026 (unos 18 460 artículos, unos 121 activos sin precio, unos 14 pares de códigos con espacios) son **aproximadas**: el inventario cambia. Una diferencia pequeña es normal. Lo que importa es:
 
@@ -189,7 +226,13 @@ Extracto del informe (con la base de prueba de Docker):
 - que haya **pares de códigos con espacios** (se entregan como productos distintos);
 - los **tiempos** y la **memoria máxima** reales del servidor.
 
-`--once` guarda `data\sync-state.json` (resultado de la última ejecución, **última sincronización exitosa**, fallos seguidos, artículos leídos, duración y memoria) y escribe `data\logs\agent-AAAA-MM-DD.log`. Un fallo suma el contador pero **no borra** la fecha de la última sincronización exitosa. Una segunda ejecución simultánea no se solapa: sale de inmediato con el código 3.
+`--once` guarda `data\sync-state.json` y escribe `data\logs\agent-AAAA-MM-DD.log`. El estado incluye:
+
+- el resultado de la última ejecución, la **última sincronización exitosa** y los fallos seguidos;
+- los artículos leídos, la duración y la memoria;
+- el id de la última corrida confirmada, la huella del inventario y el resumen de la API (insertados, actualizados, desactivados, rechazados, o `unchanged`).
+
+**Una ejecución solo cuenta como exitosa cuando la API confirmó la corrida.** Un fallo suma el contador pero **no borra** la fecha de la última sincronización exitosa. Si la API rechaza artículos (código vacío o valores fuera de rango), el log los lista con su código para corregirlos en Aspel; la corrida sigue siendo exitosa. Una segunda ejecución simultánea no se solapa: sale de inmediato con el código 3.
 
 | Código | Significado | Qué hacer |
 |---|---|---|
@@ -198,6 +241,7 @@ Extracto del informe (con la base de prueba de Docker):
 | `2` | No se pudo leer SQL Server (después de los reintentos) | Ver la tabla de [solución de problemas](#12-solución-de-problemas) por número de error. |
 | `3` | Ya hay otra ejecución en curso | Normal si una ejecución tarda más que el intervalo; la tarea la ignora. |
 | `4` | Error inesperado | Ver el log de `data\logs\`. |
+| `5` | No se pudo enviar a la API (o, en `--test`, comprobarla), después de los reintentos. El catálogo del sitio **no cambió**. | Leer el mensaje: llave rechazada, freno de seguridad, sin conexión… Ver la tabla de [solución de problemas](#12-solución-de-problemas). |
 
 El Programador de tareas muestra este código en *«Último resultado»*.
 
@@ -209,12 +253,12 @@ Desde `sync-agent\` (con el SDK 10):
 dotnet test --solution SyncAgent.slnx -c Release
 ```
 
-Sin base de datos corren las **pruebas unitarias** (129) y el resumen de `dotnet test` muestra `total: 141`, `succeeded: 129` y `skipped: 12` (una prueba con 6 variantes cuenta como una sola cuando se omite). Las **17 pruebas de integración** (`Category=Integration`) usan la base de Docker y **se omiten solas** si no existe la variable `SYNCAGENT_TEST_CONNECTION`:
+Sin base de datos corren las **pruebas unitarias** (181) y el resumen de `dotnet test` muestra `total: 193`, `succeeded: 181` y `skipped: 12` (una prueba con 6 variantes cuenta como una sola cuando se omite). Las **17 pruebas de integración** (`Category=Integration`) usan la base de Docker y **se omiten solas** si no existe la variable `SYNCAGENT_TEST_CONNECTION`:
 
 ```powershell
 $p = ((Get-Content ..\.env | Where-Object { $_ -like 'CATALOGO_LECTURA_PASSWORD=*' }) -replace '^CATALOGO_LECTURA_PASSWORD=','').Trim()
 $env:SYNCAGENT_TEST_CONNECTION = "Server=127.0.0.1,14330;Database=SAE70Empre01;User Id=catalogo_lectura;Password=$p;TrustServerCertificate=True;"
-dotnet test --solution SyncAgent.slnx -c Release       # ahora: total: 146, succeeded: 146, skipped: 0
+dotnet test --solution SyncAgent.slnx -c Release       # ahora: total: 198, succeeded: 198, skipped: 0
 ```
 
 > **Nunca apunte `SYNCAGENT_TEST_CONNECTION` a la base real de Aspel.** Algunas pruebas intentan escribir (para comprobar que falla). Por seguridad, antes de cada prueba se verifica que la base sea la de prueba (exactamente los 14 artículos sembrados); si no lo es, todas fallan sin hacer nada, y los intentos de escritura van dentro de una transacción que siempre se revierte.
@@ -348,26 +392,65 @@ sqlcmd -S localhost -U catalogo_lectura -d SAE70Empre01 -b -i ..\sql\install\04-
 
 Como no se indica `-P`, `sqlcmd` pide la contraseña en una línea oculta. Debe terminar con *«catalogo_lectura solo tiene SELECT sobre dbo.INVE01 y dbo.PRECIO_X_PROD01»*. **No escribe nada** en Aspel: solo pregunta a SQL Server qué permisos tiene la cuenta.
 
-### 7. Ejecutar la tarea una vez y verificar
+### 7. Configurar la llave del agente
+
+La llave identifica al agente ante la API. Se genera **en este servidor** y nunca sale de él: a Railway solo va su hash.
+
+1. Edite `C:\NettesSyncAgent\appsettings.Production.json` como administrador y ponga en `Api:BaseUrl` la URL pública del sitio, por ejemplo `https://<dominio>.up.railway.app`.
+2. Genere la llave (en la misma consola de administrador, desde la carpeta `scripts`):
+
+   ```powershell
+   .\New-SyncAgentKey.ps1 -ConfigPath C:\NettesSyncAgent\appsettings.Production.json
+   ```
+
+   El script escribe la llave en `Api:AgentKey` (el archivo conserva sus permisos) y muestra **solo el hash**. La llave no se ve en pantalla y no pasa por la línea de comandos, así que no queda en el historial de PowerShell.
+3. En Railway, servicio `backend`, *Variables*: `Sync__AgentKeyHashes` = el hash mostrado ([docs/deployment.md](../docs/deployment.md#3-variables-nombres-sin-valores)). Espere a que el backend se redespliegue.
+4. Compruebe:
+
+   ```powershell
+   & 'C:\NettesSyncAgent\SyncAgent.exe' --test
+   ```
+
+   La sección `--- API ---` debe decir *«Responde y la llave es válida»*. Esto **no** envía productos.
+
+**Rotar la llave** (si se filtró o por rutina):
+
+1. Ejecute otra vez el paso 2, que genera una llave nueva.
+2. En Railway ponga `Sync__AgentKeyHashes` = `<hash anterior>,<hash nuevo>`: durante el cambio sirven las dos.
+3. Cuando una sincronización termine bien, deje solo el hash nuevo.
+
+Para saber qué hash corresponde a una llave existente: `.\New-SyncAgentKey.ps1 -HashFromPrompt`.
+
+### 8. Ejecutar la tarea una vez y verificar
 
 ```powershell
 Start-ScheduledTask -TaskPath '\NettesSyncAgent\' -TaskName 'Sincronizacion'
-Start-Sleep -Seconds 12
+Start-Sleep -Seconds 60
 Get-ScheduledTask -TaskPath '\NettesSyncAgent\' | Get-ScheduledTaskInfo | Format-List LastRunTime,LastTaskResult,NextRunTime
 Get-Content C:\NettesSyncAgent\data\sync-state.json
-Get-Content (Get-ChildItem C:\NettesSyncAgent\data\logs\*.log | Select-Object -Last 1) -Tail 8
+Get-Content (Get-ChildItem C:\NettesSyncAgent\data\logs\*.log | Select-Object -Last 1) -Tail 12
 ```
 
-Debe mostrar `LastTaskResult : 0`, `"lastResult": "succeeded"` y los artículos leídos. A partir de ahí la tarea corre sola cada 15 minutos y después de cada reinicio. Para ver permisos: `icacls C:\NettesSyncAgent` y `icacls C:\NettesSyncAgent\data`.
+Debe mostrar:
+
+- `LastTaskResult : 0` y `"lastResult": "succeeded"`;
+- los artículos leídos;
+- en `lastPublish`, el resumen de la API;
+- en el log, una línea *«API: corrida … aplicada. N leídos, N insertados…»*. La primera vez son unos 18 460 insertados; las siguientes, `unchanged` si nada cambió.
+
+A partir de ahí la tarea corre sola cada 15 minutos y después de cada reinicio. Para ver permisos: `icacls C:\NettesSyncAgent` y `icacls C:\NettesSyncAgent\data`.
+
+> **Primera carga:** si el log dice *«Freno de seguridad»*, la API detuvo una corrida que desactivaría muchos productos (por ejemplo, si el catálogo de Railway tiene productos de prueba que no existen en Aspel). No cambió nada. Revise que el agente lea la base correcta; si la baja es real, siga [la tabla de problemas](#12-solución-de-problemas).
 
 ## 10. Contraseñas
 
-Hay **dos** y no se confunden.
+Hay **dos** contraseñas y una **llave**, y no se confunden.
 
 | | Para qué sirve | Dónde vive | Quién la guarda |
 |---|---|---|---|
 | `catalogo_lectura` (SQL Server) | El agente se conecta con ella a la base de Aspel. | Solo en `appsettings.Production.json` del servidor, con permisos restringidos. | La persona responsable del servidor de la tienda, en su gestor de contraseñas. |
 | `svc-nettes-sync` (cuenta de Windows) | La tarea inicia sesión con ella sin que nadie esté conectado. | Solo la conocen Windows y el Programador de tareas; no se escribe en ningún archivo. | La misma persona. Nadie la necesita en el día a día. |
+| Llave del agente (`Api:AgentKey`) | El agente se identifica ante la API. | Solo en `appsettings.Production.json`. En Railway está **su hash**, no la llave. | Nadie necesita conocerla: la genera `New-SyncAgentKey.ps1` y no se muestra. Si se pierde o se filtra, se genera otra ([paso 7](#7-configurar-la-llave-del-agente)). |
 
 - **Nunca** van en el repositorio, en este README, en el chat ni en capturas de pantalla. `appsettings.Production.json` está en `.gitignore`; el repositorio solo trae el ejemplo con `CAMBIAR`.
 - **Quién las guarda** lo designa el negocio para el servidor de la tienda (**pendiente de confirmar**). El equipo de desarrollo no necesita conocerlas.
@@ -423,12 +506,19 @@ Detiene y elimina la tarea y su carpeta del Programador, cierra los procesos de 
 | Código `2`, errores **207** o **208** | La estructura de la tabla no coincide (columna o tabla inexistente): ¿base equivocada? | Compare con la salida de `02-inspeccionar-columnas.sql`. |
 | Código `2`, errores **258**, **53**, **10061** | SQL Server apagado, nombre o instancia incorrectos, o TCP/IP deshabilitado. Se reintenta 3 veces. | Revise que SQL Server esté encendido y el valor de `Server=` en la cadena. |
 | Código `3` | Otra ejecución sigue en curso. | Normal; no requiere acción. |
+| Código `1`, *«Falta Api:BaseUrl»* o *«Falta Api:AgentKey»* | `--once` necesita la sección `Api`. | [Paso 7 de la instalación](#7-configurar-la-llave-del-agente). |
+| Código `5`, *«La API rechazó la llave del agente (401)»* | La llave del archivo no corresponde al hash de Railway, o `Sync__AgentKeyHashes` falta o está mal copiada. | Compare `.\New-SyncAgentKey.ps1 -HashFromPrompt` con la variable de Railway, o genere una llave nueva ([paso 7](#7-configurar-la-llave-del-agente)). |
+| Código `5`, *«Freno de seguridad: se desactivarían N de M productos activos»* | La lectura trajo muchos menos artículos de los que hay activos en el sitio: base o empresa equivocada, o lectura incompleta. **No se cambió nada.** | Revise `--test` («Total de filas leídas»). Si de verdad se eliminaron muchos artículos de Aspel, suba `Sync__MaxDeactivationRatio` en Railway para una corrida y luego quite la variable. |
+| Código `5`, *«Hay otra sincronización en curso»* | Una corrida anterior no terminó (por ejemplo, se cortó la luz). | Ninguna: a los 15 minutos la API la da por abandonada y la siguiente ejecución sigue. |
+| Código `5`, *«No se pudo conectar con la API»* o *«no respondió»* | Sin Internet, DNS o el sitio caído. Se reintenta 3 veces. | Pruebe el sitio en un navegador del servidor y `Test-NetConnection <dominio> -Port 443`. |
+| Código `5`, *«respondió con una redirección»* | `Api:BaseUrl` con `http://` o con otro dominio que redirige. | Use exactamente `https://<dominio>` del sitio. |
+| Código `5`, *«no encontró la ruta» (404)* | `Api:BaseUrl` apunta a otro sitio o incluye una ruta. | Solo el dominio, sin `/api`. |
 | *«The term '.\scripts\…' is not recognized»* | La ventana de PowerShell abrió en `C:\Windows\System32`. | `Set-Location` a la carpeta de los scripts. |
 | *«running scripts is disabled on this system»* | Política de ejecución de scripts. | `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force` (solo vale para esa ventana). |
 | *«A compatible .NET SDK was not found»* al compilar | No está instalado el SDK 10. | `winget install --id Microsoft.DotNet.SDK.10 -e` |
 | El perfil `C:\Users\svc-nettes-sync` sigue ahí después de desinstalar | Windows lo mantiene cargado. | Reinicie el equipo y vuelva a ejecutar `Uninstall-SyncAgent.ps1`. |
 
-**Dónde mirar:** `C:\NettesSyncAgent\data\logs\agent-AAAA-MM-DD.log` (uno por día, 14 días) y `C:\NettesSyncAgent\data\sync-state.json`. Los mensajes de error de SQL se traducen a una explicación en español y el usuario y la contraseña nunca se escriben.
+**Dónde mirar:** `C:\NettesSyncAgent\data\logs\agent-AAAA-MM-DD.log` (uno por día, 14 días) y `C:\NettesSyncAgent\data\sync-state.json`. Los mensajes de error de SQL y de la API se traducen a una explicación en español; el usuario, la contraseña y la llave del agente nunca se escriben.
 
 ## 13. Seguridad y criterios de aceptación
 
@@ -438,7 +528,15 @@ Detiene y elimina la tarea y su carpeta del Programador, cierra los procesos de 
 | Los productos sin precio con `CVE_PRECIO = 1` no se pierden | Cumplido (prueba) | `LEFT JOIN`; con `INNER JOIN` fallan 6 pruebas; llegan con precio vacío |
 | El agente no modifica datos de Aspel | Cumplido (prueba) | Solo hay un `SELECT` (una prueba lo exige); `INSERT`/`UPDATE`/`DELETE` con `catalogo_lectura` fallan con el error 229 en las dos tablas; la cuenta no pertenece a ningún rol |
 | Las credenciales no se exponen en el código ni en los logs | Cumplido (prueba) | Excepciones de SqlClient reales sin la clave; el mensaje de login fallido sale como `Login failed for user '***'`; búsqueda de la clave en `data\`, logs y salida: sin coincidencias |
-| No se abre ningún puerto de SQL Server hacia Internet | Cumplido por diseño; falta comprobarlo en la tienda | El agente usa `localhost` y solo hace conexiones salientes (US-06); el instalador no crea reglas de firewall |
+| No se abre ningún puerto de SQL Server hacia Internet | Cumplido por diseño; falta comprobarlo en la tienda | El agente usa `localhost` y solo hace conexiones salientes HTTPS a la API; el instalador no crea reglas de firewall |
+
+| Criterio de US-06 (parte del agente) | Estado | Evidencia |
+|---|---|---|
+| `ICatalogPublisher` por HTTP; URL y llave en la sección `Api` de `appsettings.Production.json` | Cumplido (prueba) | `HttpCatalogPublisher` con un `HttpMessageHandler` falso: iniciar, lotes de 1000 y completar, con la llave en cada solicitud |
+| La llave no aparece en logs ni en el estado | Cumplido (prueba) | Validación sin repetir la llave; el redactor la oculta; una respuesta hostil que repite la llave no llega al mensaje ni al log |
+| `--test` no envía nada; `--once` envía | Cumplido (prueba) | `--test` solo hace `GET /api/sync/ping`; pruebas con ping correcto, 401 y sin red |
+| La importación puede repetirse sin duplicar; sin la llave, `401` y nada cambia; un error a mitad no deja el catálogo a medias | Cumplido en la API (19 pruebas de integración contra PostgreSQL, ver `backend/`) | `runId` del agente, lotes reemplazables y completar idempotente; la transacción no depende de la conexión |
+| Los datos coinciden con los de Aspel (base de prueba de Docker) | Pendiente | Prueba de punta a punta local (sección 15) |
 
 ## 14. Compatibilidad y riesgos
 
@@ -450,13 +548,20 @@ Detiene y elimina la tarea y su carpeta del Programador, cierra los procesos de 
 
 **Probado** (portátil con Windows 11, SQL Server 2022 en Docker, SDK 10.0.403; el CI se replicó en Ubuntu 24.04 con la imagen oficial del SDK 10):
 
-- 129 pruebas unitarias y 17 de integración.
+- 181 pruebas unitarias y 17 de integración. Las 52 nuevas de US-06 cubren:
+  - el publicador HTTP: secuencia, lotes, reintentos, timeouts, redirecciones, 401, freno y abortar;
+  - la huella y las opciones de `Api`;
+  - `--test` con la API;
+  - el estado después de un envío confirmado o fallido.
+- La API de US-06, del lado del backend: 19 pruebas de integración contra PostgreSQL. "Completar" aplica 18 500 artículos en unos 6 s.
 - Instalación, ejecución de la tarea con la cuenta dedicada y sin sesión iniciada (`LastTaskResult 0`, estado en disco, sin la contraseña de SQL en `data\`), reinstalación que conserva configuración y datos, y desinstalación con perfil incluido (tras reiniciar) y segunda ejecución.
 - Desinstalación con `-KeepData`: conserva `data\` y la configuración y quita los permisos de la cuenta eliminada, tanto con la cuenta existente como cuando ya se había eliminado antes. Una primera prueba real dejó permisos huérfanos (`icacls` no puede quitar el permiso de una cuenta que ya no existe); se corrigió y se repitió sin errores.
 - Cambio de la clave de `catalogo_lectura` (la anterior deja de servir) y rechazo de claves inválidas.
 - `Set-CatalogoLecturaLogin.ps1` en una consola interactiva real: la clave tecleada en las líneas ocultas **no** aparece en `ConsoleHost_history.txt` (se buscó con una línea de control que demostró que el historial se estaba guardando). Al buscarla, la única coincidencia era el propio comando de búsqueda con la clave escrita completa, no el script.
 
 **Todavía sin probar**
+
+- La prueba de punta a punta local: SQL Server de Docker → `--once` → frontend → backend → `/api/products`.
 
 - La recuperación cuando alguien cambia la clave de la cuenta de Windows (el procedimiento documentado es volver a ejecutar `Install-SyncAgent.ps1`, que fija la clave y vuelve a registrar la tarea; ya se probó que esa reinstalación actualiza la cuenta y la tarea, pero no el caso exacto de una clave cambiada por otro medio).
 
@@ -470,6 +575,9 @@ Detiene y elimina la tarea y su carpeta del Programador, cierra los procesos de 
 6. Que la tarea corre sin sesión iniciada **y después de reiniciar el servidor**.
 7. Que no hay reglas de firewall entrantes nuevas.
 8. Quién custodia las dos contraseñas.
+9. Que el servidor sale por HTTPS al dominio de Railway (`--test` → *«Responde y la llave es válida»*), sin proxy que lo bloquee.
+10. La **primera carga real**: duración del envío y de «completar» con la latencia real y unos 18 460 artículos, y que el freno no se active.
+11. Que la llave quedó en `appsettings.Production.json` con los permisos restringidos y que el hash de Railway coincide.
 
 ## 16. Estructura de la carpeta
 
@@ -477,12 +585,13 @@ Detiene y elimina la tarea y su carpeta del Programador, cierra los procesos de 
 sync-agent/
 ├── SyncAgent.slnx
 ├── global.json                      # fija el SDK 10 y el ejecutor de pruebas
-├── src/SyncAgent/                   # el programa (Aspel/, Diagnostics/, Logging/, Resilience/, State/, Publishing/)
+├── src/SyncAgent/                   # el programa (Aspel/, Diagnostics/, Logging/, Publishing/ = envío a la API, Resilience/, State/)
 ├── tests/SyncAgent.Tests/           # Unit/ e Integration/
 ├── scripts/
 │   ├── Install-SyncAgent.ps1        # instala o actualiza la tarea programada
 │   ├── Uninstall-SyncAgent.ps1      # deshace todo
-│   └── Set-CatalogoLecturaLogin.ps1 # crea o cambia la clave de catalogo_lectura sin escribirla en la línea de comandos
+│   ├── Set-CatalogoLecturaLogin.ps1 # crea o cambia la clave de catalogo_lectura sin escribirla en la línea de comandos
+│   └── New-SyncAgentKey.ps1         # genera la llave del agente y muestra su hash para Railway
 └── sql/
     ├── dev/                         # base de prueba (solo desarrollo)
     └── install/                     # 01 crear cuenta · 02 inspeccionar · 03 memoria · 04 verificar permisos

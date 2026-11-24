@@ -271,8 +271,8 @@ Los nombres de ramas y los mensajes de commit se escribirán en inglés, en min�
 - Definir quién abre y paga la cuenta de Railway, y cómo se traspasa al terminar.
 - Confirmar con el negocio que se puede instalar un agente en su red, con salida HTTPS a Internet.
 - Validar con el negocio la lista de categorías. La consulta a Aspel SAE (US-05) está implementada y probada contra una base de prueba; falta verificarla en la tienda con `sync-agent/sql/install/02` y el modo `--test`.
-- El envío por lotes a la API está definido (sección 5.1). Falta conectar el agente (`ICatalogPublisher` por HTTP) y el envío incremental de US-07.
-- Reintentos de lectura de SQL Server: resueltos en el agente (4 intentos con esperas de 5, 15 y 45 segundos ante fallos transitorios). Pendientes: los reintentos del envío a la API y la detección de inactividad del agente (*Heartbeat*); `sync-state.json` ya guarda `lastSuccessAt` para ese aviso.
+- El envío por lotes está implementado en la API y en el agente (sección 5.1, US-06). Falta el envío incremental de US-07 y la prueba en la tienda contra Railway.
+- Reintentos de lectura de SQL Server: resueltos en el agente (4 intentos con esperas de 5, 15 y 45 segundos ante fallos transitorios). Los reintentos del envío a la API también están resueltos (US-06: 4 intentos con esperas de 5, 15 y 45 segundos ante errores de red, `429` y `5xx`). Pendiente: la detección de inactividad del agente. `sync_runs` registra cada corrida exitosa, incluidas las "sin cambios", así que la API sabe cuándo fue la última (US-12).
 - Confirmar con el negocio quién guarda las contraseñas de `catalogo_lectura` y de la cuenta de Windows del agente.
 - Windows Server 2016 sale de soporte el 12 de enero de 2027: planificar la actualización del sistema operativo de la tienda (ver `sync-agent/README.md`).
 - Configurar las políticas de *Rate Limiting* (`CatalogSearchPolicy`) en la API de .NET.
