@@ -1,13 +1,13 @@
 # Backend - Catálogo Web Mini Super Nettes
 
-API REST desarrollada con **ASP.NET Core (.NET 10 / `net10.0`)**, **Entity Framework Core**, **ASP.NET Core Identity** y **PostgreSQL 17** (`Npgsql`).
+API REST desarrollada con **ASP.NET Core (.NET 10 / `net10.0`)**, **Entity Framework Core**, **ASP.NET Core Identity** y **PostgreSQL 18** (`Npgsql`).
 
 ---
 
 ## Requisitos Previos
 
 - **.NET 10 SDK** (`10.0.100` o superior; ver `backend/global.json`).
-- **Docker Desktop** para levantar PostgreSQL 17 en desarrollo.
+- **Docker Desktop** para levantar PostgreSQL 18 en desarrollo.
 - **dotnet-ef** instalado globalmente:
   ```powershell
   dotnet tool install --global dotnet-ef --version "10.*"
