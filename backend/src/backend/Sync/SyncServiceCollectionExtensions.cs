@@ -24,6 +24,7 @@ public static class SyncServiceCollectionExtensions
             return verifier;
         });
 
+        services.AddScoped<SyncService>();
         return services;
     }
 }

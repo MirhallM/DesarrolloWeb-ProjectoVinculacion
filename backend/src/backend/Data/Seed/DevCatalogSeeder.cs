@@ -16,8 +16,7 @@ public sealed class DevCatalogSeeder(
     AppDbContext db,
     CatalogSeeder catalogSeeder,
     CategoryRuleSet ruleSet,
-    ICategorizer categorizer,
-    IDisplayNamer displayNamer,
+    CatalogProductFields fields,
     ILogger<DevCatalogSeeder> logger)
 {
     private sealed record SampleProduct(
@@ -26,7 +25,6 @@ public sealed class DevCatalogSeeder(
         decimal PublicPrice,
         decimal Stock,
         bool IsActive = true,
-        bool ForceEmptyDisplayName = false,
         string? ImagePath = null);
 
     private static readonly SampleProduct[] Samples =
@@ -71,7 +69,7 @@ public sealed class DevCatalogSeeder(
         new("DEV-H01", "PRODUCTO DADO DE BAJA", 30.00m, 5m, IsActive: false),
         new("DEV-H02", "PRODUCTO SIN PRECIO EN LISTA", 0m, 5m),
         new("DEV-H03", "PRODUCTO PRECIO SOSPECHOSO", 125_000m, 5m),
-        new("DEV-H04", "NULL", 25.00m, 5m, ForceEmptyDisplayName: true),
+        new("DEV-H04", "NULL", 25.00m, 5m), // descripción "NULL": display_name vacío
     ];
 
     public async Task<DevCatalogSeedReport> SeedAsync(CancellationToken ct = default)
@@ -97,14 +95,8 @@ public sealed class DevCatalogSeeder(
 
         foreach (var sample in Samples)
         {
-            var match = categorizer.Categorize(sample.Description);
-            var categoryId = categoriesBySlug.TryGetValue(match.Slug, out var id)
-                ? id
-                : Category.OthersId;
-
-            var displayName = sample.ForceEmptyDisplayName
-                ? string.Empty
-                : displayNamer.GetDisplayName(sample.Description);
+            var categoryId = fields.GetCategoryId(sample.Description, categoriesBySlug);
+            var displayName = fields.GetDisplayName(sample.Description);
 
             if (!existingByCode.TryGetValue(sample.Code, out var product))
             {
