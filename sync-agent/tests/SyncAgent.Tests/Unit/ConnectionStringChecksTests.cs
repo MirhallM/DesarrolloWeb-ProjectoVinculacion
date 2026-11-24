@@ -37,4 +37,20 @@ public class ConnectionStringChecksTests
 
         Assert.True(ConnectionStringChecks.HasPlaceholderPassword(connectionString));
     }
+
+    [Fact]
+    public void Una_clave_con_punto_y_coma_igual_y_comillas_viaja_bien_en_la_cadena_que_arma_SqlConnectionStringBuilder()
+    {
+        // Es la cadena que genera System.Data.SqlClient.SqlConnectionStringBuilder en los comandos de prueba de la instalación:
+        // armarla con el constructor y no concatenando evita que ; = o " en la clave rompan la cadena.
+        const string password = "a;b=c\"d'e!";
+        const string generated = "Data Source=127.0.0.1,14330;Initial Catalog=SAE70Empre01;User ID=catalogo_lectura;" +
+                                 "Password=\"a;b=c\"\"d'e!\";TrustServerCertificate=True";
+
+        var parsed = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(generated);
+
+        Assert.Equal(password, parsed.Password);
+        Assert.Equal("127.0.0.1,14330", parsed.DataSource);
+        Assert.False(ConnectionStringChecks.HasPlaceholderPassword(generated));
+    }
 }
