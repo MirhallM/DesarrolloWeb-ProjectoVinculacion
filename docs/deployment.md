@@ -57,7 +57,7 @@ Ningún valor va en el repositorio. Se configuran en **Variables** de cada servi
 | `ConnectionStrings__DefaultConnection` | `Host=${{Postgres.PGHOST}};Port=${{Postgres.PGPORT}};Database=${{Postgres.PGDATABASE}};Username=${{Postgres.PGUSER}};Password=${{Postgres.PGPASSWORD}}` |
 | `ASPNETCORE_ENVIRONMENT` | `Production` (desactiva Swagger y la página de errores de desarrollo) |
 | `PORT` | `8080`. Definirla explícitamente para que el frontend pueda referenciarla. |
-| `Sync__AgentKeyHashes` | Hash SHA-256 (hexadecimal, 64 caracteres) de la llave del agente. **No es la llave**: la llave solo vive en el servidor de la tienda. Se genera con `sync-agent/scripts/New-SyncAgentKey.ps1` (ver abajo). Para rotar sin cortes admite dos hashes separados por coma. |
+| `Sync__AgentKeyHashes` | Hash SHA-256 (hexadecimal, 64 caracteres) de la llave del agente. **No es la llave**: la llave solo vive en el servidor de la tienda. Se genera con `sync-agent/scripts/New-SyncAgentKey.ps1` (ver abajo). Admite dos hashes separados por coma para rotar la llave (procedimiento en `sync-agent/README.md`, paso 7). |
 | `Sync__MaxDeactivationRatio` | *Opcional.* Freno de seguridad, por defecto `0.10`. Solo se sube **temporalmente** si se eliminaron de verdad muchos artículos de Aspel; después se borra la variable. |
 
 `PGHOST` es la dirección **privada** de PostgreSQL. No usar `DATABASE_PUBLIC_URL`.

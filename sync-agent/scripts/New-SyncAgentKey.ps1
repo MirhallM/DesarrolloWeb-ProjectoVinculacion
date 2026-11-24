@@ -24,10 +24,13 @@
       -HashFromPrompt         Pide una llave existente en una línea oculta y muestra su hash (por ejemplo, para
                               comprobar qué hash corresponde a la llave instalada).
 
-    ROTACIÓN SIN PERDER UN CICLO: Sync__AgentKeyHashes admite dos hashes separados por coma.
-      1. En Railway: Sync__AgentKeyHashes = <hash anterior>,<hash nuevo>.
-      2. En la tienda: .\New-SyncAgentKey.ps1 -ConfigPath ... (instala la llave nueva).
-      3. Cuando el agente sincronice bien con la nueva: Sync__AgentKeyHashes = <hash nuevo>.
+    ROTACIÓN: Sync__AgentKeyHashes admite dos hashes separados por coma. El script escribe la llave nueva ANTES de que
+    Railway conozca su hash, así que durante el cambio se deshabilita la tarea para que el agente no falle en medio.
+      1. Disable-ScheduledTask -TaskPath '\NettesSyncAgent\' -TaskName 'Sincronizacion'
+      2. .\New-SyncAgentKey.ps1 -ConfigPath ...   (instala la llave nueva y muestra su hash)
+      3. En Railway: Sync__AgentKeyHashes = <hash anterior>,<hash nuevo>.
+      4. SyncAgent.exe --test; si dice que la llave es válida: Enable-ScheduledTask ...
+      5. Cuando el agente sincronice bien con la nueva: Sync__AgentKeyHashes = <hash nuevo>.
 
 .PARAMETER ConfigPath
     Ruta de appsettings.Production.json del agente instalado. Por ejemplo: C:\NettesSyncAgent\appsettings.Production.json
@@ -87,7 +90,7 @@ function Write-HashInstructions([string] $hash) {
     Write-Host ''
     Write-Host 'En Railway, servicio backend, Variables:'
     Write-Host "  Sync__AgentKeyHashes = $hash"
-    Write-Host '  (para rotar sin cortes: "<hash anterior>,<hash nuevo>" y luego solo el nuevo)'
+    Write-Host '  (para rotar: deshabilite la tarea, "<hash anterior>,<hash nuevo>" en Railway, habilite la tarea y luego solo el nuevo)'
 }
 
 switch ($PSCmdlet.ParameterSetName) {

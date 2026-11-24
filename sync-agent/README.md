@@ -350,6 +350,8 @@ Pide la contraseña de la cuenta de Windows `svc-nettes-sync` (dos veces) y hace
 6. Registra la tarea programada.
 7. Muestra un resumen y los comandos para verificar.
 
+**Si la configuración está incompleta, la tarea se registra DESHABILITADA.** Si falta la contraseña real de `catalogo_lectura`, `Api:BaseUrl` o `Api:AgentKey`, el instalador no deja la tarea activa: así no corre ni deja un estado de error antes de tiempo. El resumen final lista lo que falta y muestra el comando exacto para habilitarla (`Enable-ScheduledTask`, paso 8). Si la configuración ya está completa (por ejemplo, al actualizar), la tarea queda habilitada. Además, el agente rechaza con el código 1, sin abrir la conexión, una cadena de conexión con la contraseña de ejemplo (`CAMBIAR`).
+
 Se puede ejecutar varias veces: lo que ya existe se **actualiza**. `Get-Help .\Install-SyncAgent.ps1 -Full` muestra todas las opciones (`-InstallPath`, `-AccountName`, `-IntervalMinutes`, `-UseLocalService`…).
 
 **En un controlador de dominio (el servidor de la tienda lo es)**
@@ -405,7 +407,7 @@ Edite el archivo **como administrador** (la cuenta del agente solo puede leerlo)
 notepad C:\NettesSyncAgent\appsettings.Production.json
 ```
 
-Reemplace `CAMBIAR` por la clave de `catalogo_lectura`. Como esa clave solo lleva letras, números y `- _ . ! * + @`, no hace falta escapar nada ni usar comillas dentro de ella.
+Reemplace `CAMBIAR` por la clave de `catalogo_lectura`. Como esa clave solo lleva letras, números y `- _ . ! * + @`, no hace falta escapar nada ni usar comillas dentro de ella. El archivo siempre trae las secciones `ConnectionStrings` y `Api`: el instalador agrega las que falten.
 
 ### 5. Probar la lectura
 
@@ -444,17 +446,22 @@ La llave identifica al agente ante la API. Se genera **en este servidor** y nunc
 
    La sección `--- API ---` debe decir *«Responde y la llave es válida»*. Esto **no** envía productos.
 
-**Rotar la llave** (si se filtró o por rutina):
+**Rotar la llave** (si se filtró o por rutina). El script escribe la llave nueva en el archivo **antes** de que Railway conozca su hash; para que el agente no falle en medio, se deshabilita la tarea:
 
-1. Ejecute otra vez el paso 2, que genera una llave nueva.
-2. En Railway ponga `Sync__AgentKeyHashes` = `<hash anterior>,<hash nuevo>`: durante el cambio sirven las dos.
-3. Cuando una sincronización termine bien, deje solo el hash nuevo.
+1. `Disable-ScheduledTask -TaskPath '\NettesSyncAgent\' -TaskName 'Sincronizacion'`
+2. Ejecute otra vez el paso 2, que genera una llave nueva y muestra su hash.
+3. En Railway ponga `Sync__AgentKeyHashes` = `<hash anterior>,<hash nuevo>` (sirven las dos) y espere a que el backend se redespliegue.
+4. `SyncAgent.exe --test` debe decir *«la llave es válida»*; entonces `Enable-ScheduledTask -TaskPath '\NettesSyncAgent\' -TaskName 'Sincronizacion'`.
+5. Cuando una sincronización termine bien, deje solo el hash nuevo en Railway.
 
 Para saber qué hash corresponde a una llave existente: `.\New-SyncAgentKey.ps1 -HashFromPrompt`.
 
-### 8. Ejecutar la tarea una vez y verificar
+### 8. Habilitar la tarea, ejecutarla una vez y verificar
+
+Si el instalador la dejó deshabilitada (configuración incompleta), habilítela ahora que la configuración y la llave están completas. Una tarea deshabilitada no se puede iniciar a mano.
 
 ```powershell
+Enable-ScheduledTask -TaskPath '\NettesSyncAgent\' -TaskName 'Sincronizacion'
 Start-ScheduledTask -TaskPath '\NettesSyncAgent\' -TaskName 'Sincronizacion'
 Start-Sleep -Seconds 60
 Get-ScheduledTask -TaskPath '\NettesSyncAgent\' | Get-ScheduledTaskInfo | Format-List LastRunTime,LastTaskResult,NextRunTime
@@ -521,7 +528,7 @@ No use `Start-Transcript` mientras escribe claves en la línea de comandos: el r
 
 Detiene y elimina la tarea y su carpeta del Programador, cierra los procesos de la cuenta, le quita el derecho de inicio de sesión por lotes, elimina la cuenta y su perfil, y borra la carpeta de instalación. Al final **comprueba** que no quedó nada y lo informa. Se puede ejecutar varias veces: lo que ya no existe se informa como «ya no existía».
 
-Si la tarea corría como **LOCAL SERVICE** (controlador de dominio o `-UseLocalService`), lo detecta solo y **no busca ni elimina ninguna cuenta**, ni cierra procesos de LOCAL SERVICE, porque son servicios de Windows. Con `-KeepData` quita los permisos de LOCAL SERVICE y del SID de la tarea de lo que conserva. En un controlador de dominio nunca elimina cuentas, ni siquiera con `-Force`.
+Si la tarea corría como **LOCAL SERVICE** (controlador de dominio o `-UseLocalService`), lo detecta solo y **no busca ni elimina ninguna cuenta**, ni cierra procesos de LOCAL SERVICE, porque son servicios de Windows. Con `-KeepData` quita los permisos de LOCAL SERVICE y del SID de la tarea de lo que conserva. En un controlador de dominio nunca elimina cuentas, ni siquiera con `-Force`; si encuentra en el dominio una cuenta `svc-nettes-sync` (de una versión anterior del instalador), **solo avisa** y muestra los comandos para revisarla y borrarla a mano. El instalador hace el mismo aviso.
 
 - **No toca SQL Server.** La cuenta `catalogo_lectura` se quita con el bloque comentado al final de [`sql/install/01-crear-login-lectura.sql`](sql/install/01-crear-login-lectura.sql).
 - **Perfil de usuario:** Windows puede seguir marcando como «cargado» el perfil `C:\Users\svc-nettes-sync` aunque ya nadie lo use. El script espera hasta 60 s y, si no se libera, lo informa como aviso (no es un error). En las pruebas se eliminó **después de reiniciar el equipo y volver a ejecutar el mismo script**.
@@ -546,7 +553,7 @@ Si la tarea corría como **LOCAL SERVICE** (controlador de dominio o `-UseLocalS
 | Código `5`, *«No se pudo conectar con la API»* o *«no respondió»* | Sin Internet, DNS o el sitio caído. Se reintenta 3 veces. | Pruebe el sitio en un navegador del servidor y `Test-NetConnection <dominio> -Port 443`. |
 | Código `5`, *«respondió con una redirección»* | `Api:BaseUrl` con `http://` o con otro dominio que redirige. | Use exactamente `https://<dominio>` del sitio. |
 | Código `5`, *«no encontró la ruta» (404)* | `Api:BaseUrl` apunta a otro sitio o incluye una ruta. | Solo el dominio, sin `/api`. |
-| `Install-SyncAgent.ps1` falla en el paso 2 con *«No se encontró el grupo S-1-5-32-545»* (o *«Group … was not found»*) | Versión anterior del instalador en un **controlador de dominio**: ahí no hay grupos locales. Antes de fallar, `New-LocalUser` pudo crear `svc-nettes-sync` **en el dominio**. | Use el instalador actual (detecta el controlador de dominio y usa LOCAL SERVICE). Compruebe y borre la cuenta creada por error, en una consola de administrador del dominio: `Get-ADUser svc-nettes-sync -Properties Description,whenCreated` (la descripción es *«NettesSyncAgent: cuenta del agente»* y la fecha, la del intento) y, si coincide, `Remove-ADUser svc-nettes-sync -Confirm`. No use `Remove-LocalUser` ni `Uninstall-SyncAgent.ps1` de una versión anterior para esto. |
+| `Install-SyncAgent.ps1` falla en el paso 2 con *«No se encontró el grupo S-1-5-32-545»* (o *«Group … was not found»*) | Versión anterior del instalador en un **controlador de dominio**: ahí no hay grupos locales. Antes de fallar, `New-LocalUser` pudo crear `svc-nettes-sync` **en el dominio**. | Use el instalador actual (detecta el controlador de dominio, usa LOCAL SERVICE y avisa si encuentra la cuenta). Para revisar y borrar la cuenta creada por error, en una consola de administrador del dominio, en este orden: **1.** `Get-ADUser svc-nettes-sync -Properties whenCreated,Description,MemberOf`: la descripción debe ser *«NettesSyncAgent: cuenta del agente»*, la fecha la del intento y `MemberOf` normalmente solo «Usuarios del dominio». **2.** Compruebe si le quedó el derecho de inicio de sesión por lotes: `secedit /export /areas USER_RIGHTS /cfg C:\Temp\derechos.inf` y `Select-String C:\Temp\derechos.inf -Pattern SeBatchLogonRight`, buscando el SID de la cuenta (`(Get-ADUser svc-nettes-sync).SID.Value`); si aparece, quítelo en la directiva *Default Domain Controllers Policy* (*Iniciar sesión como trabajo por lotes*). El instalador anterior falló antes de concederlo, así que lo normal es que no esté. **3.** `Remove-ADUser svc-nettes-sync -Confirm`. No use `Remove-LocalUser` ni un `Uninstall-SyncAgent.ps1` de una versión anterior para esto. |
 | La tarea corre como LOCAL SERVICE y no puede escribir en `data\` | Permisos cambiados a mano, o la tarea se registró con otra ruta (su SID cambia). | Ejecute otra vez `Install-SyncAgent.ps1` (repone los permisos) y compruebe con `icacls C:\NettesSyncAgent\data`: debe aparecer `NT TASK\NettesSyncAgent-Sincronizacion:(OI)(CI)(M)` (nunca `LOCAL SERVICE`). |
 | *«The term '.\scripts\…' is not recognized»* | La ventana de PowerShell abrió en `C:\Windows\System32`. | `Set-Location` a la carpeta de los scripts. |
 | *«running scripts is disabled on this system»* | Política de ejecución de scripts. | `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force` (solo vale para esa ventana). |
