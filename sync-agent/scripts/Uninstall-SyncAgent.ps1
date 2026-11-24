@@ -27,7 +27,8 @@
 
 .PARAMETER LocalService
     Trata la instalación como hecha con LOCAL SERVICE: no busca ni elimina cuentas. Normalmente no hace falta: se detecta
-    solo (controlador de dominio, tarea registrada como LOCAL SERVICE o permisos de LOCAL SERVICE en la carpeta).
+    solo (controlador de dominio, tarea registrada como LOCAL SERVICE, o permisos de LOCAL SERVICE o del SID propio de
+    la tarea, S-1-5-87-..., en la carpeta).
 
 .PARAMETER KeepData
     Conserva appsettings.Production.json y la carpeta data\ (estado y logs); elimina todo lo demás. Sirve para
@@ -136,6 +137,25 @@ function Get-SidRuleCount([string]$Path, [string]$Sid) {
     $rules = $item.GetAccessControl([System.Security.AccessControl.AccessControlSections]::Access).GetAccessRules(
         $true, $true, [System.Security.Principal.SecurityIdentifier])
     return @($rules | Where-Object { $_.IdentityReference.Value -eq $Sid }).Count
+}
+
+function Get-TaskSidRuleCount([string]$Path) {
+    # Reglas de permiso de SIDs de tarea (S-1-5-87-...). Las pone el instalador en modo LOCAL SERVICE.
+    $item = Get-Item -LiteralPath $Path -Force
+    $rules = $item.GetAccessControl([System.Security.AccessControl.AccessControlSections]::Access).GetAccessRules(
+        $true, $true, [System.Security.Principal.SecurityIdentifier])
+    return @($rules | Where-Object { $_.IdentityReference.Value -like 'S-1-5-87-*' }).Count
+}
+
+function Get-TaskSid([string]$TaskPath) {
+    # schtasks CALCULA el SID a partir de la ruta: sirve aunque la tarea ya se haya eliminado.
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try { $output = & schtasks.exe /showsid /tn $TaskPath 2>&1 | Out-String }
+    finally { $ErrorActionPreference = $previous }
+    $match = [regex]::Match($output, 'S-1-5-87(-\d+)+')
+    if ($match.Success) { return $match.Value }
+    return $null
 }
 
 function Remove-SidRules([string]$Path, [string]$Sid) {
@@ -323,7 +343,9 @@ try {
     $taskUsesServiceAccount = ($null -ne $existingTask) -and (
         ([string]$existingTask.Principal.LogonType -eq 'ServiceAccount') -or
         ([string]$existingTask.Principal.UserId -match '^(S-1-5-19|(NT AUTHORITY\\)?LOCAL ?SERVICE)$'))
-    $folderHasLocalService = (Test-Path -LiteralPath $InstallPath) -and ((Get-SidRuleCount -Path $InstallPath -Sid $LocalServiceSid) -gt 0)
+    $folderHasLocalService = (Test-Path -LiteralPath $InstallPath) -and (
+        ((Get-SidRuleCount -Path $InstallPath -Sid $LocalServiceSid) -gt 0) -or ((Get-TaskSidRuleCount -Path $InstallPath) -gt 0))
+    $taskSid = Get-TaskSid "$TaskFolder$TaskName"
 
     $localServiceMode = $isDomainController -or $LocalService -or $taskUsesServiceAccount -or
                         (($null -eq $existingTask) -and $folderHasLocalService)
@@ -504,11 +526,14 @@ try {
             $removed = 0
             foreach ($target in @($InstallPath, (Join-Path $InstallPath 'data'), (Join-Path $InstallPath 'appsettings.Production.json'))) {
                 if (Test-Path -LiteralPath $target) {
-                    if ($localServiceMode) { $removed += Remove-SidRules -Path $target -Sid $LocalServiceSid }
+                    if ($localServiceMode) {
+                        $removed += Remove-SidRules -Path $target -Sid $LocalServiceSid
+                        if ($taskSid) { $removed += Remove-SidRules -Path $target -Sid $taskSid }
+                    }
                     else { $removed += Remove-DeadIdentities -Path $target -Sid $accountSid }
                 }
             }
-            if ($localServiceMode) { Write-Ok "Permisos de LOCAL SERVICE quitados de lo conservado ($removed regla(s))." }
+            if ($localServiceMode) { Write-Ok "Permisos de LOCAL SERVICE y del SID de la tarea quitados de lo conservado ($removed regla(s))." }
             else { Write-Ok "Permisos de la cuenta eliminada quitados de lo conservado ($removed identificador(es))." }
         }
         else {
@@ -558,12 +583,12 @@ try {
         $deadLeft = 0
         foreach ($target in @($InstallPath, (Join-Path $InstallPath 'data'), (Join-Path $InstallPath 'appsettings.Production.json'))) {
             if (Test-Path -LiteralPath $target) {
-                if ($localServiceMode) { $deadLeft += Get-SidRuleCount -Path $target -Sid $LocalServiceSid }
+                if ($localServiceMode) { $deadLeft += (Get-SidRuleCount -Path $target -Sid $LocalServiceSid) + (Get-TaskSidRuleCount -Path $target) }
                 else { $deadLeft += @(Get-DeadIdentities -Path $target -Sid $accountSid).Count }
             }
         }
         if ($localServiceMode) {
-            Write-Check 'LOCAL SERVICE ya no tiene permisos en lo conservado (carpeta, data\ y configuración)' ($deadLeft -eq 0) 'queda un permiso de LOCAL SERVICE'
+            Write-Check 'LOCAL SERVICE y el SID de la tarea ya no tienen permisos en lo conservado (carpeta, data\ y configuración)' ($deadLeft -eq 0) 'queda un permiso de LOCAL SERVICE o de la tarea'
         }
         else {
             Write-Check 'Los permisos de la cuenta eliminada ya no aparecen en lo conservado (carpeta, data\ y configuración)' ($deadLeft -eq 0) 'queda un permiso huérfano'

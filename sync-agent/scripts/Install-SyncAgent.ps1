@@ -11,6 +11,8 @@
              y le concede el único derecho especial que necesita: iniciar sesión "como trabajo por lotes".
            - En un CONTROLADOR DE DOMINIO (no tiene cuentas locales: New-LocalUser crearía la cuenta EN EL DOMINIO), o con
              -UseLocalService: usa la cuenta integrada LOCAL SERVICE (S-1-5-19). No crea ninguna cuenta ni pide contraseña.
+             La tarea recibe un SID propio (ProcessTokenSidType = Unrestricted, "NT TASK\NettesSyncAgent-Sincronizacion")
+             y los permisos NTFS se dan a ESE SID, no a LOCAL SERVICE: otros servicios con LOCAL SERVICE no leen nada.
       3. Copia el programa a la carpeta de instalación, SIN tocar la configuración ni los datos que ya existan.
       4. Aplica permisos NTFS: la cuenta puede LEER el programa y ESCRIBIR solo en la carpeta data\.
       5. Prepara appsettings.Production.json (la configuración con la cadena de conexión) y lo protege.
@@ -126,6 +128,43 @@ function Resolve-FullPath([string]$Path) {
     # Ruta absoluta respecto de la ubicación ACTUAL de PowerShell. No se usa [IO.Path]::GetFullPath: resuelve contra
     # [Environment]::CurrentDirectory, que Set-Location no cambia (en una consola de administrador suele ser System32).
     return $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
+}
+
+function Get-TaskSid([string]$TaskPath) {
+    # SID propio de una tarea ("NT TASK\<carpeta>-<nombre>", S-1-5-87-...). schtasks lo CALCULA a partir de la ruta: es
+    # estable mientras la tarea conserve la misma ruta. El proceso lo lleva en su token solo con ProcessTokenSidType = Unrestricted.
+    $output = Invoke-Native -Program 'schtasks.exe' -Arguments @('/showsid', '/tn', $TaskPath)
+    $match = [regex]::Match($output, 'S-1-5-87(-\d+)+')
+    if (-not $match.Success) { throw "No se pudo obtener el SID de la tarea $TaskPath con schtasks /showsid.`n$output" }
+    return (New-Object System.Security.Principal.SecurityIdentifier($match.Value)).Value
+}
+
+function Set-FolderPermissions([string]$Root, [string]$Data, [string]$AgentSid, [string[]]$RemoveSids = @()) {
+    # Raíz sin herencia del disco: Administradores y SYSTEM con control total y, si se indica, la cuenta del agente con
+    # lectura y ejecución. Lo de adentro vuelve a heredar de la raíz; data\ es la ÚNICA carpeta donde el agente escribe.
+    # Sin $AgentSid quedan solo Administradores y SYSTEM (permisos provisionales mientras se registra la tarea).
+    $grants = @("*${AdministratorsSid}:(OI)(CI)F", "*${SystemSid}:(OI)(CI)F")
+    if ($AgentSid) { $grants += "*${AgentSid}:(OI)(CI)RX" }
+    [void](Invoke-Native -Program 'icacls.exe' -Arguments (@($Root, '/inheritance:r', '/grant:r') + $grants))
+    foreach ($sid in $RemoveSids) {
+        # /grant:r no quita a OTRAS cuentas: se quitan a propósito las de instalaciones anteriores (p. ej. LOCAL SERVICE).
+        [void](Invoke-Native -Program 'icacls.exe' -Arguments @($Root, '/remove:g', "*$sid"))
+    }
+    [void](Invoke-Native -Program 'icacls.exe' -Arguments @("$Root\*", '/reset', '/T', '/C', '/Q'))
+    if ($AgentSid) {
+        [void](Invoke-Native -Program 'icacls.exe' -Arguments @($Data, '/grant:r', "*${AgentSid}:(OI)(CI)M"))
+    }
+}
+
+function Set-ConfigPermissions([string]$Config, [string]$AgentSid, [string[]]$RemoveSids = @()) {
+    # La configuración tiene la contraseña de SQL Server y la llave del agente: sin herencia, escritura solo para
+    # Administradores y SYSTEM, y la cuenta del agente (si se indica) solo la LEE.
+    $grants = @("*${AdministratorsSid}:F", "*${SystemSid}:F")
+    if ($AgentSid) { $grants += "*${AgentSid}:R" }
+    [void](Invoke-Native -Program 'icacls.exe' -Arguments (@($Config, '/inheritance:r', '/grant:r') + $grants))
+    foreach ($sid in $RemoveSids) {
+        [void](Invoke-Native -Program 'icacls.exe' -Arguments @($Config, '/remove:g', "*$sid"))
+    }
 }
 
 function Test-DomainController {
@@ -386,9 +425,10 @@ try {
         # LOCAL SERVICE (S-1-5-19) es una cuenta de Windows para servicios, con privilegios mínimos y sin contraseña. Se usa en
         # un controlador de dominio porque ahí no existen cuentas locales: New-LocalUser crearía la cuenta EN EL DOMINIO y el
         # grupo local "Usuarios" (S-1-5-32-545) no existe. No necesita el derecho "Iniciar sesión como trabajo por lotes".
-        # Desventaja: otros servicios que corren como LOCAL SERVICE podrían leer la configuración (ver el README).
-        $accountSid = $LocalServiceSid
-        $taskAccountLabel = 'LOCAL SERVICE'
+        # Los permisos NO se dan a LOCAL SERVICE (la comparten otros servicios): se dan al SID propio de la tarea, que se
+        # obtiene en el paso 6 después de registrarla con ProcessTokenSidType = Unrestricted.
+        $accountSid = $null
+        $taskAccountLabel = 'LOCAL SERVICE con SID propio de la tarea'
         Write-Ok 'No se crea ninguna cuenta, no se pide contraseña y no se concede ningún derecho especial.'
 
         if (-not $isDomainController) {
@@ -533,16 +573,16 @@ try {
     # Se usan SIDs (con "*") para que funcione igual en Windows en español o en inglés.
     # (OI)(CI) = el permiso se hereda a archivos y subcarpetas.  F = control total, RX = leer y ejecutar, M = modificar, R = leer.
 
-    # 4a. Raíz: se corta la herencia (/inheritance:r) para que no se hereden permisos del disco, y se conceden solo los tres.
-    [void](Invoke-Native -Program 'icacls.exe' -Arguments @($InstallPath, '/inheritance:r', '/grant:r',
-        "*${AdministratorsSid}:(OI)(CI)F", "*${SystemSid}:(OI)(CI)F", "*${accountSid}:(OI)(CI)RX"))
-
-    # 4b. Se restablece lo que hay dentro para que HEREDE de la raíz (limpia permisos sueltos de instalaciones anteriores).
-    [void](Invoke-Native -Program 'icacls.exe' -Arguments @("$InstallPath\*", '/reset', '/T', '/C', '/Q'))
-
-    # 4c. data\: ahí sí puede escribir (estado, candado, logs). Es la ÚNICA carpeta con permiso de modificar.
-    [void](Invoke-Native -Program 'icacls.exe' -Arguments @($dataPath, '/grant:r', "*${accountSid}:(OI)(CI)M"))
-    Write-Ok "Cuenta de la tarea ($taskAccountLabel): lectura y ejecución en $InstallPath; modificación solo en $dataPath."
+    if ($useLocalServiceMode) {
+        # Provisional: solo Administradores y SYSTEM. El SID de la tarea recibe sus permisos en el paso 6. Se quitan los de
+        # LOCAL SERVICE que pudo dejar una versión anterior del instalador.
+        Set-FolderPermissions -Root $InstallPath -Data $dataPath -AgentSid $null -RemoveSids @($LocalServiceSid)
+        Write-Ok 'Permisos provisionales: solo Administradores y SYSTEM. La tarea recibe los suyos en el paso 6, con su SID propio.'
+    }
+    else {
+        Set-FolderPermissions -Root $InstallPath -Data $dataPath -AgentSid $accountSid
+        Write-Ok "Cuenta de la tarea ($taskAccountLabel): lectura y ejecución en $InstallPath; modificación solo en $dataPath."
+    }
 
     # =================================================================================================================
     Write-Step 5 'Archivo de configuración appsettings.Production.json'
@@ -566,9 +606,14 @@ try {
 
     # Este archivo contiene la contraseña de SQL Server: solo Administradores y SYSTEM pueden leerlo y modificarlo;
     # la cuenta del agente solo puede LEERLO (no puede cambiar su propia configuración).
-    [void](Invoke-Native -Program 'icacls.exe' -Arguments @($configPath, '/inheritance:r', '/grant:r',
-        "*${AdministratorsSid}:F", "*${SystemSid}:F", "*${accountSid}:R"))
-    Write-Ok "Archivo protegido: escritura solo para Administradores; la cuenta de la tarea ($taskAccountLabel) solo lo lee."
+    if ($useLocalServiceMode) {
+        Set-ConfigPermissions -Config $configPath -AgentSid $null -RemoveSids @($LocalServiceSid)
+        Write-Ok 'Archivo protegido: por ahora solo Administradores y SYSTEM (la tarea recibe lectura en el paso 6).'
+    }
+    else {
+        Set-ConfigPermissions -Config $configPath -AgentSid $accountSid
+        Write-Ok "Archivo protegido: escritura solo para Administradores; la cuenta de la tarea ($taskAccountLabel) solo lo lee."
+    }
 
     $configNeedsEdit = Select-String -LiteralPath $configPath -Pattern 'Password=CAMBIAR' -SimpleMatch -Quiet
     if ($configNeedsEdit) {
@@ -587,13 +632,23 @@ try {
 
     if ($useLocalServiceMode) {
         # ServiceAccount = cuenta integrada de Windows: corre sin sesión iniciada y sin contraseña.
+        # Unrestricted = el Programador agrega al token el SID propio de la tarea (equivale a
+        # New-ScheduledTaskPrincipal -ProcessTokenSidType Unrestricted). Requiere el esquema 1.3 de tareas.
+        $taskSchemaVersion = '1.3'
         $principalXml = @"
       <UserId>$LocalServiceSid</UserId>
-      <!-- ServiceAccount = cuenta integrada LOCAL SERVICE: sin contraseña, sin sesión iniciada, privilegios mínimos. -->
-      <LogonType>ServiceAccount</LogonType>
+      <!-- Cuenta integrada LOCAL SERVICE: sin contraseña, sin sesión iniciada, privilegios mínimos. El XML NO lleva LogonType:
+           "ServiceAccount" no es un valor válido del XML (el Programador lo rechaza); sin él, el Programador reconoce
+           S-1-5-19 como cuenta de servicio y lo muestra como LogonType ServiceAccount. -->
+"@
+        $tokenXml = @"
+      <!-- Unrestricted = el proceso lleva el SID propio de la tarea; los permisos NTFS se dan a ese SID. -->
+      <ProcessTokenSidType>Unrestricted</ProcessTokenSidType>
 "@
     }
     else {
+        $taskSchemaVersion = '1.2'
+        $tokenXml = ''
         $principalXml = @"
       <UserId>$(& $e $userId)</UserId>
       <!-- Password = se ejecuta con la contraseña de la cuenta, AUNQUE NO HAYA NINGUNA SESION INICIADA. -->
@@ -603,7 +658,7 @@ try {
 
     $taskXml = @"
 <?xml version="1.0" encoding="UTF-16"?>
-<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+<Task version="$taskSchemaVersion" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo>
     <Description>Agente de sincronizacion de Mini Super Nettes: lee Aspel SAE (solo lectura) y envia el catalogo a la API. Instalado por Install-SyncAgent.ps1.</Description>
   </RegistrationInfo>
@@ -627,6 +682,7 @@ try {
 $principalXml
       <!-- LeastPrivilege = sin elevar privilegios (la cuenta ni siquiera es administradora). -->
       <RunLevel>LeastPrivilege</RunLevel>
+$tokenXml
     </Principal>
   </Principals>
   <Settings>
@@ -688,7 +744,19 @@ $principalXml
 
     $task = Get-ScheduledTask -TaskName $TaskName -TaskPath $TaskFolder
     Write-Ok "Tarea registrada: $TaskFolder$TaskName (estado: $($task.State))."
-    Write-Info "Cuenta ............ $($task.Principal.UserId)  (inicio de sesión: $($task.Principal.LogonType), nivel: $($task.Principal.RunLevel))"
+
+    if ($useLocalServiceMode) {
+        if ([string]$task.Principal.ProcessTokenSidType -ne 'Unrestricted') {
+            throw "La tarea quedó con ProcessTokenSidType '$($task.Principal.ProcessTokenSidType)' y no 'Unrestricted': no tendría SID propio."
+        }
+        $accountSid = Get-TaskSid "$TaskFolder$TaskName"
+        Set-FolderPermissions -Root $InstallPath -Data $dataPath -AgentSid $accountSid -RemoveSids @($LocalServiceSid)
+        Set-ConfigPermissions -Config $configPath -AgentSid $accountSid -RemoveSids @($LocalServiceSid)
+        Write-Ok "SID propio de la tarea: $accountSid (NT TASK\$($TaskFolder.Trim('\'))-$TaskName)."
+        Write-Ok 'Permisos para ese SID: lectura y ejecución del programa, modificación en data\ y solo lectura de la configuración.'
+        Write-Ok 'LOCAL SERVICE en sí no tiene permisos: otros servicios con esa cuenta no pueden leer la configuración.'
+    }
+    Write-Info "Cuenta ............ $($task.Principal.UserId)  (inicio de sesión: $($task.Principal.LogonType), nivel: $($task.Principal.RunLevel), SID del proceso: $($task.Principal.ProcessTokenSidType))"
     foreach ($trigger in $task.Triggers) {
         $kind = $trigger.CimClass.CimClassName -replace '^MSFT_Task', '' -replace 'Trigger$', ''
         $repetition = ''

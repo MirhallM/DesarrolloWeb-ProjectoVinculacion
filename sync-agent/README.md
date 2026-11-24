@@ -357,20 +357,21 @@ Se puede ejecutar varias veces: lo que ya existe se **actualiza**. `Get-Help .\I
 Un controlador de dominio **no tiene cuentas locales**: `New-LocalUser` crea la cuenta **en el dominio** y el grupo local «Usuarios» (`S-1-5-32-545`) no existe. Por eso el instalador revisa el rol del equipo (`Win32_ComputerSystem.DomainRole` 4 o 5) y, si es controlador de dominio:
 
 - **no crea ninguna cuenta** ni pide contraseña. Antes de cualquier `New-LocalUser`, `Set-LocalUser`, `Add-LocalGroupMember` o `Remove-LocalUser`, los scripts vuelven a comprobar el rol y abortan si es un controlador de dominio;
-- registra la tarea con la cuenta integrada **LOCAL SERVICE** (`S-1-5-19`, `LogonType ServiceAccount`, privilegios mínimos, sin el derecho de inicio de sesión por lotes);
-- aplica los mismos permisos NTFS a `S-1-5-19`:
+- registra la tarea con la cuenta integrada **LOCAL SERVICE** (`S-1-5-19`, `LogonType ServiceAccount`, sin el derecho de inicio de sesión por lotes) y con `ProcessTokenSidType = Unrestricted`: el Programador de tareas agrega al proceso un **SID propio de la tarea** (`NT TASK\NettesSyncAgent-Sincronizacion`, `S-1-5-87-…`);
+- da los permisos NTFS a **ese SID** y no a LOCAL SERVICE. El SID se obtiene con `schtasks /showsid /tn "\NettesSyncAgent\Sincronizacion"` después de registrar la tarea y es estable mientras la tarea conserve la ruta:
   - lectura y ejecución en el programa;
   - modificación solo en `data\`;
-  - solo lectura en `appsettings.Production.json`, que sigue sin heredar: Administradores, SYSTEM y la cuenta de la tarea.
+  - solo lectura en `appsettings.Production.json`, sin herencia: Administradores, SYSTEM y el SID de la tarea;
+  - Administradores y SYSTEM siguen con control total en todo, y LOCAL SERVICE no tiene ningún permiso.
 
-En un equipo que no es controlador de dominio nada cambia: se crea `svc-nettes-sync`. Para probar el camino de LOCAL SERVICE en otro equipo: `.\Install-SyncAgent.ps1 -UseLocalService`. `Uninstall-SyncAgent.ps1` detecta el modo solo, por el rol del equipo, por la cuenta de la tarea registrada o por los permisos de la carpeta. En modo LOCAL SERVICE no busca ni elimina ninguna cuenta.
+En un equipo que no es controlador de dominio nada cambia: se crea `svc-nettes-sync` (`ProcessTokenSidType` solo aplica a LOCAL SERVICE y NETWORK SERVICE). Para probar el camino de LOCAL SERVICE en otro equipo: `.\Install-SyncAgent.ps1 -UseLocalService`. `Uninstall-SyncAgent.ps1` detecta el modo solo, por el rol del equipo, por la cuenta de la tarea registrada o por permisos de LOCAL SERVICE o de un SID de tarea (`S-1-5-87-…`) en la carpeta. En modo LOCAL SERVICE no busca ni elimina ninguna cuenta.
 
-**Desventaja de LOCAL SERVICE y por qué se acepta.** LOCAL SERVICE la comparten varios servicios de Windows. Cualquiera de ellos podría leer `appsettings.Production.json`, que tiene la contraseña de `catalogo_lectura` **y la llave del agente**. Con la llave se podría enviar a la API un inventario falso, por ejemplo con precios cambiados. El freno de seguridad solo detiene desactivaciones masivas. Se acepta por dos razones:
+**Por qué el SID propio de la tarea.** LOCAL SERVICE la comparten varios servicios de Windows. Si el permiso fuera para LOCAL SERVICE, cualquiera de ellos podría leer `appsettings.Production.json`, que tiene la contraseña de `catalogo_lectura` **y la llave del agente**. Con el SID propio, solo el proceso de esta tarea lleva ese SID en su token: **otros servicios con LOCAL SERVICE no pueden leer la configuración** (se comprueba con una tarea temporal; ver los comandos de prueba).
 
-- **Para leer el archivo, alguien tendría que ejecutar código como un servicio dentro del controlador de dominio.** Con ese acceso ya tendría el dominio, Aspel y SQL Server, que es mucho peor que el catálogo web.
-- **La llave se rota en minutos**, sin cortar la sincronización, con los dos hashes de Railway ([paso 7](#7-configurar-la-llave-del-agente)). La contraseña de `catalogo_lectura` solo da `SELECT` sobre dos tablas.
+- Si la tarea **cambia de ruta o de nombre**, su SID cambia y los permisos dejan de valer: hay que volver a ejecutar `Install-SyncAgent.ps1`.
+- **No se limitan los privilegios** de la tarea (`RequiredPrivileges`). El agente no pide ninguno especial, pero no se pudo verificar en un controlador de dominio cuáles necesitan .NET, SqlClient y las conexiones TLS; quitar uno equivocado haría fallar la tarea sin un mensaje claro. LOCAL SERVICE ya trae pocos privilegios.
 
-*Mejora futura:* una cuenta de servicio administrada de grupo (**gMSA**), que da al agente una identidad propia en el dominio sin contraseña que guardar.
+*Opcional:* una cuenta de servicio administrada de grupo (**gMSA**) daría al agente una identidad propia en el dominio, sin contraseña que guardar. No hace falta para proteger la configuración.
 
 **Red:** LOCAL SERVICE sale a la red como **anónimo** (sin las credenciales del equipo). No afecta al agente: se conecta a SQL Server en el mismo servidor con usuario de SQL (`catalogo_lectura`) y a Railway por HTTPS sin autenticación de Windows. Solo sería un problema si la red usara un proxy que pide usuario de Windows; en la tienda la salida HTTPS a Railway funciona directa.
 
@@ -379,7 +380,7 @@ En un equipo que no es controlador de dominio nada cambia: se crea `svc-nettes-s
 | | `C:\NettesSyncAgent` | `data\` | `appsettings.Production.json` |
 |---|---|---|---|
 | Administradores y SYSTEM | Control total | Control total | Control total |
-| Cuenta de la tarea (`svc-nettes-sync` o, en un controlador de dominio, LOCAL SERVICE) | Lectura y ejecución | **Modificar** (única carpeta donde escribe) | Solo lectura |
+| Cuenta de la tarea (`svc-nettes-sync` o, en un controlador de dominio, el SID propio de la tarea) | Lectura y ejecución | **Modificar** (única carpeta donde escribe) | Solo lectura |
 | Los demás usuarios | Sin acceso | Sin acceso | Sin acceso |
 
 **Opciones de la tarea** (`\NettesSyncAgent\Sincronizacion`), cada una corresponde a una casilla del Programador de tareas:
@@ -520,7 +521,7 @@ No use `Start-Transcript` mientras escribe claves en la línea de comandos: el r
 
 Detiene y elimina la tarea y su carpeta del Programador, cierra los procesos de la cuenta, le quita el derecho de inicio de sesión por lotes, elimina la cuenta y su perfil, y borra la carpeta de instalación. Al final **comprueba** que no quedó nada y lo informa. Se puede ejecutar varias veces: lo que ya no existe se informa como «ya no existía».
 
-Si la tarea corría como **LOCAL SERVICE** (controlador de dominio o `-UseLocalService`), lo detecta solo y **no busca ni elimina ninguna cuenta**, ni cierra procesos de LOCAL SERVICE, porque son servicios de Windows. Con `-KeepData` quita los permisos de LOCAL SERVICE de lo que conserva. En un controlador de dominio nunca elimina cuentas, ni siquiera con `-Force`.
+Si la tarea corría como **LOCAL SERVICE** (controlador de dominio o `-UseLocalService`), lo detecta solo y **no busca ni elimina ninguna cuenta**, ni cierra procesos de LOCAL SERVICE, porque son servicios de Windows. Con `-KeepData` quita los permisos de LOCAL SERVICE y del SID de la tarea de lo que conserva. En un controlador de dominio nunca elimina cuentas, ni siquiera con `-Force`.
 
 - **No toca SQL Server.** La cuenta `catalogo_lectura` se quita con el bloque comentado al final de [`sql/install/01-crear-login-lectura.sql`](sql/install/01-crear-login-lectura.sql).
 - **Perfil de usuario:** Windows puede seguir marcando como «cargado» el perfil `C:\Users\svc-nettes-sync` aunque ya nadie lo use. El script espera hasta 60 s y, si no se libera, lo informa como aviso (no es un error). En las pruebas se eliminó **después de reiniciar el equipo y volver a ejecutar el mismo script**.
@@ -546,7 +547,7 @@ Si la tarea corría como **LOCAL SERVICE** (controlador de dominio o `-UseLocalS
 | Código `5`, *«respondió con una redirección»* | `Api:BaseUrl` con `http://` o con otro dominio que redirige. | Use exactamente `https://<dominio>` del sitio. |
 | Código `5`, *«no encontró la ruta» (404)* | `Api:BaseUrl` apunta a otro sitio o incluye una ruta. | Solo el dominio, sin `/api`. |
 | `Install-SyncAgent.ps1` falla en el paso 2 con *«No se encontró el grupo S-1-5-32-545»* (o *«Group … was not found»*) | Versión anterior del instalador en un **controlador de dominio**: ahí no hay grupos locales. Antes de fallar, `New-LocalUser` pudo crear `svc-nettes-sync` **en el dominio**. | Use el instalador actual (detecta el controlador de dominio y usa LOCAL SERVICE). Compruebe y borre la cuenta creada por error, en una consola de administrador del dominio: `Get-ADUser svc-nettes-sync -Properties Description,whenCreated` (la descripción es *«NettesSyncAgent: cuenta del agente»* y la fecha, la del intento) y, si coincide, `Remove-ADUser svc-nettes-sync -Confirm`. No use `Remove-LocalUser` ni `Uninstall-SyncAgent.ps1` de una versión anterior para esto. |
-| La tarea corre como LOCAL SERVICE y no puede escribir en `data\` | Permisos cambiados a mano o una instalación anterior con otra cuenta. | Ejecute otra vez `Install-SyncAgent.ps1` (repone los permisos) y compruebe con `icacls C:\NettesSyncAgent\data`: debe aparecer `NT AUTHORITY\LOCAL SERVICE:(OI)(CI)(M)`. |
+| La tarea corre como LOCAL SERVICE y no puede escribir en `data\` | Permisos cambiados a mano, o la tarea se registró con otra ruta (su SID cambia). | Ejecute otra vez `Install-SyncAgent.ps1` (repone los permisos) y compruebe con `icacls C:\NettesSyncAgent\data`: debe aparecer `NT TASK\NettesSyncAgent-Sincronizacion:(OI)(CI)(M)` (nunca `LOCAL SERVICE`). |
 | *«The term '.\scripts\…' is not recognized»* | La ventana de PowerShell abrió en `C:\Windows\System32`. | `Set-Location` a la carpeta de los scripts. |
 | *«running scripts is disabled on this system»* | Política de ejecución de scripts. | `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force` (solo vale para esa ventana). |
 | *«A compatible .NET SDK was not found»* al compilar | No está instalado el SDK 10. | `winget install --id Microsoft.DotNet.SDK.10 -e` |
