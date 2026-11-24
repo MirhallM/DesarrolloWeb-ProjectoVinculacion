@@ -3,7 +3,7 @@ using Microsoft.Data.SqlClient;
 namespace SyncAgent.Diagnostics;
 
 /// <summary>
-/// Sustituye por <c>***</c> los secretos conocidos (usuario, contraseña y la cadena de conexión completa)
+/// Sustituye por <c>***</c> los secretos conocidos (usuario, contraseña, la cadena de conexión completa y la llave del agente)
 /// en cualquier texto antes de que llegue a un log o a la pantalla.
 /// </summary>
 /// <remarks>
@@ -49,6 +49,9 @@ public sealed class SecretRedactor
 
         return new SecretRedactor(secrets);
     }
+
+    /// <summary>Redactor que además oculta otros secretos (por ejemplo, la llave del agente).</summary>
+    public SecretRedactor With(params string?[] extraSecrets) => new(_secrets.Concat(extraSecrets));
 
     public string Redact(string? text)
     {

@@ -7,7 +7,7 @@ using SyncAgent.State;
 namespace SyncAgent;
 
 /// <summary>
-/// Una ejecución completa del agente (<c>--once</c>): leer Aspel, entregar los artículos al publicador y dejar
+/// Una ejecución completa del agente (<c>--once</c>): leer Aspel, enviar los artículos a la API y dejar
 /// el resultado guardado en disco para la siguiente ejecución.
 /// </summary>
 public sealed class SyncCycle(
@@ -34,8 +34,10 @@ public sealed class SyncCycle(
                 summary.TotalRows, summary.Active, summary.Inactive, summary.ActiveWithoutPrice,
                 result.Metrics.QueryDuration.TotalMilliseconds, result.Attempts);
 
-            await publisher.PublishAsync(result.Products, cancellationToken);
+            var published = await publisher.PublishAsync(result.Products, cancellationToken);
+            LogPublished(published);
 
+            // Solo aquí, con la confirmación de la API, cuenta como sincronización exitosa.
             var now = clock.GetUtcNow();
             state.LastResult = SyncResults.Succeeded;
             state.LastError = null;
@@ -45,6 +47,18 @@ public sealed class SyncCycle(
             state.ProductsRead = summary.TotalRows;
             state.QueryDurationMs = (long)result.Metrics.QueryDuration.TotalMilliseconds;
             state.PeakWorkingSetMb = Math.Round(ProcessMemory.ToMegabytes(ProcessMemory.Capture().PeakWorkingSetBytes), 1);
+            state.LastRunId = published.RunId;
+            state.LastInventoryHash = published.InventoryHash;
+            state.LastPublish = published.Unchanged
+                ? new PublishSummary { Mode = "unchanged" }
+                : new PublishSummary
+                {
+                    Mode = "full",
+                    Inserted = published.Summary!.Inserted,
+                    Updated = published.Summary.Updated,
+                    Deactivated = published.Summary.Deactivated,
+                    Rejected = published.Summary.Rejected,
+                };
 
             if (!TrySave(state))
             {
@@ -61,11 +75,39 @@ public sealed class SyncCycle(
             RecordFailure(state, ex.Message);
             return ExitCodes.SqlFailure;
         }
+        catch (ApiPublishException ex)
+        {
+            // El mensaje ya viene sin la llave. El catálogo en la API no cambió.
+            logger.LogError("No se pudo enviar el catálogo a la API: {Error}", ex.Message);
+            RecordFailure(state, ex.Message);
+            return ExitCodes.ApiFailure;
+        }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // Fallo no previsto (p. ej. del publicador): se deja constancia en el estado y se propaga.
+            // Fallo no previsto: se deja constancia en el estado y se propaga.
             RecordFailure(state, $"{ex.GetType().Name}: {ex.Message}");
             throw;
+        }
+    }
+
+    private void LogPublished(PublishResult published)
+    {
+        if (published.Unchanged)
+        {
+            logger.LogInformation("API: sin cambios desde la última sincronización (corrida {RunId}).", published.RunId);
+            return;
+        }
+
+        var s = published.Summary!;
+        logger.LogInformation(
+            "API: corrida {RunId} aplicada. {Read} leídos, {Inserted} insertados, {Updated} actualizados, " +
+            "{Deactivated} desactivados, {Rejected} rechazados.",
+            published.RunId, s.Read, s.Inserted, s.Updated, s.Deactivated, s.Rejected);
+
+        if (s.Rejected > 0 && s.RejectedCodes is { Count: > 0 } codes)
+        {
+            logger.LogWarning("Artículos rechazados por la API (corríjalos en Aspel): {Codes}",
+                string.Join(", ", codes.Select(c => $"'{c}'")));
         }
     }
 

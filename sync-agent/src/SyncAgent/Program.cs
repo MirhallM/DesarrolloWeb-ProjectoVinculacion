@@ -12,9 +12,10 @@ using SyncAgent.Resilience;
 using SyncAgent.State;
 
 // Modos (exactamente uno):
-//   --once   Una sincronización completa: lee Aspel, entrega los artículos y guarda el estado en disco.
+//   --once   Una sincronización completa: lee Aspel, envía los artículos a la API y guarda el estado en disco.
 //            Es lo que ejecuta la tarea programada cada 15 minutos.
-//   --test   Una sola lectura de Aspel y un resumen en pantalla. No envía ni guarda nada.
+//   --test   Una sola lectura de Aspel, un resumen en pantalla y una comprobación de la API y la llave.
+//            No envía productos ni guarda nada.
 const string OnceMode = "--once";
 const string TestMode = "--test";
 
@@ -27,7 +28,7 @@ if (args.Length != 1 || args[0] is not (OnceMode or TestMode))
 {
     Console.Error.WriteLine("Uso: SyncAgent --once | --test");
     Console.Error.WriteLine("  --once   Sincronización completa (la que ejecuta la tarea programada).");
-    Console.Error.WriteLine("  --test   Lee Aspel una vez y muestra un resumen (no envía ni guarda nada).");
+    Console.Error.WriteLine("  --test   Lee Aspel una vez, muestra un resumen y comprueba la API (no envía productos ni guarda nada).");
     return ExitCodes.InvalidConfiguration;
 }
 
@@ -74,7 +75,15 @@ catch (InvalidOperationException)
     return ExitCodes.InvalidConfiguration;
 }
 
+var apiOptions = ApiOptions.Load(builder.Configuration);
+
+// --once necesita la API. En --test es opcional: sin configurar solo se avisa (se usa en la tienda antes de tener la llave).
 var configurationErrors = options.Validate().Concat(agentOptions.Validate()).ToList();
+if (runOnce || apiOptions.IsConfigured)
+{
+    configurationErrors.AddRange(apiOptions.Validate());
+}
+
 if (configurationErrors.Count > 0)
 {
     foreach (var error in configurationErrors) Console.Error.WriteLine(error);
@@ -84,7 +93,7 @@ if (configurationErrors.Count > 0)
 var dataDirectory = agentOptions.ResolveDataDirectory(AppContext.BaseDirectory);
 
 // ---------- Logs: consola de una línea (y archivo en --once), con los secretos ocultos ----------
-var redactor = SecretRedactor.FromConnectionString(connectionString);
+var redactor = SecretRedactor.FromConnectionString(connectionString).With(apiOptions.AgentKey);
 builder.Logging.ClearProviders();
 builder.Logging.AddProvider(new ConsoleLineLoggerProvider(redactor));
 if (runOnce)
@@ -102,7 +111,20 @@ builder.Services.AddSingleton<SqlErrorDescriber>();
 builder.Services.AddSingleton<IAspelProductReader>(_ => new AspelProductReader(connectionString, options));
 builder.Services.AddSingleton(_ => new RetryPolicy(options.Retry));
 builder.Services.AddSingleton<AspelProductLoader>();
-builder.Services.AddSingleton<ICatalogPublisher, NoOpCatalogPublisher>(); // US-06: aquí se conectará la API
+if (apiOptions.IsConfigured)
+{
+    builder.Services.AddSingleton(apiOptions);
+    builder.Services.AddSingleton(_ => CreateApiHttpClient());
+    builder.Services.AddSingleton(sp => new HttpCatalogPublisher(
+        sp.GetRequiredService<HttpClient>(),
+        apiOptions,
+        new RetryPolicy(apiOptions.Retry),
+        sp.GetRequiredService<ILogger<HttpCatalogPublisher>>(),
+        AgentVersion()));
+    builder.Services.AddSingleton<ICatalogPublisher>(sp => sp.GetRequiredService<HttpCatalogPublisher>());
+    builder.Services.AddSingleton<IApiConnectivityCheck>(sp => sp.GetRequiredService<HttpCatalogPublisher>());
+}
+
 builder.Services.AddSingleton(sp => new SyncStateStore(dataDirectory, sp.GetRequiredService<ILogger<SyncStateStore>>()));
 builder.Services.AddSingleton<SyncCycle>();
 
@@ -123,7 +145,9 @@ try
             host.Services.GetRequiredService<AspelProductLoader>(),
             options,
             ConnectionStringDescriber.Describe(connectionString),
-            Console.Out);
+            Console.Out,
+            host.Services.GetService<IApiConnectivityCheck>(),
+            apiOptions.Describe());
 
         return await runner.RunAsync(cancellation.Token);
     }
@@ -139,6 +163,7 @@ try
     }
 
     logger.LogInformation("Conexión: {Connection}", ConnectionStringDescriber.Describe(connectionString));
+    logger.LogInformation("API: {Api}", apiOptions.Describe());
     return await host.Services.GetRequiredService<SyncCycle>().RunAsync(cancellation.Token);
 }
 catch (OperationCanceledException)
@@ -152,3 +177,22 @@ catch (Exception ex)
     logger.LogError(ex, "Error inesperado.");
     return ExitCodes.UnexpectedError;
 }
+
+// Un solo cliente por ejecución. Sin redirecciones automáticas: una redirección podría reenviar la llave a otro
+// destino; si ocurre, el agente lo informa como error de configuración. Los tiempos de espera los maneja el publicador.
+static HttpClient CreateApiHttpClient()
+{
+    var handler = new SocketsHttpHandler
+    {
+        AllowAutoRedirect = false,
+        ConnectTimeout = TimeSpan.FromSeconds(15),
+        PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+        AutomaticDecompression = System.Net.DecompressionMethods.All,
+    };
+
+    var client = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
+    client.DefaultRequestHeaders.UserAgent.ParseAdd($"NettesSyncAgent/{AgentVersion()}");
+    return client;
+}
+
+static string AgentVersion() => typeof(SyncCycle).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";

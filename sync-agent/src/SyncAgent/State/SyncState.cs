@@ -24,6 +24,27 @@ public sealed class SyncState
     public int ProductsRead { get; set; }
     public long QueryDurationMs { get; set; }
     public double PeakWorkingSetMb { get; set; }
+
+    /// <summary>Id de la última corrida que la API confirmó.</summary>
+    public Guid? LastRunId { get; set; }
+
+    /// <summary>Huella del inventario enviado en la última corrida confirmada. Solo diagnóstico: la API decide si hay cambios.</summary>
+    public string? LastInventoryHash { get; set; }
+
+    /// <summary>Resumen de la API de la última corrida confirmada.</summary>
+    public PublishSummary? LastPublish { get; set; }
+}
+
+/// <summary>Lo que la API informó al confirmar el envío.</summary>
+public sealed class PublishSummary
+{
+    /// <summary><c>full</c> (se envió y aplicó el inventario) o <c>unchanged</c> (sin cambios: no se envió nada).</summary>
+    public string Mode { get; set; } = "full";
+
+    public int Inserted { get; set; }
+    public int Updated { get; set; }
+    public int Deactivated { get; set; }
+    public int Rejected { get; set; }
 }
 
 public static class SyncResults

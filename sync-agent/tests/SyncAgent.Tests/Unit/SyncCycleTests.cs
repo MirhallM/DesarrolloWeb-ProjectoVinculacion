@@ -34,12 +34,18 @@ public sealed class SyncCycleTests : IDisposable
         public int Calls { get; private set; }
         public int LastCount { get; private set; }
         public Exception? ThrowOnPublish { get; set; }
+        public bool Unchanged { get; set; }
+        public Guid RunId { get; } = Guid.NewGuid();
 
-        public Task PublishAsync(IReadOnlyList<AspelProduct> products, CancellationToken cancellationToken)
+        public Task<PublishResult> PublishAsync(IReadOnlyList<AspelProduct> products, CancellationToken cancellationToken)
         {
             Calls++;
             LastCount = products.Count;
-            return ThrowOnPublish is null ? Task.CompletedTask : throw ThrowOnPublish;
+            if (ThrowOnPublish is not null) throw ThrowOnPublish;
+            return Task.FromResult(Unchanged
+                ? new PublishResult(RunId, true, "hash", null)
+                : new PublishResult(RunId, false, "hash",
+                    new SyncRunSummary(RunId, SyncResponseStatuses.Succeeded, products.Count, 2, 1, 4, 1, ["X"], null)));
         }
     }
 
@@ -77,7 +83,7 @@ public sealed class SyncCycleTests : IDisposable
         var redactor = new SecretRedactor([Password, User]);
         var loader = new AspelProductLoader(
             reader,
-            new RetryPolicy(new AspelOptions.RetryOptions { MaxAttempts = 2, DelaysSeconds = [0] }, (_, _) => Task.CompletedTask),
+            new RetryPolicy(new RetryOptions { MaxAttempts = 2, DelaysSeconds = [0] }, (_, _) => Task.CompletedTask),
             new SqlErrorDescriber(redactor),
             NullLogger<AspelProductLoader>.Instance);
 
@@ -188,5 +194,51 @@ public sealed class SyncCycleTests : IDisposable
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => cycle.RunAsync(cts.Token));
 
         Assert.False(File.Exists(Path.Combine(_dir, SyncStateStore.FileName)));
+    }
+
+    [Fact]
+    public async Task El_resumen_de_la_api_queda_en_el_estado()
+    {
+        await Cycle(new StubReader(() => Rows(P("A"), P("B")))).RunAsync(TestContext.Current.CancellationToken);
+
+        var state = Store().Load();
+        Assert.Equal(_publisher.RunId, state.LastRunId);
+        Assert.Equal("hash", state.LastInventoryHash);
+        Assert.Equal("full", state.LastPublish!.Mode);
+        Assert.Equal(2, state.LastPublish.Inserted);
+        Assert.Equal(1, state.LastPublish.Updated);
+        Assert.Equal(4, state.LastPublish.Deactivated);
+        Assert.Equal(1, state.LastPublish.Rejected);
+    }
+
+    [Fact]
+    public async Task Sin_cambios_tambien_es_una_sincronizacion_exitosa()
+    {
+        _publisher.Unchanged = true;
+
+        var exit = await Cycle(new StubReader(() => Rows(P("A")))).RunAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(ExitCodes.Success, exit);
+        var state = Store().Load();
+        Assert.Equal(_clock.Now, state.LastSuccessAt);
+        Assert.Equal("unchanged", state.LastPublish!.Mode);
+    }
+
+    [Fact]
+    public async Task Si_la_api_falla_sale_con_5_y_no_cuenta_como_sincronizacion_exitosa()
+    {
+        await Cycle(new StubReader(() => Rows(P("A")))).RunAsync(TestContext.Current.CancellationToken);
+        var lastSuccess = _clock.Now;
+
+        _clock.Now = lastSuccess.AddMinutes(15);
+        _publisher.ThrowOnPublish = new ApiPublishException("La API rechazó la llave del agente (401).", isTransient: false, 401);
+        var exit = await Cycle(new StubReader(() => Rows(P("A")))).RunAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(ExitCodes.ApiFailure, exit);
+        var state = Store().Load();
+        Assert.Equal(SyncResults.Failed, state.LastResult);
+        Assert.Equal(lastSuccess, state.LastSuccessAt); // solo cuenta lo que la API confirmó
+        Assert.Equal(1, state.ConsecutiveFailures);
+        Assert.Contains("401", state.LastError);
     }
 }
