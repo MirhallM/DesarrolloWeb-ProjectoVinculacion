@@ -98,18 +98,28 @@ switch ($PSCmdlet.ParameterSetName) {
 
         $fullPath = (Resolve-Path -LiteralPath $ConfigPath).ProviderPath
         $config = [System.IO.File]::ReadAllText($fullPath) | ConvertFrom-Json
+        if ($null -eq $config) { $config = [pscustomobject]@{} }
+
+        # Permisos del archivo ANTES de tocarlo (solo la lista de accesos): se comparan al final.
+        $aclBefore = (Get-Acl -LiteralPath $fullPath).GetSecurityDescriptorSddlForm('Access')
 
         $key = New-AgentKey
         try {
-            if ($config.PSObject.Properties.Name -notcontains 'Api') {
-                $config | Add-Member -NotePropertyName 'Api' -NotePropertyValue ([pscustomobject]@{ BaseUrl = ''; AgentKey = '' })
+            # Acceso seguro bajo Set-StrictMode: la sección Api puede faltar, ser nula o no tener alguna clave.
+            $api = $null
+            if ($null -ne $config.PSObject.Properties['Api']) { $api = $config.PSObject.Properties['Api'].Value }
+            if ($api -isnot [System.Management.Automation.PSCustomObject]) {
+                $api = [pscustomobject]@{}
+                $config | Add-Member -NotePropertyName 'Api' -NotePropertyValue $api -Force
             }
-            if ($config.Api.PSObject.Properties.Name -notcontains 'AgentKey') {
-                $config.Api | Add-Member -NotePropertyName 'AgentKey' -NotePropertyValue ''
+            foreach ($name in 'BaseUrl', 'AgentKey') {
+                if ($null -eq $api.PSObject.Properties[$name]) { $api | Add-Member -NotePropertyName $name -NotePropertyValue '' }
             }
-            $config.Api.AgentKey = $key
+            $api.AgentKey = $key
+            $baseUrlValue = [string]$api.BaseUrl
 
-            # Se reescribe el contenido del mismo archivo: conserva los permisos NTFS que puso el instalador.
+            # Se escribe SOBRE EL MISMO ARCHIVO (no un temporal que luego se mueve): un archivo nuevo heredaría los permisos de la
+            # carpeta y quedaría legible para más cuentas. Así conserva la lista de permisos que puso el instalador.
             $json = $config | ConvertTo-Json -Depth 10
             [System.IO.File]::WriteAllText($fullPath, $json, (New-Object System.Text.UTF8Encoding($false)))
             $hash = Get-KeyHash $key
@@ -118,9 +128,17 @@ switch ($PSCmdlet.ParameterSetName) {
             $key = $null
         }
 
+        # Comprobación: si por cualquier motivo los permisos cambiaron, se restauran los de antes.
+        $aclAfter = (Get-Acl -LiteralPath $fullPath).GetSecurityDescriptorSddlForm('Access')
+        if ($aclAfter -ne $aclBefore) {
+            $acl = Get-Acl -LiteralPath $fullPath
+            $acl.SetSecurityDescriptorSddlForm($aclBefore, 'Access')
+            Set-Acl -LiteralPath $fullPath -AclObject $acl
+            Write-Host 'AVISO: los permisos del archivo cambiaron al escribirlo y se restauraron.' -ForegroundColor Yellow
+        }
+
         Write-Host "Llave nueva guardada en $fullPath (Api.AgentKey). No se muestra." -ForegroundColor Green
-        $baseUrlValue = if ($config.Api.PSObject.Properties.Name -contains 'BaseUrl') { $config.Api.BaseUrl } else { '' }
-        if ([string]::IsNullOrWhiteSpace($baseUrlValue)) {
+        if ([string]::IsNullOrWhiteSpace($baseUrlValue) -or $baseUrlValue -match '[<>]') {
             Write-Host 'Falta Api.BaseUrl en ese archivo: escriba la URL pública del sitio (https://<dominio>.up.railway.app).' -ForegroundColor Yellow
         }
         Write-HashInstructions $hash
