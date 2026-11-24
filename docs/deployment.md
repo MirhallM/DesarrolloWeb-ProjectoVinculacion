@@ -10,7 +10,7 @@ Esqueleto de la aplicación en Railway (#47): frontend, backend y PostgreSQL en 
 | `backend` | Rama `main`, Root Directory `/backend` | Solo red privada (`backend.railway.internal`) | ASP.NET Core 10 con [`backend/Dockerfile`](../backend/Dockerfile). Configurado a mano en el panel ([sección 4](#4-pasos-en-el-panel-de-railway-primera-vez)). |
 | `Postgres` | Plantilla de PostgreSQL de Railway: **PostgreSQL 18.7**, imagen `ghcr.io/railwayapp-templates/postgres-ssl` | Solo red privada | Sin TCP proxy público. En local se usa `postgres:18`, la misma versión mayor. |
 
-La configuración de los servicios vive **en el panel de Railway**, no en el repositorio. Railway marcó Config as Code (`railway.json`) como obsoleto, así que se quitó `backend/railway.json`. La migración a Infrastructure as Code está en [Pendientes](#7-pendientes).
+La configuración de los servicios vive **en el panel de Railway**, no en el repositorio. Railway marcó Config as Code (`railway.json`) como obsoleto, así que se quitó `backend/railway.json`. La migración a Infrastructure as Code está en [Pendientes](#8-pendientes).
 
 ```
 Internet ──HTTPS──► frontend (Next.js) ──/api/* por red privada──► backend (:8080) ──► Postgres
@@ -57,9 +57,18 @@ Ningún valor va en el repositorio. Se configuran en **Variables** de cada servi
 | `ConnectionStrings__DefaultConnection` | `Host=${{Postgres.PGHOST}};Port=${{Postgres.PGPORT}};Database=${{Postgres.PGDATABASE}};Username=${{Postgres.PGUSER}};Password=${{Postgres.PGPASSWORD}}` |
 | `ASPNETCORE_ENVIRONMENT` | `Production` (desactiva Swagger y la página de errores de desarrollo) |
 | `PORT` | `8080`. Definirla explícitamente para que el frontend pueda referenciarla. |
-| *(US-06)* clave del agente | Se agrega con US-06 (#14). |
+| `Sync__AgentKeyHashes` | Hash SHA-256 (hexadecimal, 64 caracteres) de la llave del agente. **No es la llave**: la llave solo vive en el servidor de la tienda. Se genera con `sync-agent/scripts/New-SyncAgentKey.ps1` (ver abajo). Para rotar sin cortes admite dos hashes separados por coma. |
+| `Sync__MaxDeactivationRatio` | *Opcional.* Freno de seguridad, por defecto `0.10`. Solo se sube **temporalmente** si se eliminaron de verdad muchos artículos de Aspel; después se borra la variable. |
 
 `PGHOST` es la dirección **privada** de PostgreSQL. No usar `DATABASE_PUBLIC_URL`.
+
+**Llave del agente (US-06).** Se genera **en el servidor de la tienda**, en una consola de administrador, después de instalar el agente:
+
+```powershell
+.\New-SyncAgentKey.ps1 -ConfigPath C:\NettesSyncAgent\appsettings.Production.json
+```
+
+El script escribe la llave en `Api.AgentKey` de ese archivo (que solo leen Administradores, SYSTEM y la cuenta del agente) y muestra **solo el hash**, que se pega en `Sync__AgentKeyHashes`. La llave nunca pasa por la línea de comandos ni por el chat. Sin la variable, el backend arranca igual, avisa en el log y responde `401` en `/api/sync`. Las demás opciones de `Sync__*` tienen valores por defecto (ver `backend/README.md`).
 
 **frontend**
 
@@ -91,7 +100,7 @@ Ningún valor va en el repositorio. Se configuran en **Variables** de cada servi
    | *Deploy → Serverless* | Apagado |
    | *Source → Wait for CI* | Encendido: no despliega hasta que pase el CI de GitHub Actions |
    | *Networking* | **Sin** dominio público |
-   | *Variables* | `ConnectionStrings__DefaultConnection`, `ASPNETCORE_ENVIRONMENT=Production` y `PORT=8080` (ver [sección 3](#3-variables-nombres-sin-valores)) |
+   | *Variables* | `ConnectionStrings__DefaultConnection`, `ASPNETCORE_ENVIRONMENT=Production`, `PORT=8080` y, cuando se instale el agente, `Sync__AgentKeyHashes` (ver [sección 3](#3-variables-nombres-sin-valores)) |
 
    > **Ojo: no usar "Add Variable" del aviso *Trying to connect a database?*.** Ese botón agrega `DATABASE_URL`, que .NET no usa. La conexión va en `ConnectionStrings__DefaultConnection`, con las referencias `${{Postgres.*}}` de la sección 3.
 
@@ -152,12 +161,27 @@ La prueba de integración `DeploymentIntegrationTests` cubre lo mismo con dos ho
 - **Volver a una versión anterior:** *Deployments*, elegir el despliegue bueno, *Rollback*. Las migraciones **no** se revierten solas: si una migración ya aplicada rompe algo, se corrige con una migración nueva.
 - **Migración que falla:** el pre-deploy termina con código 1, el despliegue se marca como fallido y la versión anterior sigue en línea.
 
-## 7. Pendientes
+## 7. Límites del reenvío para la sincronización
+
+Revisado con Next.js 16.4.6 (la versión instalada) para los lotes de US-06:
+
+| Límite | Valor | Qué pasa si se supera |
+|---|---|---|
+| Cuerpo en el reenvío `/api/*` (`experimental.proxyClientMaxBodySize`) | 10 MB por defecto | Next.js **trunca el cuerpo sin fallar**: solo escribe un aviso en el log y el backend recibe un JSON cortado (responde `400`). |
+| Tiempo de espera del reenvío (`experimental.proxyTimeout`) | 30 s por defecto | El agente recibe un error, aunque el backend siga trabajando. |
+| Kestrel | 30 MB | `413`. |
+| `POST /api/sync/runs/{id}/batches` | 4 MB (`[RequestSizeLimit]`) | `413`. |
+
+Decisiones:
+
+- Lotes de **1000 artículos** (unos 200 KB), con un máximo de 2000 en el servidor: muy por debajo de los 10 MB. No hace falta cambiar `next.config.ts`.
+- **Completar** aplica unos 18 500 artículos en **6 a 7 s** en un portátil (prueba `Carga_de_18500_articulos_registra_cuanto_tarda_completar`), por debajo de los 30 s. Si alguna vez tarda más, no se pierde: la transacción no depende de la conexión del cliente y el reintento del agente recibe el resumen ya confirmado.
+
+## 8. Pendientes
 
 - **Migrar la configuración a Infrastructure as Code, antes o durante US-21 (#29).** Railway marcó Config as Code como obsoleto: los servicios nuevos ya no pueden usarlo, y los archivos `railway.json` / `railway.toml` existentes dejan de leerse el 2026-12-01. Por eso hoy todo se configura a mano en el panel ([sección 4](#4-pasos-en-el-panel-de-railway-primera-vez)). El reemplazo es un archivo `.railway/railway.ts` que maneja la CLI (`railway config init`, `railway config pull` para partir de lo que ya está en el panel, `railway config plan` y `railway config apply`). Guía: <https://docs.railway.com/infrastructure-as-code>.
 - **Forwarded headers.** El backend está detrás del proxy de Railway y del reenvío de Next.js, así que hoy ve HTTP y la IP del frontend, no la del usuario. Hay que configurar `UseForwardedHeaders` (`X-Forwarded-For` y `X-Forwarded-Proto`), confiando solo en la red privada, **antes de**:
   - las historias de login y roles (#21 y #22): cookies `Secure` y esquema HTTPS correctos;
   - el rate limiting (#48): limitar por la IP real del cliente y no por la del frontend.
-- **Tamaño del cuerpo en el reenvío.** Revisar el límite de tamaño del cuerpo de las peticiones en el reenvío `/api/*` de Next.js y en Kestrel (30 MB por defecto) antes de los lotes de productos de US-06 (#14). Definir el tamaño de lote para quedar bien por debajo.
 - **Cifrado de las llaves en reposo.** Las llaves de Data Protection se guardan sin cifrar en PostgreSQL, y quien lea la base podría falsificar cookies. Es aceptable mientras PostgreSQL solo sea accesible por la red privada. Evaluar `ProtectKeysWithCertificate` antes de US-21.
 - **Varias réplicas.** Si dos contenedores arrancan a la vez contra una base sin llaves, cada uno puede crear la suya. No es un error: ambas quedan en la tabla y las dos sirven.

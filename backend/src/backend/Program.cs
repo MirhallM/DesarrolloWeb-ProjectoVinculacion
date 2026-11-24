@@ -2,6 +2,7 @@ using backend.Catalog;
 using backend.Data;
 using backend.Data.Entities;
 using backend.Data.Seed;
+using backend.Sync;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
@@ -45,6 +46,7 @@ if (MigrateCommand.IsRequested(args)
 }
 
 builder.Services.AddCatalogRules();
+builder.Services.AddSync(builder.Configuration);
 builder.Services.AddScoped<CatalogSeeder>();
 builder.Services.AddScoped<DevCatalogSeeder>();
 
@@ -79,6 +81,9 @@ if (DevCatalogSeedCommand.IsRequested(args))
 {
     return await DevCatalogSeedCommand.RunAsync(app.Services, app.Environment);
 }
+
+// Se resuelve al arrancar para que un Sync:AgentKeyHashes ausente o inválido se avise en el log de inmediato.
+app.Services.GetRequiredService<SyncAgentKeyVerifier>();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

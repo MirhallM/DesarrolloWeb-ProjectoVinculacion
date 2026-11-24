@@ -538,13 +538,13 @@ namespace backend.Data.Migrations
                         .HasColumnName("is_active");
 
                     b.Property<decimal>("PublicPrice")
-                        .HasPrecision(12, 2)
-                        .HasColumnType("numeric(12,2)")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
                         .HasColumnName("public_price");
 
                     b.Property<decimal>("Stock")
-                        .HasPrecision(14, 4)
-                        .HasColumnType("numeric(14,4)")
+                        .HasPrecision(20, 4)
+                        .HasColumnType("numeric(20,4)")
                         .HasColumnName("stock");
 
                     b.Property<DateTime>("SyncedAt")
@@ -732,6 +732,19 @@ namespace backend.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("finished_at");
 
+                    b.Property<string>("InventoryHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("inventory_hash");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("full")
+                        .HasColumnName("mode");
+
                     b.Property<int>("ProductsDeactivated")
                         .HasColumnType("integer")
                         .HasColumnName("products_deactivated");
@@ -743,6 +756,12 @@ namespace backend.Data.Migrations
                     b.Property<int>("ProductsRead")
                         .HasColumnType("integer")
                         .HasColumnName("products_read");
+
+                    b.Property<int>("ProductsRejected")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("products_rejected");
 
                     b.Property<int>("ProductsUpdated")
                         .HasColumnType("integer")
@@ -773,8 +792,49 @@ namespace backend.Data.Migrations
                         {
                             t.HasCheckConstraint("ck_sync_runs_finished_at", "finished_at IS NULL OR finished_at >= started_at");
 
+                            t.HasCheckConstraint("ck_sync_runs_mode", "mode IN ('full', 'unchanged')");
+
                             t.HasCheckConstraint("ck_sync_runs_status", "status IN ('running', 'succeeded', 'failed')");
                         });
+                });
+
+            modelBuilder.Entity("backend.Data.Entities.SyncRunItem", b =>
+                {
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("run_id");
+
+                    b.Property<string>("Code")
+                        .HasColumnType("text")
+                        .HasColumnName("code");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<double?>("Price")
+                        .HasColumnType("double precision")
+                        .HasColumnName("price");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer")
+                        .HasColumnName("sequence");
+
+                    b.Property<string>("Status")
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<double?>("Stock")
+                        .HasColumnType("double precision")
+                        .HasColumnName("stock");
+
+                    b.HasKey("RunId", "Code")
+                        .HasName("pk_sync_run_items");
+
+                    b.HasIndex("RunId", "Sequence")
+                        .HasDatabaseName("ix_sync_run_items_run_id_sequence");
+
+                    b.ToTable("sync_run_items", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
@@ -914,6 +974,16 @@ namespace backend.Data.Migrations
                         .HasForeignKey("UpdatedBy")
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_site_content_users_updated_by");
+                });
+
+            modelBuilder.Entity("backend.Data.Entities.SyncRunItem", b =>
+                {
+                    b.HasOne("backend.Data.Entities.SyncRun", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_sync_run_items_sync_runs_run_id");
                 });
 #pragma warning restore 612, 618
         }

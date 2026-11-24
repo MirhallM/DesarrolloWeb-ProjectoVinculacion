@@ -12,6 +12,7 @@ public static class CatalogServiceCollectionExtensions
         services.AddSingleton(_ => DisplayDictionary.LoadEmbedded());
         services.AddSingleton<ICategorizer>(sp => new Categorizer(sp.GetRequiredService<CategoryRuleSet>()));
         services.AddSingleton<IDisplayNamer>(sp => new DisplayNamer(sp.GetRequiredService<DisplayDictionary>()));
+        services.AddSingleton<CatalogProductFields>();
         return services;
     }
 }

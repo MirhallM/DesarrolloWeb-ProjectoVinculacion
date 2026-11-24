@@ -31,3 +31,41 @@ Accept: application/json
 ### Validación de parámetros inválidos (debe responder 400 ProblemDetails)
 GET {{backend_HostAddress}}/api/products?page=0&pageSize=101&sort=code
 Accept: application/problem+json
+
+###
+
+### Sincronización (US-06): comprobar la API y la llave del agente.
+### La llave real nunca se escribe aquí; este valor es falso y la API debe responder 401.
+@agent_key = llave-de-ejemplo-no-usar
+GET {{backend_HostAddress}}/api/sync/ping
+X-Sync-Agent-Key: {{agent_key}}
+
+###
+
+### Iniciar una corrida (el agente genera runId)
+POST {{backend_HostAddress}}/api/sync/runs
+X-Sync-Agent-Key: {{agent_key}}
+Content-Type: application/json
+
+{ "runId": "11111111-1111-1111-1111-111111111111", "itemCount": 2, "inventoryHash": null, "agentVersion": "manual" }
+
+###
+
+### Enviar un lote (code se guarda exacto, con sus espacios)
+POST {{backend_HostAddress}}/api/sync/runs/11111111-1111-1111-1111-111111111111/batches
+X-Sync-Agent-Key: {{agent_key}}
+Content-Type: application/json
+
+{ "sequence": 0, "items": [
+  { "code": "  2050000117121", "description": "LECHE ENT 1LT", "stock": 12.5, "status": "A", "price": 34.999999 },
+  { "code": "2050000117121", "description": "ARROZ BLANCO 2LB", "stock": 0, "status": "A", "price": null }
+] }
+
+###
+
+### Completar: aplica todo en una transacción
+POST {{backend_HostAddress}}/api/sync/runs/11111111-1111-1111-1111-111111111111/complete
+X-Sync-Agent-Key: {{agent_key}}
+Content-Type: application/json
+
+{ "itemCount": 2, "batchCount": 1 }

@@ -131,7 +131,26 @@ Reglas iniciales propuestas:
 - **Última sincronización exitosa:** la fecha se mostrará al usuario (US-12). Si el agente deja de reportar, el sitio mostrará el aviso de datos desactualizados.
 - **Permisos mínimos:** la conexión a SQL Server usa una cuenta con permisos de solo lectura.
 
-La estrategia concreta (área de preparación, tamaño de lote, formato del mensaje) se definirá durante la implementación.
+### 5.1 Protocolo (US-06)
+
+Rutas bajo `/api/sync`, por el dominio del frontend y el reenvío `/api/*`. Todas exigen el encabezado `X-Sync-Agent-Key`. El backend guarda solo el hash SHA-256 de la llave (`Sync__AgentKeyHashes`) y lo compara en tiempo constante; sin la llave correcta responde `401` sin detalles y no cambia nada.
+
+| Paso | Ruta | Qué hace |
+|---|---|---|
+| Comprobar | `GET /api/sync/ping` | La API responde y la llave es válida (lo usa `SyncAgent --test`). |
+| Iniciar | `POST /api/sync/runs` `{runId, itemCount, inventoryHash, agentVersion}` | Crea la corrida en `running` (`201`). El agente genera `runId`, así que reintentar es idempotente. Si la huella coincide con la última corrida completa de menos de 24 h, la registra como `unchanged` (`200`) y el agente no envía nada. Marca como fallidas las corridas abandonadas (más de 15 min en `running`) y borra las `unchanged` de más de 30 días. Otra corrida reciente en curso: `409`. |
+| Enviar lotes | `POST /api/sync/runs/{runId}/batches` `{sequence, items:[{code, description, stock, status, price}]}` | Guarda el lote **tal como llega** en `sync_run_items` (`204`). Lotes de 1000, máximo 2000 y 4 MB. Reenviar una secuencia la reemplaza. Un código repetido en la corrida la deja `failed` (`400`). |
+| Completar | `POST /api/sync/runs/{runId}/complete` `{itemCount, batchCount}` | En **una transacción**: comprueba que llegó todo, aplica el freno de seguridad, hace upsert por código exacto, desactiva los activos que no vinieron, llena `sync_runs` y borra la preparación. Devuelve el resumen (`read`, `inserted`, `updated`, `deactivated`, `rejected`, `rejectedCodes`). Un reintento devuelve el mismo resumen. |
+| Abortar | `POST /api/sync/runs/{runId}/abort` `{reason}` | El agente abandona la corrida (`204`): queda `failed`. |
+
+Reglas al completar:
+
+- **Reglas comerciales** ([business-rules.md](business-rules.md)): `is_active` solo con `STATUS = 'A'`; precio redondeado a 2 decimales, `0` si no hay; `display_name` vacío si la descripción es vacía o `NULL`; categoría y nombre se recalculan **solo si cambió la descripción** (recalcular todo al cambiar las reglas es US-07).
+- **Rechazos por artículo:** un código vacío o de más de 50 caracteres, o un valor fuera del rango de las columnas, no bloquea la corrida: el artículo se cuenta como rechazado y, si ya existía, no se toca (tampoco se desactiva).
+- **Freno de seguridad:** si la corrida no trae artículos, o desactivaría más del 10 % de los activos y más de 20, no se aplica **nada** (ni los precios), la corrida queda `failed` y la respuesta es `422 sync-safety-brake`. Así una lectura vacía o parcial de Aspel no oculta el catálogo.
+- **Conteo incompleto** (artículos o lotes que no cuadran): `422 sync-count-mismatch`, sin cambios.
+- **La transacción no depende de la conexión del cliente.** El reenvío de Next.js corta a los 30 s; si un corte revirtiera la transacción, la primera carga nunca terminaría. Completar unos 18 500 artículos tarda de 6 a 7 s.
+- Solo cambian `synced_at` y `updated_at` de los productos que realmente cambiaron.
 
 Las tablas y los campos de Aspel SAE (`INVE01`, `PRECIO_X_PROD01`, `STATUS`, `CVE_PRECIO = 1`) se definen en [`business-rules.md`](business-rules.md); la consulta se verifica contra la base real en US-05.
 
@@ -220,6 +239,7 @@ Los nombres de ramas y los mensajes de commit se escribirán en inglés, en min�
 | `403 Forbidden`             | Hay sesión, pero no permiso suficiente.                                                                   |
 | `404 Not Found`             | El recurso no existe.                                                                                     |
 | `409 Conflict`              | Conflicto con el estado actual (por ejemplo, un favorito duplicado, si la API define ese comportamiento). |
+| `422 Unprocessable Entity`  | La solicitud es válida pero no se puede aplicar (por ejemplo, el freno de seguridad de la sincronización). |
 | `429 Too Many Requests`     | El cliente superó la cantidad de peticiones permitidas por minuto (Rate Limit excede la política activa). |
 | `500 Internal Server Error` | Error inesperado, sin detalles internos en la respuesta.                                                  |
 
@@ -251,7 +271,7 @@ Los nombres de ramas y los mensajes de commit se escribirán en inglés, en min�
 - Definir quién abre y paga la cuenta de Railway, y cómo se traspasa al terminar.
 - Confirmar con el negocio que se puede instalar un agente en su red, con salida HTTPS a Internet.
 - Validar con el negocio la lista de categorías. La consulta a Aspel SAE (US-05) está implementada y probada contra una base de prueba; falta verificarla en la tienda con `sync-agent/sql/install/02` y el modo `--test`.
-- Definir y probar el envío por lotes a la API (US-06 y US-07). El agente ya deja el punto de conexión (`ICatalogPublisher`).
+- El envío por lotes a la API está definido (sección 5.1). Falta conectar el agente (`ICatalogPublisher` por HTTP) y el envío incremental de US-07.
 - Reintentos de lectura de SQL Server: resueltos en el agente (4 intentos con esperas de 5, 15 y 45 segundos ante fallos transitorios). Pendientes: los reintentos del envío a la API y la detección de inactividad del agente (*Heartbeat*); `sync-state.json` ya guarda `lastSuccessAt` para ese aviso.
 - Confirmar con el negocio quién guarda las contraseñas de `catalogo_lectura` y de la cuenta de Windows del agente.
 - Windows Server 2016 sale de soporte el 12 de enero de 2027: planificar la actualización del sistema operativo de la tienda (ver `sync-agent/README.md`).
