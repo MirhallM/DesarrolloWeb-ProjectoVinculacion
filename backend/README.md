@@ -66,6 +66,29 @@ Al iniciar en modo `Development`, puedes probar los endpoints de tres maneras:
 
 ---
 
+## Sincronización con el agente (US-06)
+
+El agente de [`sync-agent/`](../sync-agent/README.md) envía el inventario de Aspel a `/api/sync`. Todas esas rutas exigen el encabezado `X-Sync-Agent-Key`. El backend **no guarda la llave**: solo su hash SHA-256 en `Sync:AgentKeyHashes`. El protocolo está en [`docs/architecture.md`](../docs/architecture.md#5-flujo-de-sincronización-con-aspel-sae).
+
+Para configurar la llave en desarrollo, desde la raíz del repositorio:
+
+```powershell
+.\sync-agent\scripts\New-SyncAgentKey.ps1 -Development
+```
+
+El script guarda la llave en los User Secrets del agente y el hash en los del backend. Hay que reiniciar el backend para que lea el hash. Sin `Sync:AgentKeyHashes`, la API arranca igual y responde `401` en `/api/sync` (lo avisa en el log).
+
+| Opción (`Sync:*`) | Valor por defecto | Qué hace |
+| :--- | :--- | :--- |
+| `AgentKeyHashes` | *(vacío)* | Uno o dos hashes separados por coma (dos para rotar la llave). |
+| `MaxBatchSize` | `2000` | Máximo de artículos por lote. |
+| `AbandonAfterMinutes` | `15` | Una corrida en `running` con más tiempo se marca `failed` al iniciar la siguiente. |
+| `FullRunMaxAgeHours` | `24` | Una corrida "sin cambios" solo se acepta si la última completa es más reciente. |
+| `MaxDeactivationRatio` / `MaxDeactivationCount` | `0.10` / `20` | Freno de seguridad: no desactivar más del 10 % de los activos si son más de 20. |
+| `UnchangedRunRetentionDays` | `30` | Días que se conservan las corridas "sin cambios" en `sync_runs`. |
+
+---
+
 ## Pruebas Automatizadas
 
 Desde `backend/`:

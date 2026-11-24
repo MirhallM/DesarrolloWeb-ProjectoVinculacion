@@ -64,8 +64,8 @@ erDiagram
         varchar description "original de Aspel"
         varchar display_name "nombre para el cliente"
         uuid category_id FK
-        numeric public_price "12,2 y mayor o igual a 0"
-        numeric stock "puede ser negativo"
+        numeric public_price "18,2 y mayor o igual a 0"
+        numeric stock "20,4; puede ser negativo"
         boolean is_active "false si sale de Aspel"
         timestamptz synced_at
         timestamptz created_at
@@ -124,20 +124,33 @@ erDiagram
         timestamptz created_at
         timestamptz updated_at
     }
+    sync_runs ||--o{ sync_run_items : "prepara"
     sync_runs {
         uuid id PK
         varchar status "running, succeeded, failed"
+        varchar mode "full o unchanged"
+        varchar inventory_hash
         timestamptz started_at
         timestamptz finished_at
         int products_read
         int products_inserted
         int products_updated
         int products_deactivated
+        int products_rejected
         text error_message
+    }
+    sync_run_items {
+        uuid run_id PK, FK
+        text code PK "CVE_ART exacto"
+        int sequence "lote"
+        text description
+        float8 stock
+        text status
+        float8 price
     }
 ```
 
-`sync_runs` no se relaciona con otras tablas: es un registro independiente. El diagrama omite las tablas de apoyo de Identity (`user_claims`, `role_claims`, `user_logins`, `user_tokens`) y algunas columnas internas de `users`; el modelo completo está en [`database-schema.dbml`](database-schema.dbml), que se puede abrir en dbdiagram.io.
+`sync_runs` solo se relaciona con su área de preparación, `sync_run_items`. El diagrama omite las tablas de apoyo de Identity (`user_claims`, `role_claims`, `user_logins`, `user_tokens`) y algunas columnas internas de `users`; el modelo completo está en [`database-schema.dbml`](database-schema.dbml), que se puede abrir en dbdiagram.io.
 
 ## 3. Tablas de ASP.NET Core Identity
 
@@ -188,10 +201,10 @@ Copia sincronizada del catálogo de Aspel SAE. Solo la modifica el proceso de si
 | `description` | `varchar(255)` | `NOT NULL`. Descripción original de Aspel; no se muestra al cliente |
 | `display_name` | `varchar(255)` | `NOT NULL`. Nombre para mostrar al cliente, generado a partir de `description` |
 | `category_id` | `uuid` | `NOT NULL`, FK a `categories(id)`, `ON DELETE RESTRICT` |
-| `public_price` | `numeric(12,2)` | `NOT NULL`, `CHECK (public_price >= 0)`. Precio con `CVE_PRECIO = 1`; se guarda `0` si no existe |
-| `stock` | `numeric(14,4)` | `NOT NULL`. Sin `CHECK`: Aspel puede reportar existencias negativas |
+| `public_price` | `numeric(18,2)` | `NOT NULL`, `CHECK (public_price >= 0)`. Precio con `CVE_PRECIO = 1`; se guarda `0` si no existe. Admite los precios de relleno de Aspel (15 000 000 000), que no se muestran |
+| `stock` | `numeric(20,4)` | `NOT NULL`. Sin `CHECK`: Aspel puede reportar existencias negativas o de relleno (500 000 000 000) |
 | `is_active` | `boolean` | `NOT NULL`, por defecto `true`. `STATUS = 'A'` es `true`; `STATUS = 'B'` o dejar de venir de Aspel es `false` |
-| `synced_at` | `timestamptz` | `NOT NULL`. Última vez que se sincronizó |
+| `synced_at` | `timestamptz` | `NOT NULL`. Última sincronización que **insertó o cambió** el producto. Si una corrida no cambia nada, no se toca (ni `updated_at`): así no se reescriben 18 000 filas cada 15 minutos. La fecha de la última sincronización exitosa está en `sync_runs` |
 | `created_at`, `updated_at` | `timestamptz` | `NOT NULL` |
 
 Índices:
@@ -292,12 +305,15 @@ Un registro por ejecución de la sincronización.
 |---|---|---|
 | `id` | `uuid` | Llave primaria |
 | `status` | `varchar(20)` | `NOT NULL`, `CHECK (status IN ('running', 'succeeded', 'failed'))` |
+| `mode` | `varchar(20)` | `NOT NULL`, por defecto `'full'`, `CHECK (mode IN ('full', 'unchanged'))`. `unchanged`: la huella del inventario coincidió con la última corrida completa y no se envió ni cambió nada |
+| `inventory_hash` | `varchar(64)` | SHA-256 del inventario que calculó el agente |
 | `started_at` | `timestamptz` | `NOT NULL` |
 | `finished_at` | `timestamptz` | `CHECK (finished_at IS NULL OR finished_at >= started_at)` |
 | `products_read` | `integer` | `NOT NULL`, por defecto 0 |
 | `products_inserted` | `integer` | `NOT NULL`, por defecto 0 |
 | `products_updated` | `integer` | `NOT NULL`, por defecto 0 |
-| `products_deactivated` | `integer` | `NOT NULL`, por defecto 0. Productos que pasan a `is_active = false` |
+| `products_deactivated` | `integer` | `NOT NULL`, por defecto 0. Productos activos que pasan a `is_active = false` porque **dejaron de venir** de Aspel (un cambio a `STATUS = 'B'` cuenta en `products_updated`) |
+| `products_rejected` | `integer` | `NOT NULL`, por defecto 0. Artículos recibidos que no se pudieron guardar: código vacío o de más de 50 caracteres, o valores fuera del rango de las columnas. Si el producto ya existía, no se toca |
 | `error_message` | `text` | Resumen del error, sin datos sensibles |
 
 Índices:
@@ -305,9 +321,26 @@ Un registro por ejecución de la sincronización.
 - Único parcial sobre `status` donde `status = 'running'`: la base impide dos sincronizaciones en ejecución a la vez.
 - `(status, finished_at DESC)`, para obtener la última sincronización exitosa (US-12).
 
+Limpieza: al iniciar cada corrida se borran las corridas en modo `unchanged` con más de 30 días (`Sync:UnchangedRunRetentionDays`). Con el agente cada 15 minutos serían unas 96 filas al día. Las corridas `full` y las `failed` se conservan.
+
+### `sync_run_items`
+
+Área de preparación de la sincronización (US-06). Guarda los artículos de cada lote **tal como llegan** del agente; las reglas comerciales se aplican al completar la corrida. Las filas se borran cuando la corrida termina, bien o mal.
+
+| Columna | Tipo | Restricciones / notas |
+|---|---|---|
+| `run_id` | `uuid` | FK a `sync_runs(id)`, `ON DELETE CASCADE` |
+| `code` | `text` | `NOT NULL`. `CVE_ART` exacto, sin recortar ni límite de largo (se valida al completar) |
+| `sequence` | `integer` | `NOT NULL`. Número de lote, desde 0. Reenviar un lote borra y vuelve a insertar esa secuencia |
+| `description` | `text` | Puede ser nula |
+| `stock`, `price` | `double precision` | Como vienen de SQL Server (`float`); se redondean al aplicar |
+| `status` | `text` | `A`, `B` u otro |
+
+Llave primaria `(run_id, code)`: un código repetido dentro de la corrida lo rechaza la base y la corrida falla. Índice `(run_id, sequence)`.
+
 ## 5. Fuera de este esquema
 
-El área de preparación de los lotes de sincronización se define en US-06 y US-07, cuando se implemente el endpoint que los recibe. Si requiere tablas, se agregan con una migración propia.
+El área de preparación de la sincronización es `sync_run_items` (US-06, migración `AddSyncStaging`). US-07 puede ampliarla para el envío incremental.
 
 ## 6. Implementación con Entity Framework Core
 
@@ -317,14 +350,14 @@ El área de preparación de los lotes de sincronización se define en US-06 y US
 |---|---|
 | `backend/src/backend/Data/AppDbContext.cs` | Hereda de `IdentityDbContext<AppUser, AppRole, Guid>`. Configura tablas, llaves, índices, restricciones y la semilla de roles y categorías. Llena `created_at` y `updated_at` al guardar. |
 | `backend/src/backend/Data/SnakeCaseNaming.cs` | Convierte a `snake_case` tablas, columnas, llaves e índices, y quita el prefijo `AspNet` de las tablas de Identity. |
-| `backend/src/backend/Data/Entities/` | Entidades: `AppUser`, `AppRole`, `Category`, `CategoryRule`, `Product`, `Favorite`, `ProductImage`, `FeaturedProduct`, `SiteContent`, `SyncRun`. |
+| `backend/src/backend/Data/Entities/` | Entidades: `AppUser`, `AppRole`, `Category`, `CategoryRule`, `Product`, `Favorite`, `ProductImage`, `FeaturedProduct`, `SiteContent`, `SyncRun`, `SyncRunItem`. |
 | `backend/src/backend/Data/Migrations/` | Migraciones generadas con `dotnet ef`. |
 
 Notas:
 
 - Los nombres en `snake_case` se aplican con un helper propio, sin paquetes adicionales.
 - Los valores por defecto de los `boolean` (`is_active = true`) se asignan en C#, no en la base de datos: con un valor por defecto en la base, EF Core no enviaría `false` al insertar.
-- Los tipos y estados (`banner`, `promotion`, `running`…) son constantes de texto (`SiteContentTypes`, `SyncRunStatuses`) validadas con `CHECK`.
+- Los tipos y estados (`banner`, `promotion`, `running`…) son constantes de texto (`SiteContentTypes`, `SyncRunStatuses`, `SyncRunModes`) validadas con `CHECK`.
 
 ### Paquetes
 
@@ -364,4 +397,3 @@ Nunca se edita una migración que ya está en `main`; se crea una nueva.
 ## 7. Pendientes
 
 - Confirmar que `pg_trgm` se puede activar en PostgreSQL de Railway (es una extensión de confianza desde PostgreSQL 13).
-- Estrategia de preparación de lotes de sincronización (US-06 y US-07).
