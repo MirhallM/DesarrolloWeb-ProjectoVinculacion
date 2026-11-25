@@ -24,7 +24,8 @@
 
 .PARAMETER Server
     Servidor y puerto de SQL Server. Por omisión: localhost (el agente corre en el mismo servidor que Aspel).
-    En la base de prueba de Docker: 127.0.0.1,14330
+    En la base de prueba de Docker: '127.0.0.1,14330', SIEMPRE ENTRE COMILLAS: sin ellas PowerShell interpreta la coma como una
+    lista y falla con "Cannot process argument transformation on parameter 'Server'" antes de que el script arranque.
 
 .PARAMETER Database
     Base de Aspel. Por omisión: SAE70Empre01
@@ -47,7 +48,7 @@
     .\Set-AgentConnection.ps1 -BaseUrl https://mi-sitio.up.railway.app
 
 .EXAMPLE
-    .\Set-AgentConnection.ps1 -ConfigPath C:\Temp\copia.json -Server 127.0.0.1,14330
+    .\Set-AgentConnection.ps1 -ConfigPath C:\Temp\copia.json -Server '127.0.0.1,14330'
 #>
 # (Esta línea va DESPUÉS del bloque de ayuda a propósito: si va antes, PowerShell 5.1 no reconoce la ayuda de Get-Help.)
 #Requires -Version 5.1
@@ -108,6 +109,12 @@ function Describe-SqlError([int]$Number) {
 }
 
 # ---------- Configuración ----------
+# Sin comillas, PowerShell ni siquiera enlaza el parámetro (la coma lo vuelve una lista). Esto cubre el otro error típico: un
+# servidor con un espacio, por ejemplo '127.0.0.1 14330'.
+if ($Server -match '\s') {
+    throw "El valor de -Server contiene un espacio ('$Server'). Si es un servidor con puerto, escríbalo ENTRE COMILLAS: -Server '127.0.0.1,14330'."
+}
+
 $fullPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ConfigPath)
 if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
     throw "No existe $fullPath. Instale primero el agente (Install-SyncAgent.ps1)."

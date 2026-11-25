@@ -38,7 +38,7 @@
     y cierre esa ventana de PowerShell.
 
 .PARAMETER Server
-    Servidor SQL: 'localhost' (por omisión), 'servidor\instancia' o 'host,puerto' (p. ej. 127.0.0.1,14330 para la base de prueba de Docker).
+    Servidor SQL: 'localhost' (por omisión), 'servidor\instancia' o 'host,puerto' entre comillas (p. ej. -Server '127.0.0.1,14330' para la base de prueba de Docker).
 
 .PARAMETER SqlAdminUser
     Cuenta administradora de SQL Server (p. ej. sa). Si se omite se usa la autenticación de Windows del usuario actual.

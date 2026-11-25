@@ -331,8 +331,8 @@ Es el recorrido completo para la tienda, en orden. Cada paso remite a su detalle
    .\Install-SyncAgent.ps1 -SkipTestPrompt
    ```
    Debe pasar: **no pide contraseña**; dice `CONTROLADOR DE DOMINIO`, `SID propio de la tarea: S-1-5-87-…` y `La tarea quedó DESHABILITADA`; y **una** de estas dos líneas sobre el dominio:
-   - `OK  No hay ninguna cuenta 'svc-nettes-sync' en el dominio.`
-   - `AVISO  Existe una cuenta 'svc-nettes-sync' en el DOMINIO (creada: …)`. **Es lo más probable en la tienda**: el primer intento, con el instalador anterior, la creó antes de fallar con `S-1-5-32-545`. El instalador **no la toca**: siga instalando y revísela y bórrela al final (paso 15).
+   - `OK  No hay ninguna cuenta 'svc-nettes-sync' en el dominio.` **Es lo esperado en la tienda**: el primer intento, con el instalador anterior, creó esa cuenta antes de fallar con `S-1-5-32-545`, y se informó que ya se había borrado con `Remove-ADUser` (2026-11-24). El paso 15 no aplica.
+   - `AVISO  Existe una cuenta 'svc-nettes-sync' en el DOMINIO (creada: …)`: solo si aquella cuenta **no** se borró (o se creó otra). El instalador **no la toca**: siga instalando y revísela y bórrela al final (paso 15).
 
    Compruebe que esta instalación no creó nada:
    ```powershell
@@ -361,11 +361,12 @@ Es el recorrido completo para la tienda, en orden. Cada paso remite a su detalle
 10. **Verificar la tarea:**
     ```powershell
     Get-ScheduledTask @t | Get-ScheduledTaskInfo | Format-List LastRunTime,LastTaskResult,NextRunTime
+    (Get-ScheduledTask @t).Principal | Format-List UserId, LogonType, RunLevel, ProcessTokenSidType
     Get-Content C:\NettesSyncAgent\data\sync-state.json -Encoding UTF8
     Get-Content (Get-ChildItem C:\NettesSyncAgent\data\logs\*.log | Sort-Object LastWriteTime | Select-Object -Last 1) -Tail 12
     icacls C:\NettesSyncAgent
     ```
-    Debe pasar: `LastTaskResult : 0`; `"lastResult": "succeeded"` con `lastPublish` en modo `full`; una línea `API: corrida … aplicada` (la primera vez, ~18 665 leídos y casi todos insertados); permisos solo para Administradores, SYSTEM y `NT TASK\NettesSyncAgent-Sincronizacion`.
+    Debe pasar: `UserId : LOCAL SERVICE`, `LogonType : ServiceAccount`, `RunLevel : Limited` y `ProcessTokenSidType : Unrestricted`; `LastTaskResult : 0`; `"lastResult": "succeeded"` con `lastPublish` en modo `full`; una línea `API: corrida … aplicada` (la primera vez, ~18 665 leídos y casi todos insertados); permisos solo para Administradores, SYSTEM y `NT TASK\NettesSyncAgent-Sincronizacion`.
 11. **Comprobación de seguridad** (recomendada): LOCAL SERVICE **sin** el SID propio de la tarea no debe poder leer la configuración. El bloque está en el [paso 8](#comprobación-de-seguridad-el-sid-propio-de-la-tarea). Debe pasar: resultado **3**.
 12. **Segunda corrida** (debe dar «sin cambios»): el bloque está en el [paso 8](#segunda-corrida-debe-dar-sin-cambios). Debe pasar: `unchanged`.
 
@@ -373,7 +374,7 @@ Es el recorrido completo para la tienda, en orden. Cada paso remite a su detalle
 
 13. `https://<dominio>/api/products?pageSize=1`: el `totalCount` debe quedar cerca de los activos con precio mayor que 0 y con nombre. Con las cifras de la primera lectura (18 615 activos, 120 con precio 0, 27 sin descripción utilizable y 2 con precio de 100 000 o más) son unos 18 460. Es normal que sea **menor** que el total de Aspel: [qué ve el cliente](../docs/architecture.md#52-qué-productos-ve-el-cliente). Revise también el catálogo en el navegador.
 14. **Reinicie el servidor** (todavía sin verificar en la tienda) y compruebe que la tarea corre sola: `LastRunTime` avanza cada 15 minutos y `lastSuccessAt` se actualiza.
-15. **Si el paso 3 avisó de una cuenta `svc-nettes-sync` en el dominio**, revísela y bórrela ahora, con la fila *«No se encontró el grupo S-1-5-32-545»* de la [tabla de problemas](#12-solución-de-problemas): `Get-ADUser svc-nettes-sync -Properties whenCreated,Description,MemberOf`; comprobar si le quedó el derecho `SeBatchLogonRight`; y luego `Remove-ADUser svc-nettes-sync -Confirm`. Después, el aviso del instalador (`.\Install-SyncAgent.ps1`, que es seguro repetir) debe decir `No hay ninguna cuenta 'svc-nettes-sync' en el dominio`.
+15. **Solo si el paso 3 avisó de una cuenta `svc-nettes-sync` en el dominio** (si dijo «No hay ninguna cuenta», este paso no aplica), revísela y bórrela ahora, con la fila *«No se encontró el grupo S-1-5-32-545»* de la [tabla de problemas](#12-solución-de-problemas): `Get-ADUser svc-nettes-sync -Properties whenCreated,Description,MemberOf`; comprobar si le quedó el derecho `SeBatchLogonRight`; y luego `Remove-ADUser svc-nettes-sync -Confirm`. Después, el aviso del instalador (`.\Install-SyncAgent.ps1`, que es seguro repetir) debe decir `No hay ninguna cuenta 'svc-nettes-sync' en el dominio`.
 
 ### 0. Preparar
 
@@ -464,8 +465,8 @@ En un equipo que no es controlador de dominio nada cambia: se crea `svc-nettes-s
 
 | Opción | Valor | Para qué |
 |---|---|---|
-| Ejecutar aunque no haya sesión iniciada | `LogonType: Password` | El servidor corre sin que nadie esté conectado. |
-| Cuenta dedicada, no administradora | `RunLevel: LeastPrivilege` | Si el agente fallara, el daño se limita a lo que esa cuenta puede hacer. |
+| Ejecutar aunque no haya sesión iniciada | `LogonType: Password` con la cuenta propia; **`ServiceAccount`** con LOCAL SERVICE (controlador de dominio) | El servidor corre sin que nadie esté conectado. |
+| Cuenta sin privilegios de administrador | `RunLevel: LeastPrivilege` en el XML; `Get-ScheduledTask` lo muestra como **`Limited`** (igual en los dos casos) | Si el agente fallara, el daño se limita a lo que esa cuenta puede hacer. |
 | Primer disparo al encender el servidor | `BootTrigger`, retraso de 3 min | Da tiempo a que arranquen SQL Server y Aspel. |
 | Luego cada 15 minutos, sin fin | `TimeTrigger` con repetición y sin duración | Sincronización periódica. |
 | No iniciar otra si la anterior sigue | `MultipleInstancesPolicy: IgnoreNew` | Evita ejecuciones solapadas. |
@@ -473,6 +474,8 @@ En un equipo que no es controlador de dominio nada cambia: se crea `svc-nettes-s
 | Si el servidor estaba apagado a la hora prevista | `StartWhenAvailable` | Se ejecuta en cuanto sea posible. |
 | Prioridad baja | `Priority: 7` | Cede CPU a Aspel y a SQL Server. |
 | Reintento si la tarea falla | `RestartOnFailure`: 3 veces, cada 1 min | Red de seguridad. No se ha verificado que reaccione a un código de salida distinto de 0; los fallos de SQL ya los cubren los reintentos internos y la siguiente ejecución a los 15 minutos. |
+
+Lo que verá en `(Get-ScheduledTask …).Principal` depende de la cuenta: con la cuenta propia (`svc-nettes-sync`), `LogonType : Password` y `RunLevel : Limited`; **en el controlador de dominio**, `UserId : LOCAL SERVICE`, `LogonType : ServiceAccount`, `RunLevel : Limited` y `ProcessTokenSidType : Unrestricted`.
 
 ### 4. Configurar la conexión
 
@@ -484,7 +487,7 @@ Con el script, **sin Bloc de notas** (en la misma consola de administrador, desd
 
 - **La contraseña de `catalogo_lectura` la escribe la persona que la custodia, durante la sesión**, en la línea oculta que pide el script (dos veces). Si la instalación es remota, esa persona la teclea en su propia ventana: no se envía por chat ni por correo y no se pega en ningún comando, así que no queda en el historial de PowerShell.
 - Arma la cadena con `SqlConnectionStringBuilder` (una clave con `;`, `=` o comillas no la rompe), **prueba el inicio de sesión antes de guardar** (si falla, por ejemplo con el error 18456, no cambia nada; `-SkipConnectionTest` omite la prueba) y la escribe en el mismo archivo conservando sus permisos, igual que `New-SyncAgentKey.ps1`. No muestra la contraseña ni la cadena.
-- `-BaseUrl` guarda `Api:BaseUrl` (https; `http` solo con localhost). Se puede repetir el script cuantas veces haga falta. Para la base de prueba de Docker: `-Server 127.0.0.1,14330`.
+- `-BaseUrl` guarda `Api:BaseUrl` (https; `http` solo con localhost). Se puede repetir el script cuantas veces haga falta. Para la base de prueba de Docker: `-Server '127.0.0.1,14330'`, **entre comillas**: sin ellas PowerShell interpreta la coma como una lista y el script ni siquiera arranca (`Cannot process argument transformation on parameter 'Server'`).
 - El archivo siempre trae las secciones `ConnectionStrings` y `Api`: el instalador agrega las que falten.
 
 ### 5. Probar la lectura
@@ -507,16 +510,17 @@ Como no se indica `-P`, `sqlcmd` pide la contraseña en una línea oculta. Debe 
 
 La llave identifica al agente ante la API. Se genera **en este servidor** y nunca sale de él: a Railway solo va su hash.
 
-1. Edite `C:\NettesSyncAgent\appsettings.Production.json` como administrador y ponga en `Api:BaseUrl` la URL pública del sitio, por ejemplo `https://<dominio>.up.railway.app`.
-2. Genere la llave (en la misma consola de administrador, desde la carpeta `scripts`):
+`Api:BaseUrl` (la URL pública del sitio) ya la guardó el [paso 4](#4-configurar-la-conexión) con `Set-AgentConnection.ps1 -BaseUrl`; no hace falta editar el archivo. Si no se indicó entonces, repita ese script (vuelve a pedir la contraseña) o corríjala a mano en el archivo, como administrador.
+
+1. Genere la llave (en la misma consola de administrador, desde la carpeta `scripts`):
 
    ```powershell
    .\New-SyncAgentKey.ps1 -ConfigPath C:\NettesSyncAgent\appsettings.Production.json
    ```
 
    El script escribe la llave en `Api:AgentKey` (el archivo conserva sus permisos) y muestra **solo el hash**. La llave no se ve en pantalla y no pasa por la línea de comandos, así que no queda en el historial de PowerShell.
-3. En Railway, servicio `backend`, *Variables*: `Sync__AgentKeyHashes` = el hash mostrado ([docs/deployment.md](../docs/deployment.md#3-variables-nombres-sin-valores)). Espere a que el backend se redespliegue.
-4. Compruebe:
+2. En Railway, servicio `backend`, *Variables*: `Sync__AgentKeyHashes` = el hash mostrado ([docs/deployment.md](../docs/deployment.md#3-variables-nombres-sin-valores)). Espere a que el backend se redespliegue.
+3. Compruebe:
 
    ```powershell
    & 'C:\NettesSyncAgent\SyncAgent.exe' --test
@@ -527,7 +531,7 @@ La llave identifica al agente ante la API. Se genera **en este servidor** y nunc
 **Rotar la llave** (si se filtró o por rutina). El script escribe la llave nueva en el archivo **antes** de que Railway conozca su hash; para que el agente no falle en medio, se deshabilita la tarea:
 
 1. `Disable-ScheduledTask -TaskPath '\NettesSyncAgent\' -TaskName 'Sincronizacion'`
-2. Ejecute otra vez el paso 2, que genera una llave nueva y muestra su hash.
+2. Ejecute otra vez `.\New-SyncAgentKey.ps1 -ConfigPath C:\NettesSyncAgent\appsettings.Production.json`, que genera una llave nueva y muestra su hash.
 3. En Railway ponga `Sync__AgentKeyHashes` = `<hash anterior>,<hash nuevo>` (sirven las dos) y espere a que el backend se redespliegue.
 4. `SyncAgent.exe --test` debe decir *«la llave es válida»*; entonces `Enable-ScheduledTask -TaskPath '\NettesSyncAgent\' -TaskName 'Sincronizacion'`.
 5. Cuando una sincronización termine bien, deje solo el hash nuevo en Railway.
@@ -769,8 +773,8 @@ Si la tarea corría como **LOCAL SERVICE** (controlador de dominio o `-UseLocalS
 | `ICatalogPublisher` por HTTP; URL y llave en la sección `Api` de `appsettings.Production.json` | Cumplido (prueba) | `HttpCatalogPublisher` con un `HttpMessageHandler` falso: iniciar, lotes de 1000 y completar, con la llave en cada solicitud |
 | La llave no aparece en logs ni en el estado | Cumplido (prueba) | Validación sin repetir la llave; el redactor la oculta; una respuesta hostil que repite la llave no llega al mensaje ni al log |
 | `--test` no envía nada; `--once` envía | Cumplido (prueba) | `--test` solo hace `GET /api/sync/ping`; pruebas con ping correcto, 401 y sin red |
-| La importación puede repetirse sin duplicar; sin la llave, `401` y nada cambia; un error a mitad no deja el catálogo a medias | Cumplido en la API (19 pruebas de integración contra PostgreSQL, ver `backend/`) | `runId` del agente, lotes reemplazables y completar idempotente; la transacción no depende de la conexión |
-| Los datos coinciden con los de Aspel (base de prueba de Docker) | Pendiente | Prueba de punta a punta local (sección 15) |
+| La importación puede repetirse sin duplicar; sin la llave, `401` y nada cambia; un error a mitad no deja el catálogo a medias | Cumplido en la API (20 pruebas de integración contra PostgreSQL, ver `backend/`) | `runId` del agente, lotes reemplazables y completar idempotente; la transacción no depende de la conexión |
+| Los datos coinciden con los de Aspel (base de prueba de Docker) | Cumplido (prueba de punta a punta, 2026-11-25) | SQL Server de Docker → agente → frontend → backend → PostgreSQL → `/api/products`: los 14 casos dan 7 productos visibles; los dos códigos con espacios son productos distintos; `34.999999` queda en `35.00`; un cambio de precio se aplica; ver la [sección 15](#15-qué-se-probó-y-qué-falta-verificar-en-la-tienda). Falta repetirlo con la base real de la tienda |
 
 ## 14. Compatibilidad y riesgos
 
@@ -792,7 +796,7 @@ Si la tarea corría como **LOCAL SERVICE** (controlador de dominio o `-UseLocalS
   - `--test` con la API;
   - el estado después de un envío confirmado o fallido;
   - el rechazo de la contraseña de ejemplo (`CAMBIAR`) y una clave con `;`, `=` y comillas en la cadena de conexión.
-- La API de US-06, del lado del backend: 19 pruebas de integración contra PostgreSQL. "Completar" aplica 18 500 artículos en unos 6 s.
+- La API de US-06, del lado del backend: 20 pruebas de integración contra PostgreSQL. "Completar" aplica 18 500 artículos en unos 6 s.
 - **Prueba de punta a punta local** (2026-11-25): SQL Server de prueba en Docker (`127.0.0.1,14330`) → agente `--once` → frontend (`localhost:3000`) → backend → PostgreSQL → `/api/products`.
   - `--test`: 14 artículos, 13 activos, 14 códigos distintos, y «Responde y la llave es válida».
   - Primera lectura: los dos códigos que difieren por espacios son productos distintos, `34.999999` queda en `35.00`, los artículos sin precio quedan en `0.00`, la baja inactiva, las descripciones vacías o `NULL` sin nombre y la existencia de 500 000 000 000 se guarda. Se ven 7 productos.
