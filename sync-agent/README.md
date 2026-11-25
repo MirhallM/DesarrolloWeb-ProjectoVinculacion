@@ -138,7 +138,9 @@ Para la API, desde la raíz del repositorio:
 .\sync-agent\scripts\New-SyncAgentKey.ps1 -Development          # Api:BaseUrl = http://localhost:3000
 ```
 
-El script genera una llave de desarrollo y la guarda en los User Secrets del agente (`Api:AgentKey` y `Api:BaseUrl`). En los del backend guarda el hash (`Sync:AgentKeyHashes`). Con `-BaseUrl http://localhost:5039` el agente habla directo con el backend. Por omisión pasa por el frontend (`npm run dev`), como en Railway. Después hay que reiniciar el backend.
+El script genera una llave de desarrollo y la guarda en los User Secrets del agente (`Api:AgentKey` y `Api:BaseUrl`). En los del backend guarda el hash (`Sync:AgentKeyHashes`).
+
+> **Advertencia:** cada vez que se ejecuta, `-Development` **reemplaza** `Sync:AgentKeyHashes` en los secretos del backend. Cualquier otra instalación local con una llave distinta (por ejemplo la tarea programada instalada con `-ConfigPath`) recibe `401` hasta que su hash se agregue. Para aceptar dos llaves a la vez (máximo 2): `dotnet user-secrets set "Sync:AgentKeyHashes" "<hash 1>,<hash 2>" --project backend\src\backend`. La salida del script lo recuerda. Con `-BaseUrl http://localhost:5039` el agente habla directo con el backend. Por omisión pasa por el frontend (`npm run dev`), como en Railway. Después hay que reiniciar el backend.
 
 ### En la tienda: `appsettings.Production.json`
 
