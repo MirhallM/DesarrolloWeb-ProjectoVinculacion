@@ -42,3 +42,4 @@ sync-agent/publish/
 .DS_Store
 Thumbs.db
 /docs/Inventario.csv
+/src/

@@ -6,10 +6,12 @@ namespace backend.Controllers;
 /// <summary>
 /// Recepción del catálogo que envía el agente de sincronización (US-06). Todas las rutas exigen la llave del agente.
 /// Protocolo: iniciar corrida → lotes → completar (ver docs/architecture.md, sección 5).
+/// No usa cookies de sesión; se excluye del filtro CSRF global porque autentica con <c>X-Sync-Agent-Key</c>.
 /// </summary>
 [ApiController]
 [Route("api/sync")]
 [RequireSyncAgentKey]
+[IgnoreAntiforgeryToken]
 [ProducesResponseType(StatusCodes.Status401Unauthorized)]
 public sealed class SyncController(SyncService sync, TimeProvider clock) : ControllerBase
 {

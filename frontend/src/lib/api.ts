@@ -6,12 +6,24 @@ import type { ProblemDetails } from "@/types";
 export class ApiError extends Error {
   readonly status: number;
   readonly detail?: string;
+  readonly type?: string;
+  readonly errors?: Record<string, string[]>;
 
-  constructor(message: string, status: number, detail?: string) {
+  constructor(
+    message: string,
+    status: number,
+    options?: {
+      detail?: string;
+      type?: string;
+      errors?: Record<string, string[]>;
+    }
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
-    this.detail = detail;
+    this.detail = options?.detail;
+    this.type = options?.type;
+    this.errors = options?.errors;
   }
 }
 
@@ -42,8 +54,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function firstValidationMessage(
+  errors?: Record<string, string[]>
+): string | undefined {
+  if (!errors) return undefined;
+  for (const messages of Object.values(errors)) {
+    if (Array.isArray(messages) && messages.length > 0 && messages[0]) {
+      return messages[0];
+    }
+  }
+  return undefined;
+}
+
 async function parseErrorResponse(response: Response): Promise<ApiError> {
-  const fallbackMessage = `Algo salio mal: error ${response.status}`;
+  const fallbackMessage = `Algo salió mal (error ${response.status}).`;
 
   try {
     const contentType = response.headers.get("content-type") ?? "";
@@ -51,9 +75,14 @@ async function parseErrorResponse(response: Response): Promise<ApiError> {
       const body: unknown = await response.json();
       if (isRecord(body)) {
         const problem = body as ProblemDetails;
+        const validationMsg = firstValidationMessage(problem.errors);
         const message =
-          problem.detail || problem.title || fallbackMessage;
-        return new ApiError(message, response.status, problem.detail);
+          validationMsg || problem.detail || problem.title || fallbackMessage;
+        return new ApiError(message, response.status, {
+          detail: problem.detail,
+          type: problem.type,
+          errors: problem.errors,
+        });
       }
     }
   } catch {
@@ -76,6 +105,7 @@ export async function apiFetch<T>(
   let response: Response;
   try {
     response = await fetch(`${baseUrl}${cleanEndpoint}`, {
+      credentials: "same-origin",
       ...options,
       headers: {
         Accept: "application/json",
@@ -86,14 +116,18 @@ export async function apiFetch<T>(
     if (error instanceof DOMException && error.name === "AbortError") {
       throw error;
     }
-    throw new ApiError(
-      "No fue posible conectar con el servidor.",
-      503
-    );
+    throw new ApiError("No fue posible conectar con el servidor.", 503);
   }
 
   if (!response.ok) {
     throw await parseErrorResponse(response);
+  }
+
+  if (
+    response.status === 204 ||
+    response.headers.get("content-length") === "0"
+  ) {
+    return undefined as T;
   }
 
   return (await response.json()) as T;

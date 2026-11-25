@@ -122,7 +122,7 @@ El script escribe la llave en `Api.AgentKey` de ese archivo (que solo leen Admin
 
 ## 5. Llaves de Data Protection
 
-ASP.NET Core cifra las cookies de Identity con llaves de Data Protection. Por defecto se guardan en el disco del contenedor, y **cada despliegue de Railway arranca un contenedor nuevo**: se perderían las llaves y todas las sesiones quedarían inválidas.
+ASP.NET Core cifra la cookie de sesión de Identity (`__Host-nettes.auth` en producción; ver [architecture.md](architecture.md#6-autenticación-y-autorización)) con llaves de Data Protection. Por defecto se guardan en el disco del contenedor, y **cada despliegue de Railway arranca un contenedor nuevo**: se perderían las llaves y todas las sesiones quedarían inválidas.
 
 Por eso se guardan en PostgreSQL, en la tabla `data_protection_keys`:
 - `PersistKeysToDbContext<AppDbContext>()`, con la migración `AddDataProtectionKeys`.
@@ -216,8 +216,6 @@ Se rota **todo lo que el equipo de desarrollo vio o pudo ver**, y se quitan sus 
 ## 9. Pendientes
 
 - **Migrar la configuración a Infrastructure as Code, antes o durante US-21 (#29).** Railway marcó Config as Code como obsoleto: los servicios nuevos ya no pueden usarlo, y los archivos `railway.json` / `railway.toml` existentes dejan de leerse el 2026-12-01. Por eso hoy todo se configura a mano en el panel ([sección 4](#4-pasos-en-el-panel-de-railway-primera-vez)). El reemplazo es un archivo `.railway/railway.ts` que maneja la CLI (`railway config init`, `railway config pull` para partir de lo que ya está en el panel, `railway config plan` y `railway config apply`). Guía: <https://docs.railway.com/infrastructure-as-code>.
-- **Forwarded headers.** El backend está detrás del proxy de Railway y del reenvío de Next.js, así que hoy ve HTTP y la IP del frontend, no la del usuario. Hay que configurar `UseForwardedHeaders` (`X-Forwarded-For` y `X-Forwarded-Proto`), confiando solo en la red privada, **antes de**:
-  - las historias de login y roles (#21 y #22): cookies `Secure` y esquema HTTPS correctos;
-  - el rate limiting (#48): limitar por la IP real del cliente y no por la del frontend.
+- **Verificar `X-Forwarded-For` de extremo a extremo antes del rate limiting (#48).** En US-13 (#21) el backend ya configuró `UseForwardedHeaders` (`X-Forwarded-For` y `X-Forwarded-Proto`, `ForwardLimit = 2`, confiando solo en loopback y redes privadas `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` y `fc00::/7`) y emite cookies `__Host-nettes.auth` con `SecurePolicy.Always` en producción. Antes de activar el *rate limiting* (#48), comprobar en Railway que el reenvío de Next.js propaga la IP del cliente en `X-Forwarded-For` para no limitar por la IP interna del contenedor frontend.
 - **Cifrado de las llaves en reposo.** Las llaves de Data Protection se guardan sin cifrar en PostgreSQL, y quien lea la base podría falsificar cookies. Es aceptable mientras PostgreSQL solo sea accesible por la red privada. Evaluar `ProtectKeysWithCertificate` antes de US-21.
 - **Varias réplicas.** Si dos contenedores arrancan a la vez contra una base sin llaves, cada uno puede crear la suya. No es un error: ambas quedan en la tabla y las dos sirven.
