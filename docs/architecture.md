@@ -154,6 +154,21 @@ Reglas al completar:
 
 Las tablas y los campos de Aspel SAE (`INVE01`, `PRECIO_X_PROD01`, `STATUS`, `CVE_PRECIO = 1`) se definen en [`business-rules.md`](business-rules.md); la consulta se verifica contra la base real en US-05.
 
+### 5.2 Qué productos ve el cliente
+
+La sincronización **guarda** todos los artículos de Aspel; la **visibilidad** no se guarda: la calcula la API pública en cada consulta (`PublicCatalogQueries.WhereVisible`, usada por `/api/products` y `/api/categories`) según [`business-rules.md`](business-rules.md#2-estado-y-visibilidad). Un producto se muestra solo si cumple **las cuatro** condiciones:
+
+| Condición | Se guarda como | Un artículo que no la cumple |
+|---|---|---|
+| Activo: `STATUS = 'A'` y sigue viniendo de Aspel | `is_active = true` | `STATUS = 'B'` (o cualquier otro valor) o que deja de venir: `is_active = false`. Se conserva, no se borra |
+| Precio mayor que 0 | `public_price > 0` | Sin precio o con precio 0: `public_price = 0` |
+| Precio menor que 100 000 | `public_price < 100 000` | Se guarda tal cual, pero no se muestra. **Límite pendiente de validación con el negocio** |
+| Nombre para mostrar no vacío | `display_name <> ''` | Descripción vacía, nula o con el texto `NULL`: `display_name = ''` |
+
+- **Un cambio de estado en Aspel** (`A` → `B` o al revés) se refleja en la siguiente sincronización: el artículo sigue viniendo, se cuenta como *actualizado* (no como *desactivado*, que son los que dejan de venir) y se oculta o reaparece. Lo cubre una prueba de integración.
+- **Limitación: «sin precio en la lista» y «precio 0» quedan iguales.** El agente los distingue al leer (`--test` informa «Activos sin precio en la lista» y «Activos con precio 0» por separado), pero la API guarda **0.00 en los dos casos** y PostgreSQL no conserva cuál fue. Ninguno de los dos se muestra. En la primera lectura de la tienda (2026-11-24) hubo 120 activos con precio 0 que **no aparecen en el catálogo** hasta que el negocio les ponga precio en la lista 1 de Aspel; al corregirlos, la siguiente sincronización los hace visibles sin hacer nada más.
+- Los productos agotados **sí** se muestran, marcados como agotados (`stock <= 0`); la cantidad nunca se expone.
+
 **Alternativas descartadas:**
 
 | Alternativa                                                    | Motivo                                                                                                                           |
