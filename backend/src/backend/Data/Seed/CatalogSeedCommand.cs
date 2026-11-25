@@ -3,7 +3,8 @@ using backend.Catalog;
 namespace backend.Data.Seed;
 
 /// <summary>
-/// Comando <c>dotnet backend.dll seed</c>: siembra categorías y reglas desde categories.json y termina.
+/// Comando <c>dotnet backend.dll seed</c>: siembra categorías y reglas desde categories.json, recalcula la categoría y
+/// el nombre para mostrar de todos los productos con las reglas y el diccionario actuales, y termina.
 /// Pensado para el pre-deploy de Railway, después de aplicar las migraciones.
 /// </summary>
 public static class CatalogSeedCommand
@@ -21,7 +22,9 @@ public static class CatalogSeedCommand
             var seeder = scope.ServiceProvider.GetRequiredService<CatalogSeeder>();
             var rules = scope.ServiceProvider.GetRequiredService<CategoryRuleSet>();
 
-            var report = await seeder.SeedAsync(rules, ct);
+            var dictionary = scope.ServiceProvider.GetRequiredService<DisplayDictionary>();
+
+            var report = await seeder.SeedAsync(rules, dictionary, ct);
 
             Console.WriteLine(report);
             foreach (var warning in report.Warnings)

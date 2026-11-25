@@ -146,14 +146,14 @@ Femenino: la primera palabra termina en `A` (salvo `feminineExceptions`: DIA, MA
 
    Sin este paso, `dotnet test` falla en `CatalogParityTests`: el C# ya usa las reglas nuevas y el archivo todavía tiene los resultados anteriores.
 4. Abrir el PR con el antes y el después de la cobertura.
-5. Después del despliegue, sembrar las reglas (`dotnet backend.dll seed`, ver abajo) y ejecutar la recategorización (business-rules.md, sección 4).
+5. El despliegue hace el resto: el pre-deploy ejecuta `dotnet backend.dll seed`, que siembra las reglas **y recategoriza todos los productos** (business-rules.md, sección 4). No hay un paso manual de recategorización.
 
 ### Implementación en C#
 
 El backend implementa el mismo algoritmo en `backend/src/backend/Catalog/`: `CatalogText` (normalización y palabras), `Categorizer` y `DisplayNamer`, registrados con `AddCatalogRules()` para inyectarlos. [`tools/catalog-analysis/catalog.py`](../tools/catalog-analysis/catalog.py) es la implementación de referencia: si los resultados difieren, el comportamiento correcto es el de `catalog.py` hasta que el equipo decida otra cosa.
 
 - **En ejecución, las reglas salen de los JSON** (van embebidos en el ensamblado), no de la base de datos. Las tablas `categories` y `category_rules` son un espejo para resolver `slug → category_id` y para consultas.
-- **Siembra:** `dotnet backend.dll seed` deja esas tablas iguales a `categories.json`. Se puede ejecutar varias veces sin duplicar; una regla quitada del JSON se borra de la tabla. Una categoría quitada del JSON se borra solo si no tiene productos; si los tiene, se conserva y el comando imprime una advertencia. Debe correr **después de aplicar las migraciones** (en Railway, como comando de pre-deploy). Sale con código 1 si falla.
+- **Siembra:** `dotnet backend.dll seed` deja esas tablas iguales a `categories.json`. Se puede ejecutar varias veces sin duplicar; una regla quitada del JSON se borra de la tabla. También **recalcula la categoría y el nombre para mostrar de todos los productos** con las reglas y el diccionario embebidos, en la misma transacción; solo escribe (y solo cambia `updated_at` de) las filas que cambian, y no toca `synced_at`. Una categoría quitada del JSON se borra y sus productos pasan a la que indiquen las reglas (la categoría `otros` nunca se borra). Imprime cuántos productos cambiaron. Debe correr **después de aplicar las migraciones** (en Railway, como comando de pre-deploy). Sale con código 1 si falla.
 - **Paridad:** `CatalogParityTests` compara el C# con `catalog.py` usando todas las descripciones únicas del inventario (`backend/tests/backend.Tests/Catalog/Data/catalog-parity-cases.jsonl`, sin códigos, precios ni existencias).
 - **Diferencias con `catalog.py`:** cuando dos reglas empatan en prioridad, largo y posición, el C# elige la de menor orden alfabético; `catalog.py` depende del orden de un `set` y puede reportar otra palabra clave (la categoría es siempre la misma). El C# usa `ToUpperInvariant()` en lugar de `str.upper()`: difieren en caracteres como `ß`, que no aparecen en el inventario.
 - **Requisito del entorno:** el runtime necesita ICU (no usar `InvariantGlobalization`); si falta, `Categorizer` y `DisplayNamer` fallan al crearse con un mensaje claro en lugar de quitar mal los acentos en silencio.

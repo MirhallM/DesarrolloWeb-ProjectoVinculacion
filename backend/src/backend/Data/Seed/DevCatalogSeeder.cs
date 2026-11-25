@@ -16,6 +16,7 @@ public sealed class DevCatalogSeeder(
     AppDbContext db,
     CatalogSeeder catalogSeeder,
     CategoryRuleSet ruleSet,
+    DisplayDictionary dictionary,
     CatalogProductFields fields,
     ILogger<DevCatalogSeeder> logger)
 {
@@ -74,7 +75,7 @@ public sealed class DevCatalogSeeder(
 
     public async Task<DevCatalogSeedReport> SeedAsync(CancellationToken ct = default)
     {
-        await catalogSeeder.SeedAsync(ruleSet, ct);
+        await catalogSeeder.SeedAsync(ruleSet, dictionary, ct);
 
         var categoriesBySlug = await db.Categories
             .AsNoTracking()

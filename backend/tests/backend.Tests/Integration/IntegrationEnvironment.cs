@@ -28,12 +28,22 @@ public static class IntegrationEnvironment
         $"Define la variable de entorno {ConnectionVariable} con la cadena de un PostgreSQL de pruebas (ver backend/README o docker-compose.yml).";
 }
 
-/// <summary>[Fact] que se omite sola cuando no hay PostgreSQL de prueba configurado.</summary>
+/// <summary>
+/// [Fact] que se omite sola cuando no hay PostgreSQL de prueba configurado. Tiene un tiempo máximo: una prueba atascada
+/// (un bloqueo que nadie suelta, una solicitud que no responde) falla en vez de dejar colgada toda la suite. La prueba más
+/// lenta tarda unos 25 s; el máximo deja un margen amplio para una máquina cargada. Solo es fiable con el paralelismo
+/// predeterminado (Conservative), que es el que usa este proyecto.
+/// </summary>
 public sealed class PostgresFactAttribute : FactAttribute
 {
+    /// <summary>Tiempo máximo por prueba, en milisegundos.</summary>
+    public const int MaxTestMilliseconds = 120_000;
+
     public PostgresFactAttribute([CallerFilePath] string? sourceFilePath = null, [CallerLineNumber] int sourceLineNumber = -1)
         : base(sourceFilePath, sourceLineNumber)
     {
+        Timeout = MaxTestMilliseconds;
+
         if (!IntegrationEnvironment.IsConfigured)
         {
             Skip = IntegrationEnvironment.SkipReason;

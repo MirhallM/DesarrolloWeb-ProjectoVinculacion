@@ -749,6 +749,12 @@ namespace backend.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("products_deactivated");
 
+                    b.Property<int>("ProductsDeactivatedByStatus")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("products_deactivated_by_status");
+
                     b.Property<int>("ProductsInserted")
                         .HasColumnType("integer")
                         .HasColumnName("products_inserted");
@@ -766,6 +772,11 @@ namespace backend.Data.Migrations
                     b.Property<int>("ProductsUpdated")
                         .HasColumnType("integer")
                         .HasColumnName("products_updated");
+
+                    b.Property<string>("RulesFingerprint")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("rules_fingerprint");
 
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("timestamp with time zone")

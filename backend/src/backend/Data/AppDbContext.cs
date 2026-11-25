@@ -366,6 +366,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             run.Property(r => r.Mode).HasMaxLength(20).IsRequired().HasDefaultValue(SyncRunModes.Full);
             run.Property(r => r.InventoryHash).HasMaxLength(64);
             run.Property(r => r.ProductsRejected).HasDefaultValue(0);
+            run.Property(r => r.ProductsDeactivatedByStatus).HasDefaultValue(0);
+            run.Property(r => r.RulesFingerprint).HasMaxLength(64);
 
             // Solo una sincronización en ejecución a la vez.
             run.HasIndex(r => r.Status)

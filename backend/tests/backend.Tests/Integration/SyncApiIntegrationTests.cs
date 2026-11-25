@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Json;
@@ -12,6 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace backend.Tests.Integration;
 
@@ -53,7 +55,10 @@ public sealed class SyncApiIntegrationTests(ITestOutputHelper output) : IAsyncLi
 
     // ------------------------------------------------------------------ apoyo
 
-    private WebApplicationFactory<Program> CreateFactory(params (string Key, string Value)[] settings)
+    private WebApplicationFactory<Program> CreateFactory(params (string Key, string Value)[] settings) =>
+        CreateFactory(null, settings);
+
+    private WebApplicationFactory<Program> CreateFactory(ILoggerProvider? logProvider, params (string Key, string Value)[] settings)
     {
         var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
@@ -63,9 +68,43 @@ public sealed class SyncApiIntegrationTests(ITestOutputHelper output) : IAsyncLi
             {
                 builder.UseSetting(key, value);
             }
+
+            if (logProvider is not null)
+            {
+                builder.ConfigureServices(services => services.AddSingleton(logProvider));
+            }
         });
         _factories.Add(factory);
         return factory;
+    }
+
+    /// <summary>Guarda los mensajes de nivel Warning o más grave para comprobar los avisos del log.</summary>
+    private sealed class WarningCollector : ILoggerProvider
+    {
+        private readonly ConcurrentQueue<string> _messages = new();
+
+        public IReadOnlyList<string> Messages => [.. _messages];
+
+        public ILogger CreateLogger(string categoryName) => new Collector(_messages);
+
+        public void Dispose()
+        {
+        }
+
+        private sealed class Collector(ConcurrentQueue<string> messages) : ILogger
+        {
+            public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+            public bool IsEnabled(LogLevel logLevel) => logLevel >= LogLevel.Warning;
+
+            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+            {
+                if (IsEnabled(logLevel))
+                {
+                    messages.Enqueue(formatter(state, exception));
+                }
+            }
+        }
     }
 
     private static HttpClient AgentClient(WebApplicationFactory<Program> factory, string? key = AgentKey)
@@ -136,7 +175,8 @@ public sealed class SyncApiIntegrationTests(ITestOutputHelper output) : IAsyncLi
     {
         using var scope = factory.Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<CatalogSeeder>()
-            .SeedAsync(scope.ServiceProvider.GetRequiredService<CategoryRuleSet>(), Ct);
+            .SeedAsync(scope.ServiceProvider.GetRequiredService<CategoryRuleSet>(),
+                scope.ServiceProvider.GetRequiredService<DisplayDictionary>(), Ct);
     }
 
     // ------------------------------------------------------------------ llave
@@ -327,14 +367,14 @@ public sealed class SyncApiIntegrationTests(ITestOutputHelper output) : IAsyncLi
     }
 
     [PostgresFact]
-    public async Task Solo_una_descripcion_nueva_recalcula_nombre_y_categoria()
+    public async Task Una_corrida_completa_deja_nombre_y_categoria_con_las_reglas_vigentes_aunque_la_descripcion_no_cambie()
     {
         var factory = CreateFactory();
         await SeedCategoriesAsync(factory);
         using var client = AgentClient(factory);
         await SyncOkAsync(client, [Item("A", "LECHE ENT 1LT", price: 10), Item("B", "LECHE ENT 1LT", price: 10)]);
 
-        // Marca: si se recalcula, desaparece.
+        // Un valor que no corresponde a las reglas (como el que deja una corrida aplicada con las reglas anteriores).
         await using (var db = Db())
         {
             await db.Products.ExecuteUpdateAsync(s => s.SetProperty(p => p.DisplayName, "MARCA"), Ct);
@@ -345,10 +385,138 @@ public sealed class SyncApiIntegrationTests(ITestOutputHelper output) : IAsyncLi
 
         await using var after = Db();
         var products = await after.Products.Include(p => p.Category).ToDictionaryAsync(p => p.Code, Ct);
-        Assert.Equal("MARCA", products["A"].DisplayName); // solo cambió el precio
+        Assert.Equal("Leche Entera 1 L", products["A"].DisplayName); // la descripción no cambió, el nombre se corrigió
         Assert.Equal(12m, products["A"].PublicPrice);
         Assert.Equal("Arroz Blanco 2 lb", products["B"].DisplayName);
         Assert.NotEqual(products["A"].CategoryId, products["B"].CategoryId);
+    }
+
+    [PostgresFact]
+    public async Task Una_corrida_aplicada_por_un_contenedor_anterior_fuerza_la_siguiente_a_full_y_corrige_las_reglas()
+    {
+        // Deploy: "seed" corrió con las reglas nuevas, pero una corrida completó en el contenedor viejo después.
+        // El contenedor viejo no conoce rules_fingerprint: la deja en NULL y guarda nombre y categoría con las reglas viejas.
+        var factory = CreateFactory();
+        await SeedCategoriesAsync(factory);
+        using var client = AgentClient(factory);
+        List<SyncBatchItem> items = [Item("A", "LECHE ENT 1LT", price: 10), Item("B", "ARROZ BLANCO 2LB", price: 10)];
+        var hash = HashOf(items);
+        await SyncOkAsync(client, items, hash);
+
+        Guid correctCategory;
+        await using (var db = Db())
+        {
+            correctCategory = (await db.Products.SingleAsync(p => p.Code == "A", Ct)).CategoryId;
+            await db.Products.Where(p => p.Code == "A").ExecuteUpdateAsync(s => s
+                .SetProperty(p => p.DisplayName, "Nombre con reglas viejas")
+                .SetProperty(p => p.CategoryId, Category.OthersId), Ct);
+            await db.SyncRuns.ExecuteUpdateAsync(s => s.SetProperty(r => r.RulesFingerprint, (string?)null), Ct);
+        }
+
+        // Misma huella de inventario, pero la corrida anterior no se aplicó con las reglas vigentes: no es "sin cambios".
+        var (start, complete) = await SyncAsync(client, items, hash);
+        Assert.Equal(SyncResponseStatuses.Running, start.Status);
+        var summary = await complete!.Content.ReadFromJsonAsync<SyncRunSummary>(Ct);
+        Assert.Equal(1, summary!.Updated);
+
+        await using (var db = Db())
+        {
+            var a = await db.Products.SingleAsync(p => p.Code == "A", Ct);
+            Assert.Equal("Leche Entera 1 L", a.DisplayName);
+            Assert.Equal(correctCategory, a.CategoryId);
+            var last = await db.SyncRuns.Where(r => r.Mode == SyncRunModes.Full).OrderByDescending(r => r.FinishedAt).FirstAsync(Ct);
+            Assert.False(string.IsNullOrEmpty(last.RulesFingerprint));
+        }
+
+        // Ya corregido: la siguiente con la misma huella vuelve a quedar sin cambios.
+        var (again, none) = await SyncAsync(client, items, hash);
+        Assert.Equal(SyncResponseStatuses.Unchanged, again.Status);
+        Assert.Null(none);
+    }
+
+    [PostgresFact]
+    public async Task Muchas_bajas_por_status_se_cuentan_avisan_en_el_log_y_no_frenan()
+    {
+        var logs = new WarningCollector();
+        var factory = CreateFactory(logs, ("Sync:StatusDeactivationWarningCount", "5"));
+        using var client = AgentClient(factory);
+        var items = Items(60);
+        await SyncOkAsync(client, items);
+
+        // 6 existentes pasan a 'B'; uno deja de venir (es otra cosa: "desactivado"); uno nuevo entra como 'B' (no cuenta).
+        for (var i = 0; i < 6; i++)
+        {
+            items[i] = items[i] with { Status = "B" };
+        }
+
+        items.RemoveAt(10);
+        items.Add(Item("NUEVO-B", status: "B"));
+        var summary = await SyncOkAsync(client, items);
+
+        Assert.Equal(6 + 0, summary.Updated); // las 6 bajas por STATUS
+        Assert.Equal(1, summary.Deactivated);
+        Assert.Equal(1, summary.Inserted);
+
+        await using var db = Db();
+        var run = await db.SyncRuns.Where(r => r.Mode == SyncRunModes.Full).OrderByDescending(r => r.FinishedAt).FirstAsync(Ct);
+        Assert.Equal(SyncRunStatuses.Succeeded, run.Status);
+        Assert.Equal(6, run.ProductsDeactivatedByStatus);
+        Assert.Equal(1, run.ProductsDeactivated);
+        Assert.Equal(53, await db.Products.CountAsync(p => p.IsActive, Ct)); // 60 - 6 - 1
+        Assert.Single(logs.Messages, m => m.Contains("6 productos pasaron de activo a baja por STATUS"));
+    }
+
+    [PostgresFact]
+    public async Task Pocas_bajas_por_status_se_cuentan_pero_no_avisan()
+    {
+        var logs = new WarningCollector();
+        var factory = CreateFactory(logs, ("Sync:StatusDeactivationWarningCount", "5"));
+        using var client = AgentClient(factory);
+        var items = Items(30);
+        await SyncOkAsync(client, items);
+
+        for (var i = 0; i < 4; i++)
+        {
+            items[i] = items[i] with { Status = "B" };
+        }
+
+        await SyncOkAsync(client, items);
+
+        await using var db = Db();
+        var run = await db.SyncRuns.Where(r => r.Mode == SyncRunModes.Full).OrderByDescending(r => r.FinishedAt).FirstAsync(Ct);
+        Assert.Equal(4, run.ProductsDeactivatedByStatus);
+        Assert.DoesNotContain(logs.Messages, m => m.Contains("por STATUS"));
+
+        // Reactivarlos no cuenta como baja.
+        for (var i = 0; i < 4; i++)
+        {
+            items[i] = items[i] with { Status = "A" };
+        }
+
+        await SyncOkAsync(client, items);
+        await using var db2 = Db();
+        var back = await db2.SyncRuns.OrderByDescending(r => r.FinishedAt).FirstAsync(Ct);
+        Assert.Equal(0, back.ProductsDeactivatedByStatus);
+    }
+
+    [PostgresFact]
+    public async Task Un_umbral_en_cero_apaga_el_aviso_pero_el_contador_sigue()
+    {
+        var logs = new WarningCollector();
+        var factory = CreateFactory(logs, ("Sync:StatusDeactivationWarningCount", "0"));
+        using var client = AgentClient(factory);
+        var items = Items(30);
+        await SyncOkAsync(client, items);
+        for (var i = 0; i < 8; i++)
+        {
+            items[i] = items[i] with { Status = "B" };
+        }
+
+        await SyncOkAsync(client, items);
+
+        await using var db = Db();
+        Assert.Equal(8, (await db.SyncRuns.OrderByDescending(r => r.FinishedAt).FirstAsync(Ct)).ProductsDeactivatedByStatus);
+        Assert.DoesNotContain(logs.Messages, m => m.Contains("por STATUS"));
     }
 
     [PostgresFact]
@@ -711,8 +879,11 @@ public sealed class SyncApiIntegrationTests(ITestOutputHelper output) : IAsyncLi
         cut.CancelAfter(TimeSpan.FromMilliseconds(150));
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => CompleteAsync(client, runId, items.Count, batches.Count, cut.Token));
 
-        // El reintento del agente espera el candado y recibe el resumen confirmado.
-        var retry = await CompleteAsync(client, runId, items.Count, batches.Count);
+        // El reintento del agente espera el candado y recibe el resumen confirmado. Con tope propio: si la transacción
+        // del primer intento no terminara, la prueba falla en 60 s en lugar de esperar indefinidamente.
+        using var retryLimit = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+        retryLimit.CancelAfter(TimeSpan.FromSeconds(60));
+        var retry = await CompleteAsync(client, runId, items.Count, batches.Count, retryLimit.Token);
         Assert.Equal(HttpStatusCode.OK, retry.StatusCode);
         Assert.Equal(8_000, (await retry.Content.ReadFromJsonAsync<SyncRunSummary>(Ct))!.Inserted);
 

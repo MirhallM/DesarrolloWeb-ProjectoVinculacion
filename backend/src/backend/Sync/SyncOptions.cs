@@ -29,6 +29,13 @@ public sealed class SyncOptions
     /// <summary>Freno: por debajo de esta cantidad de desactivaciones no se frena, sea cual sea la fracción.</summary>
     public int MaxDeactivationCount { get; set; } = 20;
 
+    /// <summary>
+    /// Aviso (no freno): si una corrida pasa a inactivos al menos esta cantidad de productos existentes porque Aspel les
+    /// puso <c>STATUS</c> distinto de 'A', se escribe una advertencia en el log. El contador siempre queda en
+    /// <c>sync_runs.products_deactivated_by_status</c>. Un 0 o negativo desactiva la advertencia.
+    /// </summary>
+    public int StatusDeactivationWarningCount { get; set; } = 100;
+
     /// <summary>Días que se conservan las corridas "sin cambios" en <c>sync_runs</c>.</summary>
     public int UnchangedRunRetentionDays { get; set; } = 30;
 }

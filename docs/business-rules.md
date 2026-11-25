@@ -48,6 +48,8 @@ LEFT JOIN PRECIO_X_PROD01 AS p
 | Activo con descripción vacía o con el texto `NULL` | Se guarda; `display_name` vacío | No |
 | Activo con precio de 100 000 o más | Se guarda tal cual; el panel lo señala como precio sospechoso | No. **Límite pendiente de validación.** |
 
+**Bajas masivas por `STATUS`:** si en una corrida muchos productos que estaban activos pasan a `STATUS ≠ 'A'`, la sincronización **no se frena**: se aplica, se cuenta en `sync_runs.products_deactivated_by_status` y, desde 100 productos (`Sync:StatusDeactivationWarningCount`), se escribe una advertencia en el log. Un `B` es una decisión explícita en Aspel, la fuente de verdad, y es reversible (con `A` el producto reaparece en la siguiente corrida). Frenar detendría también los precios y las existencias de todo el catálogo. Lo que sí frena es que los productos **dejen de venir** (lectura vacía o parcial), que es lo que puede ocultar el catálogo por error ([architecture.md](architecture.md#51-protocolo-us-06)).
+
 Los productos que no se ven **no se borran** de PostgreSQL: se conservan para no romper favoritos ni imágenes ya asociadas, y vuelven a mostrarse si cambian en Aspel.
 
 Regla de visibilidad: **`is_active = true`, `0 < public_price < 100 000` y `display_name` no vacío**.
@@ -77,7 +79,11 @@ Aspel no tiene categorías útiles, así que **la aplicación las asigna con reg
 - **Conflictos:** si varias reglas coinciden, gana la de mayor prioridad; si empatan, la palabra clave más larga (por ejemplo, `CHOCOLATE` antes que `LECHE` en "CHOCOLATE CON LECHE"); si siguen empatadas, la categoría que va primero.
 - **Sin coincidencia:** el producto va a la categoría **Otros**.
 - **Datos semilla:** `backend/src/backend/Data/Seed/categories.json`. La lista propuesta, el algoritmo detallado y los resultados con el inventario real están en [catalog-categories.md](catalog-categories.md).
-- **Cuándo se aplican:** al sincronizar un producto nuevo o modificado. Como la sincronización solo envía cambios, después de modificar las reglas se ejecuta una **recategorización** de todo el catálogo.
+- **Cuándo se aplican:** en dos momentos, y los dos llegan al mismo resultado.
+  1. **Al sincronizar:** cada corrida con cambios calcula la categoría de cada artículo recibido y escribe solo los que difieren de lo guardado. Como el agente envía el inventario completo, una corrida es también una recategorización de todo lo que llega.
+  2. **Al desplegar:** el comando `seed` (pre-deploy de Railway) deja las tablas `categories` y `category_rules` iguales a `categories.json` y **recategoriza todos los productos** con las reglas vigentes. Es idempotente: solo cambian (y solo cambian su `updated_at`) las filas cuya categoría o nombre cambió; `synced_at` no se toca, porque no es una sincronización. Una categoría quitada del JSON se borra y sus productos pasan a la que indiquen las reglas.
+- **Si un contenedor anterior sincroniza durante el despliegue:** puede guardar productos con las reglas viejas después del `seed`. Esa corrida queda sin huella de reglas y la siguiente corrida es completa por fuerza (ver [architecture.md](architecture.md#51-protocolo-us-06)), así que se corrige sola en el siguiente ciclo (15 minutos).
+- **Si cambia el código del categorizador sin cambiar ningún JSON** (por ejemplo, la normalización de texto): en Railway el despliegue ya cambia la huella (incluye el commit), pero hay que subir `CatalogRulesFingerprint.AlgorithmVersion` para que también ocurra en local o en otro entorno. El `seed` recalcula siempre, así que corrige los productos aunque no se suba.
 
 ## 5. Nombre que ve el cliente
 
@@ -91,7 +97,7 @@ Las descripciones de Aspel vienen en mayúsculas y abreviadas (por ejemplo, `LEC
 - El diccionario lo mantiene el equipo, igual que las reglas de categorías: `backend/src/backend/Data/Seed/display-dictionary.json`. Los pasos completos están en [catalog-categories.md](catalog-categories.md).
 - Las abreviaturas que cambian con el género (`PEQ` → pequeño o pequeña) se ajustan a la primera palabra de la descripción.
 - Las abreviaturas sin entrada en el diccionario se dejan como vienen.
-- Si cambia el diccionario, se recalculan los nombres junto con la recategorización.
+- Si cambia el diccionario, se recalculan los nombres junto con la recategorización (mismo flujo que las reglas de categorías, sección 4): al sincronizar y en el `seed` del despliegue.
 
 ## 6. Imágenes
 
@@ -127,7 +133,7 @@ Un producto sin imagen se muestra con una **imagen genérica** y aparece igual e
 
 | Historia | Ajuste |
 |---|---|
-| US-06 y US-07 | Aplicar reglas de visibilidad, categorías y nombre para mostrar al importar; recategorizar cuando cambien las reglas. Portar a C# el algoritmo de `tools/catalog-analysis/catalog.py` y comprobar que da el mismo resultado. No recortar `CVE_ART`; redondear `PRECIO`. |
+| US-06 y US-07 | Aplicar reglas de visibilidad, categorías y nombre para mostrar al importar; recategorizar cuando cambien las reglas (hecho: ver secciones 4 y 5). Portar a C# el algoritmo de `tools/catalog-analysis/catalog.py` y comprobar que da el mismo resultado. No recortar `CVE_ART`; redondear `PRECIO`. |
 | US-08 | Las respuestas públicas no incluyen el código ni la cantidad en existencia. El detalle de producto usa el `id`, no el código. |
 | US-10 | Mostrar nombre para mostrar, precio, Disponible / Agotado e imagen genérica. |
 | US-11 | Búsqueda pública por nombre y filtro por las categorías propias. |
