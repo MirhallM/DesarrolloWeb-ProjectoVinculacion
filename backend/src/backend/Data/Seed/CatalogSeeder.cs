@@ -1,6 +1,7 @@
 using backend.Catalog;
 using backend.Data.Entities;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace backend.Data.Seed;
 
@@ -41,20 +42,37 @@ public sealed class CatalogSeeder(AppDbContext db, ILogger<CatalogSeeder> logger
     /// <summary>Marca del nombre temporal de una categoría quitada que todavía tiene productos.</summary>
     private const string RetiredNamePrefix = "~retirada~";
 
-    /// <summary>Cuánto espera la siembra a una sincronización en curso antes de fallar (y el pre-deploy no avanza).</summary>
-    private const string LockTimeoutSql = "SET LOCAL lock_timeout = '60s'";
+    /// <summary>Cuánto espera la siembra, por omisión, a una escritura en curso sobre products antes de fallar.</summary>
+    public static readonly TimeSpan DefaultLockTimeout = TimeSpan.FromSeconds(60);
 
-    public async Task<CatalogSeedReport> SeedAsync(CategoryRuleSet rules, DisplayDictionary dictionary, CancellationToken ct = default)
+    /// <param name="lockTimeout">
+    /// Máximo que espera el bloqueo de products (por omisión <see cref="DefaultLockTimeout"/>). Si vence, lanza
+    /// <see cref="TimeoutException"/> sin haber cambiado nada: en el pre-deploy el comando termina con código 1 y
+    /// Railway deja la versión anterior en línea.
+    /// </param>
+    public async Task<CatalogSeedReport> SeedAsync(
+        CategoryRuleSet rules,
+        DisplayDictionary dictionary,
+        CancellationToken ct = default,
+        TimeSpan? lockTimeout = null)
     {
         var warnings = new List<string>();
         int categoriesAdded = 0, categoriesUpdated = 0, categoriesRemoved = 0;
         int rulesAdded = 0, rulesUpdated = 0, rulesRemoved = 0;
 
+        var waitForLock = lockTimeout ?? DefaultLockTimeout;
+
+        // Npgsql corta cualquier comando a los 30 s (CommandTimeout). Si el bloqueo puede esperar más que eso, el corte
+        // del comando llegaría antes que lock_timeout y el error sería un NpgsqlException genérico. Con este margen
+        // siempre vence primero el bloqueo, con su mensaje claro.
+        db.Database.SetCommandTimeout(CommandTimeoutFor(waitForLock));
+
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
 
-        // Mientras dure la transacción nadie más escribe en products.
-        await db.Database.ExecuteSqlRawAsync(LockTimeoutSql, ct);
-        await db.Database.ExecuteSqlRawAsync("LOCK TABLE products IN EXCLUSIVE MODE", ct);
+        // Mientras dure la transacción nadie más escribe en products. El tiempo de espera se fija DESPUÉS de abrir la
+        // transacción y con is_local = true (lo mismo que SET LOCAL): fuera de una transacción PostgreSQL lo descartaría
+        // y la espera sería ilimitada. Termina con la transacción, así que no queda en la conexión del pool.
+        await LockProductsAsync(waitForLock, ct);
 
         var categories = await db.Categories.ToListAsync(ct);
         var dbRules = await db.CategoryRules.ToListAsync(ct);
@@ -188,6 +206,28 @@ public sealed class CatalogSeeder(AppDbContext db, ILogger<CatalogSeeder> logger
             categoryChanged, displayNameChanged);
         logger.LogInformation("Siembra del catálogo: {Report}", report);
         return report;
+    }
+
+    /// <summary>Tiempo máximo de cada comando de la siembra: la espera del bloqueo más 30 s para ejecutar el comando.</summary>
+    public static TimeSpan CommandTimeoutFor(TimeSpan lockTimeout) => lockTimeout + TimeSpan.FromSeconds(30);
+
+    /// <summary>Fija lock_timeout (local a la transacción en curso) y toma el bloqueo que impide escribir en products.</summary>
+    private async Task LockProductsAsync(TimeSpan timeout, CancellationToken ct)
+    {
+        // 0 desactivaría el límite en PostgreSQL; el mínimo es 1 ms.
+        var milliseconds = Math.Max(1, (long)timeout.TotalMilliseconds).ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+        try
+        {
+            await db.Database.ExecuteSqlAsync($"SELECT set_config('lock_timeout', {milliseconds}, true)", ct);
+            await db.Database.ExecuteSqlRawAsync("LOCK TABLE products IN EXCLUSIVE MODE", ct);
+        }
+        catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.LockNotAvailable)
+        {
+            throw new TimeoutException(
+                $"La siembra no pudo bloquear la tabla products en {timeout.TotalSeconds:0.##} s: hay una sincronización " +
+                "o una transacción abierta que la está escribiendo. No se cambió nada. Vuelva a ejecutar el despliegue.", ex);
+        }
     }
 
     /// <summary>

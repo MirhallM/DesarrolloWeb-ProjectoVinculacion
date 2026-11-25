@@ -879,8 +879,11 @@ public sealed class SyncApiIntegrationTests(ITestOutputHelper output) : IAsyncLi
         cut.CancelAfter(TimeSpan.FromMilliseconds(150));
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => CompleteAsync(client, runId, items.Count, batches.Count, cut.Token));
 
-        // El reintento del agente espera el candado y recibe el resumen confirmado.
-        var retry = await CompleteAsync(client, runId, items.Count, batches.Count);
+        // El reintento del agente espera el candado y recibe el resumen confirmado. Con tope propio: si la transacción
+        // del primer intento no terminara, la prueba falla en 60 s en lugar de esperar indefinidamente.
+        using var retryLimit = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+        retryLimit.CancelAfter(TimeSpan.FromSeconds(60));
+        var retry = await CompleteAsync(client, runId, items.Count, batches.Count, retryLimit.Token);
         Assert.Equal(HttpStatusCode.OK, retry.StatusCode);
         Assert.Equal(8_000, (await retry.Content.ReadFromJsonAsync<SyncRunSummary>(Ct))!.Inserted);
 

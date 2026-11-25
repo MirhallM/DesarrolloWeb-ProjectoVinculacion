@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using backend.Catalog;
 using backend.Data;
 using backend.Data.Entities;
@@ -38,11 +39,12 @@ public sealed class CatalogSeederIntegrationTests : IAsyncLifetime
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private async Task<CatalogSeedReport> SeedAsync(CategoryRuleSet rules, DisplayDictionary? dictionary = null)
+    private async Task<CatalogSeedReport> SeedAsync(
+        CategoryRuleSet rules, DisplayDictionary? dictionary = null, TimeSpan? lockTimeout = null)
     {
         await using var db = _database!.CreateContext();
         return await new CatalogSeeder(db, NullLogger<CatalogSeeder>.Instance)
-            .SeedAsync(rules, dictionary ?? DefaultDictionary, Ct);
+            .SeedAsync(rules, dictionary ?? DefaultDictionary, Ct, lockTimeout);
     }
 
     /// <summary>Inserta productos con categoría y nombre calculados con las reglas completas, como los dejaría la sincronización.</summary>
@@ -296,16 +298,97 @@ public sealed class CatalogSeederIntegrationTests : IAsyncLifetime
         // Simula un "completar" en curso: una transacción abierta con el bloqueo de quien escribe en products.
         await using var other = _database!.CreateContext();
         await using var writing = await other.Database.BeginTransactionAsync(Ct);
-        await other.Database.ExecuteSqlRawAsync("LOCK TABLE products IN ROW EXCLUSIVE MODE", Ct);
+        Task<CatalogSeedReport>? seeding = null;
+        try
+        {
+            await other.Database.ExecuteSqlRawAsync("LOCK TABLE products IN ROW EXCLUSIVE MODE", Ct);
 
-        var seeding = SeedAsync(withoutLeche);
-        await Task.Delay(TimeSpan.FromSeconds(2), Ct);
-        Assert.False(seeding.IsCompleted, "La siembra debería esperar a que termine la escritura en curso.");
+            // Con un tope propio: aunque algo falle, la siembra termina (con timeout) en lugar de esperar 60 s.
+            seeding = SeedAsync(withoutLeche, lockTimeout: TimeSpan.FromSeconds(20));
+            await Task.Delay(TimeSpan.FromSeconds(2), Ct);
+            Assert.False(seeding.IsCompleted, "La siembra debería esperar a que termine la escritura en curso.");
+        }
+        finally
+        {
+            // Pase lo que pase se libera el bloqueo; si la aserción falló, además se espera a que la siembra termine
+            // para no dejar una tarea sin observar.
+            await writing.RollbackAsync(CancellationToken.None);
+            if (seeding is not null)
+            {
+                await Task.WhenAny(seeding, Task.Delay(TimeSpan.FromSeconds(30), CancellationToken.None));
+            }
+        }
 
-        await writing.CommitAsync(Ct);
-        var report = await seeding.WaitAsync(TimeSpan.FromSeconds(30), Ct);
+        var report = await seeding!.WaitAsync(TimeSpan.FromSeconds(30), Ct);
 
         Assert.Equal(1, report.ProductsCategoryChanged);
+    }
+
+    [PostgresFact]
+    public async Task El_timeout_de_comando_de_la_siembra_deja_margen_para_que_venza_primero_el_bloqueo()
+    {
+        // Npgsql corta los comandos a los 30 s; el bloqueo por omisión espera 60 s. Sin este margen el corte del comando
+        // llegaría antes y el error sería un NpgsqlException genérico en lugar del mensaje claro de la siembra.
+        Assert.True(CatalogSeeder.DefaultLockTimeout > TimeSpan.FromSeconds(30));
+        Assert.True(CatalogSeeder.CommandTimeoutFor(CatalogSeeder.DefaultLockTimeout) > CatalogSeeder.DefaultLockTimeout);
+
+        await using var db = _database!.CreateContext();
+        var seeder = new CatalogSeeder(db, NullLogger<CatalogSeeder>.Instance);
+        await seeder.SeedAsync(Full, DefaultDictionary, Ct);
+
+        Assert.Equal((int)CatalogSeeder.CommandTimeoutFor(CatalogSeeder.DefaultLockTimeout).TotalSeconds, db.Database.GetCommandTimeout());
+    }
+
+    [PostgresFact]
+    public async Task Si_una_escritura_no_termina_la_siembra_falla_por_timeout_en_pocos_segundos_y_no_cambia_nada()
+    {
+        await SeedAsync(Full);
+        await AddProductsAsync(("LE", "LECHE ENT 1LT"));
+        var withoutLeche = CategoryRuleSet.Parse(RewriteRules(CatalogTestData.CategoriesJson, remove: "LECHE"));
+        var before = await ProductsAsync();
+        int rulesBefore;
+        await using (var db = _database!.CreateContext())
+        {
+            rulesBefore = await db.CategoryRules.CountAsync(Ct);
+        }
+
+        // Una escritura que nunca termina: la transacción se mantiene abierta hasta el finally.
+        await using var other = _database!.CreateContext();
+        await using var writing = await other.Database.BeginTransactionAsync(Ct);
+        try
+        {
+            await other.Database.ExecuteSqlRawAsync("LOCK TABLE products IN ROW EXCLUSIVE MODE", Ct);
+
+            var clock = Stopwatch.StartNew();
+            var error = await Assert.ThrowsAsync<TimeoutException>(
+                () => SeedAsync(withoutLeche, lockTimeout: TimeSpan.FromSeconds(2)));
+            clock.Stop();
+
+            // Falla cerca de los 2 s configurados, no a los 60 s por omisión (eso indicaría que SET LOCAL se ignoró).
+            Assert.InRange(clock.Elapsed, TimeSpan.FromSeconds(1.5), TimeSpan.FromSeconds(10));
+            Assert.Contains("products", error.Message);
+            Assert.Contains("No se cambió nada", error.Message);
+            var postgres = Assert.IsType<Npgsql.PostgresException>(error.InnerException);
+            Assert.Equal(Npgsql.PostgresErrorCodes.LockNotAvailable, postgres.SqlState);
+        }
+        finally
+        {
+            await writing.RollbackAsync(CancellationToken.None);
+        }
+
+        // La transacción de la siembra se revirtió: ni reglas ni productos cambiaron.
+        await using (var check = _database!.CreateContext())
+        {
+            Assert.Equal(rulesBefore, await check.CategoryRules.CountAsync(Ct));
+        }
+
+        var after = await ProductsAsync();
+        Assert.Equal(before["LE"].CategoryId, after["LE"].CategoryId);
+        Assert.Equal(before["LE"].UpdatedAt, after["LE"].UpdatedAt);
+
+        // Y cuando la escritura termina, el siguiente intento sí aplica (el tiempo de espera no quedó pegado a la conexión).
+        var retry = await SeedAsync(withoutLeche);
+        Assert.Equal(1, retry.ProductsCategoryChanged);
     }
 
     // Edita categories.json sin tocar el resto.
