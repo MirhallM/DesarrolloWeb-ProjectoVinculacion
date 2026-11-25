@@ -36,6 +36,7 @@ public sealed record SyncResult(SyncResultKind Kind, object? Body = null, string
 public sealed class SyncService(
     AppDbContext db,
     CatalogProductFields fields,
+    CatalogRulesFingerprint rulesFingerprint,
     IOptions<SyncOptions> options,
     TimeProvider clock,
     IHostApplicationLifetime lifetime,
@@ -184,6 +185,9 @@ public sealed class SyncService(
     /// <summary>
     /// La API, no el agente, decide si el inventario no cambió: compara con la última corrida completa aplicada.
     /// Si se restauró la base o se perdió el estado del agente, la huella no coincide y se envía todo.
+    /// También se exige que esa corrida se haya aplicado con las reglas de catálogo vigentes: tras un despliegue (o si un
+    /// contenedor con código anterior completó una corrida, que deja la huella en NULL) la siguiente corrida es completa
+    /// y recalcula nombre y categoría de todo lo que llega.
     /// </summary>
     private async Task<bool> IsUnchangedAsync(string hash, int itemCount, DateTime now, CancellationToken ct)
     {
@@ -196,6 +200,7 @@ public sealed class SyncService(
         return lastFull is not null
                && lastFull.InventoryHash == hash
                && lastFull.ProductsRead == itemCount
+               && lastFull.RulesFingerprint == rulesFingerprint.Value
                && lastFull.FinishedAt >= now.AddHours(-Options.FullRunMaxAgeHours);
     }
 
@@ -379,7 +384,7 @@ public sealed class SyncService(
         }
 
         var categoryIds = await db.Categories.AsNoTracking().ToDictionaryAsync(c => c.Slug, c => c.Id, StringComparer.Ordinal, ct);
-        int inserted = 0, updated = 0;
+        int inserted = 0, updated = 0, deactivatedByStatus = 0;
         var rejectedCodes = new List<string>();
 
         foreach (var item in staged)
@@ -394,10 +399,14 @@ public sealed class SyncService(
 
             if (products.TryGetValue(item.Code, out var product))
             {
-                if (ApplyChanges(product, values, categoryIds))
+                if (ApplyChanges(product, values, categoryIds, out var wentInactive))
                 {
                     product.SyncedAt = now; // solo si algo cambió: así tampoco cambia updated_at
                     updated++;
+                    if (wentInactive)
+                    {
+                        deactivatedByStatus++;
+                    }
                 }
             }
             else
@@ -432,6 +441,8 @@ public sealed class SyncService(
         run.ProductsUpdated = updated;
         run.ProductsDeactivated = activeMissing.Count;
         run.ProductsRejected = rejectedCodes.Count;
+        run.ProductsDeactivatedByStatus = deactivatedByStatus;
+        run.RulesFingerprint = rulesFingerprint.Value;
         run.ErrorMessage = null;
 
         await db.SaveChangesAsync(ct);
@@ -442,6 +453,17 @@ public sealed class SyncService(
             "Sincronización {RunId} aplicada: {Read} leídos, {Inserted} insertados, {Updated} actualizados, " +
             "{Deactivated} desactivados, {Rejected} rechazados.",
             runId, run.ProductsRead, inserted, updated, run.ProductsDeactivated, rejectedCodes.Count);
+        var warnAt = Options.StatusDeactivationWarningCount;
+        if (warnAt > 0 && deactivatedByStatus >= warnAt)
+        {
+            // Aviso, no freno: un STATUS distinto de 'A' es una decisión explícita en Aspel y es reversible (con 'A'
+            // el producto reaparece en la siguiente corrida). Frenar detendría también precios y existencias.
+            logger.LogWarning(
+                "Sincronización {RunId}: {Count} productos pasaron de activo a baja por STATUS (umbral {Threshold}). " +
+                "Revise en Aspel si fue intencional.",
+                runId, deactivatedByStatus, warnAt);
+        }
+
         if (rejectedCodes.Count > 0)
         {
             // Los códigos no son datos sensibles y ayudan a corregir el artículo en Aspel.
@@ -453,16 +475,32 @@ public sealed class SyncService(
     }
 
     /// <summary>Copia los valores nuevos; devuelve true si algo cambió.</summary>
-    private bool ApplyChanges(Product product, SyncItemValues values, IReadOnlyDictionary<string, Guid> categoryIds)
+    /// <param name="wentInactive">true si el producto estaba activo y Aspel lo manda ahora con STATUS distinto de 'A'.</param>
+    private bool ApplyChanges(Product product, SyncItemValues values, IReadOnlyDictionary<string, Guid> categoryIds, out bool wentInactive)
     {
         var changed = false;
+        wentInactive = product.IsActive && !values.IsActive;
 
         if (!string.Equals(product.Description, values.Description, StringComparison.Ordinal))
         {
-            // Solo una descripción nueva recalcula nombre y categoría. Recalcular todo cuando cambian las reglas es US-07.
             product.Description = values.Description;
-            product.DisplayName = fields.GetDisplayName(values.Description);
-            product.CategoryId = fields.GetCategoryId(values.Description, categoryIds);
+            changed = true;
+        }
+
+        // Nombre y categoría se derivan SIEMPRE de la descripción y se escriben solo si difieren. Así una corrida
+        // completa deja el producto con las reglas vigentes aunque la descripción no haya cambiado (por ejemplo, si
+        // un contenedor anterior al despliegue lo guardó con las reglas viejas) y no toca las filas que ya coinciden.
+        var displayName = fields.GetDisplayName(values.Description);
+        if (!string.Equals(product.DisplayName, displayName, StringComparison.Ordinal))
+        {
+            product.DisplayName = displayName;
+            changed = true;
+        }
+
+        var categoryId = fields.GetCategoryId(values.Description, categoryIds);
+        if (product.CategoryId != categoryId)
+        {
+            product.CategoryId = categoryId;
             changed = true;
         }
 

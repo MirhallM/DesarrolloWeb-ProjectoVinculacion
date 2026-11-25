@@ -35,6 +35,19 @@ public class SyncRun
     /// <summary>Artículos recibidos que no se pudieron guardar (código vacío o valores fuera de rango).</summary>
     public int ProductsRejected { get; set; }
 
+    /// <summary>
+    /// Productos que ya existían y pasaron de activo a inactivo porque Aspel les puso <c>STATUS</c> distinto de 'A'.
+    /// Es un subconjunto de <see cref="ProductsUpdated"/>. No incluye los que dejaron de venir (ver
+    /// <see cref="ProductsDeactivated"/>). Solo informa: no frena la corrida.
+    /// </summary>
+    public int ProductsDeactivatedByStatus { get; set; }
+
+    /// <summary>
+    /// Huella de las reglas de catálogo con las que se aplicó la corrida (ver <c>CatalogRulesFingerprint</c>).
+    /// NULL en las corridas anteriores a US-07 y en las que completó un contenedor con código anterior.
+    /// </summary>
+    public string? RulesFingerprint { get; set; }
+
     public string? ErrorMessage { get; set; }
 }
 

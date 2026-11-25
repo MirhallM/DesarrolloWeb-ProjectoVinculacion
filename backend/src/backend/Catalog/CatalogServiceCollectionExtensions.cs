@@ -13,6 +13,7 @@ public static class CatalogServiceCollectionExtensions
         services.AddSingleton<ICategorizer>(sp => new Categorizer(sp.GetRequiredService<CategoryRuleSet>()));
         services.AddSingleton<IDisplayNamer>(sp => new DisplayNamer(sp.GetRequiredService<DisplayDictionary>()));
         services.AddSingleton<CatalogProductFields>();
+        services.AddSingleton(_ => CatalogRulesFingerprint.FromEnvironment());
         return services;
     }
 }
