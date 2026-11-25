@@ -886,7 +886,8 @@ $tokenXml
     if ($configNeedsEdit) {
         Write-Host "      1. Complete la configuración en $configPath (como administrador). Falta:" -ForegroundColor Yellow
         foreach ($gap in $configGaps) { Write-Host "           - $gap" -ForegroundColor Yellow }
-        Write-Host "         Api:BaseUrl y la cadena de conexión se editan a mano; la llave la escribe: & '$(Join-Path $PSScriptRoot 'New-SyncAgentKey.ps1')' -ConfigPath '$configPath'" -ForegroundColor Yellow
+        Write-Host "         La cadena de conexión y Api:BaseUrl las escribe (la contraseña se pide en una línea oculta, la teclea quien la custodia): & '$(Join-Path $PSScriptRoot 'Set-AgentConnection.ps1')' -ConfigPath '$configPath' -BaseUrl https://<dominio>.up.railway.app" -ForegroundColor Yellow
+        Write-Host "         La llave la escribe: & '$(Join-Path $PSScriptRoot 'New-SyncAgentKey.ps1')' -ConfigPath '$configPath'" -ForegroundColor Yellow
         Write-Host '         (el hash que muestra va a Sync__AgentKeyHashes en Railway). La cuenta de SQL Server se crea antes con Set-CatalogoLecturaLogin.ps1.' -ForegroundColor Yellow
         Write-Host "      2. Pruebe la lectura y la API (no envía productos):  & '$exePath' --test"
         Write-Host "      3. HABILITE la tarea (hoy está deshabilitada y no corre):  Enable-ScheduledTask -TaskPath '$TaskFolder' -TaskName '$TaskName'" -ForegroundColor Yellow

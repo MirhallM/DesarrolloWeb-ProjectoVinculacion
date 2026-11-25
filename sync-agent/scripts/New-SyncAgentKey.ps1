@@ -146,7 +146,7 @@ switch ($PSCmdlet.ParameterSetName) {
 
         Write-Host "Llave nueva guardada en $fullPath (Api.AgentKey). No se muestra." -ForegroundColor Green
         if ([string]::IsNullOrWhiteSpace($baseUrlValue) -or $baseUrlValue -match '[<>]') {
-            Write-Host 'Falta Api.BaseUrl en ese archivo: escriba la URL pública del sitio (https://<dominio>.up.railway.app).' -ForegroundColor Yellow
+            Write-Host 'Falta Api.BaseUrl en ese archivo: Set-AgentConnection.ps1 -ConfigPath ... -BaseUrl https://<dominio>.up.railway.app' -ForegroundColor Yellow
         }
         Write-HashInstructions $hash
         Write-Host ''
