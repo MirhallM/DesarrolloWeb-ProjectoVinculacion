@@ -302,6 +302,41 @@ Cifras medidas (referencia, en un portátil con la base de Docker; en la tienda 
 
 **Quién**: una persona con permisos de **administrador de Windows** en el servidor y de **sysadmin** en SQL Server. **Cuánto**: unos 15 minutos. **Cuándo**: el día de la instalación (la cuenta `catalogo_lectura` se crea ese día).
 
+### Lista rápida: día de la instalación en el controlador de dominio
+
+Es el recorrido completo para la tienda, en orden. Cada paso remite a su detalle más abajo. En un equipo que **no** es controlador de dominio cambia solo el paso 3 (se crea la cuenta `svc-nettes-sync` y se pide su contraseña).
+
+**Antes de ir** (desde cualquier equipo)
+
+1. **Publicar el agente con el código de `main`.** Un `publish` hecho con una versión anterior no envía nada a la API. Desde `sync-agent\`: `dotnet publish src\SyncAgent -c Release -r win-x64 --self-contained -o publish` ([sección 8](#8-publicar)).
+2. **Comprobar Railway:**
+   - `https://<dominio>/api/health` responde `Healthy`;
+   - `https://<dominio>/api/sync/ping` responde **401** (la ruta existe y pide llave; un `404` significa que sigue desplegado el backend anterior);
+   - en los logs del pre-deploy del backend aparece `Migraciones aplicadas.`
+3. **Tener a mano** el acceso al panel de Railway y la contraseña de `catalogo_lectura` ([quién la custodia](#10-contraseñas) está pendiente de confirmar).
+
+**En el servidor**, en Windows PowerShell **como administrador** (no PowerShell 7)
+
+| # | Qué hacer | Qué debe pasar |
+|---|---|---|
+| 1 | Copiar `publish\`, `scripts\` y `sql\` juntas a `C:\Temp\NettesSyncAgent\` y ejecutar `Get-ChildItem C:\Temp\NettesSyncAgent -Recurse \| Unblock-File` ([paso 0](#0-preparar)) | Sin errores |
+| 2 | `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force` y `Set-Location C:\Temp\NettesSyncAgent\scripts` | Estar en la carpeta `scripts` |
+| 3 | `.\Install-SyncAgent.ps1 -SkipTestPrompt` ([paso 3](#3-instalar-la-tarea-programada)). La cuenta `catalogo_lectura` ya existe en la tienda; si no, primero el [paso 2](#2-crear-la-cuenta-de-sql-server) | Avisa `CONTROLADOR DE DOMINIO`; `No hay ninguna cuenta 'svc-nettes-sync' en el dominio`; `SID propio de la tarea: S-1-5-87-…`; `La tarea quedó DESHABILITADA`. **No pide contraseña.** Después, `Get-ADUser -Filter "Name -eq 'svc-nettes-sync'"` no devuelve nada |
+| 4 | `notepad C:\NettesSyncAgent\appsettings.Production.json`: contraseña real de `catalogo_lectura` en `ConnectionStrings:AspelSae` y la URL pública del sitio (`https://…`) en `Api:BaseUrl` ([paso 4](#4-configurar-la-conexión)) | JSON válido |
+| 5 | `& 'C:\NettesSyncAgent\SyncAgent.exe' --test` ([paso 5](#5-probar-la-lectura)) | ~18 665 filas; «Códigos distintos» igual al total. La sección `--- API ---` todavía no puede validar la llave |
+| 6 | `.\New-SyncAgentKey.ps1 -ConfigPath C:\NettesSyncAgent\appsettings.Production.json` ([paso 7](#7-configurar-la-llave-del-agente)) | Muestra **solo el hash** (la llave no se ve). Cópielo |
+| 7 | En Railway, servicio `backend`, variable `Sync__AgentKeyHashes` = ese hash. Espere el redespliegue | El backend vuelve a estar `Healthy` |
+| 8 | Otra vez `SyncAgent.exe --test` | `--- API ---`: «Responde y la llave es válida». No envía productos |
+| 9 | `Enable-ScheduledTask -TaskPath '\NettesSyncAgent\' -TaskName 'Sincronizacion'` y `Start-ScheduledTask -TaskPath '\NettesSyncAgent\' -TaskName 'Sincronizacion'`; espere 1 o 2 minutos ([paso 8](#8-habilitar-la-tarea-ejecutarla-una-vez-y-verificar)) | La tarea termina |
+| 10 | Verificar la tarea: `Get-ScheduledTask -TaskPath '\NettesSyncAgent\' \| Get-ScheduledTaskInfo`; `Get-Content C:\NettesSyncAgent\data\sync-state.json -Encoding UTF8`; el último log; `icacls C:\NettesSyncAgent` | `LastTaskResult : 0`; `"lastResult": "succeeded"` con `lastPublish`; una línea `API: corrida … aplicada` (la primera vez, ~18 665 leídos y casi todos insertados); permisos solo para Administradores, SYSTEM y `NT TASK\NettesSyncAgent-Sincronizacion` |
+
+**En el sitio**
+
+11. `https://<dominio>/api/products?pageSize=1`: el `totalCount` debe quedar cerca de los activos con precio mayor que 0 y con nombre. Con las cifras de la primera lectura (18 615 activos, 120 con precio 0, 27 sin descripción utilizable y 2 con precio de 100 000 o más) son unos 18 460. Es normal que sea **menor** que el total de Aspel: [qué ve el cliente](../docs/architecture.md#52-qué-productos-ve-el-cliente). Revise también el catálogo en el navegador.
+12. **Reinicie el servidor** (todavía sin verificar en la tienda) y compruebe que la tarea corre sola: `LastRunTime` avanza cada 15 minutos y `lastSuccessAt` se actualiza.
+
+**Si algo falla:** `Disable-ScheduledTask -TaskPath '\NettesSyncAgent\' -TaskName 'Sincronizacion'` la detiene. El log está en `C:\NettesSyncAgent\data\logs\` y las causas frecuentes en la [tabla de problemas](#12-solución-de-problemas) (llave rechazada, freno de seguridad, sin conexión). `Uninstall-SyncAgent.ps1` deshace todo sin tocar cuentas.
+
 ### 0. Preparar
 
 Copie al servidor las carpetas `publish\`, `scripts\` y `sql\` **conservando la estructura** (los scripts buscan `..\publish` y `..\sql` junto a ellos), por ejemplo en `C:\Temp\NettesSyncAgent\`. Si llegaron descargadas o por correo, desbloquéelas:
@@ -342,7 +377,7 @@ Pide la clave nueva dos veces (ver [Contraseñas](#10-contraseñas)), crea `cata
 .\Install-SyncAgent.ps1
 ```
 
-Pide la contraseña de la cuenta de Windows `svc-nettes-sync` (dos veces) y hace, mostrando cada paso:
+En un equipo normal pide la contraseña de la cuenta de Windows `svc-nettes-sync` (dos veces); **en un controlador de dominio no pide nada** (ver más abajo). Hace, mostrando cada paso:
 
 1. Verifica que es administrador y que existe la carpeta publicada.
 2. Crea la **cuenta local dedicada**, sin privilegios de administrador, y le concede **un único derecho especial**: «Iniciar sesión como trabajo por lotes». Windows **no** lo concede solo; sin él la tarea nunca arranca (ver [solución de problemas](#12-solución-de-problemas)). **En un controlador de dominio no crea ninguna cuenta y usa LOCAL SERVICE** (ver abajo).
@@ -476,7 +511,7 @@ Debe mostrar:
 - `LastTaskResult : 0` y `"lastResult": "succeeded"`;
 - los artículos leídos;
 - en `lastPublish`, el resumen de la API;
-- en el log, una línea *«API: corrida … aplicada. N leídos, N insertados…»*. La primera vez son unos 18 460 insertados; las siguientes, `unchanged` si nada cambió.
+- en el log, una línea *«API: corrida … aplicada. N leídos, N insertados…»*. La primera vez son unos 18 665 insertados (la cifra cambia con el inventario); las siguientes, `unchanged` si nada cambió.
 
 A partir de ahí la tarea corre sola cada 15 minutos y después de cada reinicio. Para ver permisos: `icacls C:\NettesSyncAgent` y `icacls C:\NettesSyncAgent\data`.
 
