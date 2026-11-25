@@ -261,12 +261,12 @@ Desde `sync-agent\` (con el SDK 10):
 dotnet test --solution SyncAgent.slnx -c Release
 ```
 
-Sin base de datos corren las **pruebas unitarias** (181) y el resumen de `dotnet test` muestra `total: 193`, `succeeded: 181` y `skipped: 12` (una prueba con 6 variantes cuenta como una sola cuando se omite). Las **17 pruebas de integración** (`Category=Integration`) usan la base de Docker y **se omiten solas** si no existe la variable `SYNCAGENT_TEST_CONNECTION`:
+Sin base de datos corren las **pruebas unitarias** (202) y el resumen de `dotnet test` muestra `total: 214`, `succeeded: 202` y `skipped: 12` (una prueba con 6 variantes cuenta como una sola cuando se omite). Las **17 pruebas de integración** (`Category=Integration`) usan la base de Docker y **se omiten solas** si no existe la variable `SYNCAGENT_TEST_CONNECTION`:
 
 ```powershell
 $p = ((Get-Content ..\.env | Where-Object { $_ -like 'CATALOGO_LECTURA_PASSWORD=*' }) -replace '^CATALOGO_LECTURA_PASSWORD=','').Trim()
 $env:SYNCAGENT_TEST_CONNECTION = "Server=127.0.0.1,14330;Database=SAE70Empre01;User Id=catalogo_lectura;Password=$p;TrustServerCertificate=True;"
-dotnet test --solution SyncAgent.slnx -c Release       # ahora ninguna se omite
+dotnet test --solution SyncAgent.slnx -c Release       # ahora: total: 219, succeeded: 219, skipped: 0
 ```
 
 > **Nunca apunte `SYNCAGENT_TEST_CONNECTION` a la base real de Aspel.** Algunas pruebas intentan escribir (para comprobar que falla). Por seguridad, antes de cada prueba se verifica que la base sea la de prueba (exactamente los 14 artículos sembrados); si no lo es, todas fallan sin hacer nada, y los intentos de escritura van dentro de una transacción que siempre se revierte.
@@ -465,7 +465,7 @@ Enable-ScheduledTask -TaskPath '\NettesSyncAgent\' -TaskName 'Sincronizacion'
 Start-ScheduledTask -TaskPath '\NettesSyncAgent\' -TaskName 'Sincronizacion'
 Start-Sleep -Seconds 60
 Get-ScheduledTask -TaskPath '\NettesSyncAgent\' | Get-ScheduledTaskInfo | Format-List LastRunTime,LastTaskResult,NextRunTime
-Get-Content C:\NettesSyncAgent\data\sync-state.json
+Get-Content C:\NettesSyncAgent\data\sync-state.json -Encoding UTF8
 Get-Content (Get-ChildItem C:\NettesSyncAgent\data\logs\*.log | Select-Object -Last 1) -Tail 12
 ```
 
@@ -594,12 +594,23 @@ Si la tarea corría como **LOCAL SERVICE** (controlador de dominio o `-UseLocalS
 
 **Probado** (portátil con Windows 11, SQL Server 2022 en Docker, SDK 10.0.403; el CI se replicó en Ubuntu 24.04 con la imagen oficial del SDK 10):
 
-- 181 pruebas unitarias y 17 de integración. Las 52 nuevas de US-06 cubren:
+- **219 pruebas del agente (202 unitarias y 17 de integración), 219 correctas y ninguna omitida.** Las 73 unitarias nuevas desde US-05 cubren:
   - el publicador HTTP: secuencia, lotes, reintentos, timeouts, redirecciones, 401, freno y abortar;
-  - la huella y las opciones de `Api`;
+  - la huella y las opciones de `Api`, con `http` solo en loopback;
   - `--test` con la API;
-  - el estado después de un envío confirmado o fallido.
+  - el estado después de un envío confirmado o fallido;
+  - el rechazo de la contraseña de ejemplo (`CAMBIAR`) y una clave con `;`, `=` y comillas en la cadena de conexión.
 - La API de US-06, del lado del backend: 19 pruebas de integración contra PostgreSQL. "Completar" aplica 18 500 artículos en unos 6 s.
+- **Prueba de punta a punta local** (2026-11-25): SQL Server de prueba en Docker (`127.0.0.1,14330`) → agente `--once` → frontend (`localhost:3000`) → backend → PostgreSQL → `/api/products`.
+  - `--test`: 14 artículos, 13 activos, 14 códigos distintos, y «Responde y la llave es válida».
+  - Primera lectura: los dos códigos que difieren por espacios son productos distintos, `34.999999` queda en `35.00`, los artículos sin precio quedan en `0.00`, la baja inactiva, las descripciones vacías o `NULL` sin nombre y la existencia de 500 000 000 000 se guarda. Se ven 7 productos.
+  - Sin cambios en Aspel: la API registra «sin cambios» y no se envía ningún producto.
+  - Un cambio de precio viaja y se aplica (`1 actualizados`) y aparece en `/api/products`.
+  - Freno de seguridad: con 33 productos DEV activos que no vienen de Aspel, la corrida falla (`Freno de seguridad: se desactivarían 33 de 46…`), el agente sale con el código 5, no cambia nada (ni el precio) y `lastSuccessAt` se conserva.
+  - Con `Sync__MaxDeactivationRatio=1` la baja se aplica (`33 desactivados`) y el catálogo vuelve a 7 productos.
+  - Llave incorrecta: `--test` y `--once` salen con 5 y la API no crea ninguna corrida.
+  - La llave de prueba no aparece en los logs ni en el estado.
+- Instalación en Windows 11 con `-UseLocalService` (SID propio de la tarea, permisos, tarea temporal sin SID que **no** puede leer la configuración, y desinstalación sin tocar cuentas): resultados los esperados.
 - Instalación, ejecución de la tarea con la cuenta dedicada y sin sesión iniciada (`LastTaskResult 0`, estado en disco, sin la contraseña de SQL en `data\`), reinstalación que conserva configuración y datos, y desinstalación con perfil incluido (tras reiniciar) y segunda ejecución.
 - Desinstalación con `-KeepData`: conserva `data\` y la configuración y quita los permisos de la cuenta eliminada, tanto con la cuenta existente como cuando ya se había eliminado antes. Una primera prueba real dejó permisos huérfanos (`icacls` no puede quitar el permiso de una cuenta que ya no existe); se corrigió y se repitió sin errores.
 - Cambio de la clave de `catalogo_lectura` (la anterior deja de servir) y rechazo de claves inválidas.
@@ -615,8 +626,7 @@ Si la tarea corría como **LOCAL SERVICE** (controlador de dominio o `-UseLocalS
 
 **Todavía sin probar**
 
-- La prueba de punta a punta local: SQL Server de Docker → `--once` → frontend → backend → `/api/products`.
-
+- Los scripts en un **controlador de dominio** (solo se probaron en Windows 11): el aviso de una cuenta `svc-nettes-sync` en el dominio y el flujo completo con LOCAL SERVICE.
 - La recuperación cuando alguien cambia la clave de la cuenta de Windows (el procedimiento documentado es volver a ejecutar `Install-SyncAgent.ps1`, que fija la clave y vuelve a registrar la tarea; ya se probó que esa reinstalación actualiza la cuenta y la tarea, pero no el caso exacto de una clave cambiada por otro medio).
 
 **Falta verificar en la tienda**
