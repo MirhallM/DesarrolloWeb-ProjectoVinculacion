@@ -204,7 +204,7 @@ Copia sincronizada del catálogo de Aspel SAE. Solo la modifica el proceso de si
 | `public_price` | `numeric(18,2)` | `NOT NULL`, `CHECK (public_price >= 0)`. Precio con `CVE_PRECIO = 1`; se guarda `0` si no existe. Admite los precios de relleno de Aspel (15 000 000 000), que no se muestran |
 | `stock` | `numeric(20,4)` | `NOT NULL`. Sin `CHECK`: Aspel puede reportar existencias negativas o de relleno (500 000 000 000) |
 | `is_active` | `boolean` | `NOT NULL`, por defecto `true`. `STATUS = 'A'` es `true`; `STATUS = 'B'` o dejar de venir de Aspel es `false` |
-| `synced_at` | `timestamptz` | `NOT NULL`. Última sincronización que **insertó o cambió** el producto. Si una corrida no cambia nada, no se toca (ni `updated_at`): así no se reescriben 18 000 filas cada 15 minutos. La fecha de la última sincronización exitosa está en `sync_runs` |
+| `synced_at` | `timestamptz` | `NOT NULL`. Última sincronización que **insertó o cambió** el producto. Si una corrida no cambia nada, no se toca (ni `updated_at`): así no se reescriben 18 000 filas cada 15 minutos. La fecha de la última sincronización exitosa está en `sync_runs`. La recategorización del despliegue (`seed`) cambia `category_id`, `display_name` y `updated_at` solo de los productos afectados, y **no** toca `synced_at` |
 | `created_at`, `updated_at` | `timestamptz` | `NOT NULL` |
 
 Índices:
@@ -232,7 +232,7 @@ Semilla: la categoría **Otros** (`otros`, posición 1000), para los productos q
 
 ### `category_rules`
 
-Reglas de palabras clave para categorizar productos. Las mantiene el equipo; todavía no tienen datos semilla.
+Reglas de palabras clave para categorizar productos. Las mantiene el equipo en `categories.json`; el comando `seed` deja esta tabla igual al JSON y recategoriza los productos. En ejecución la categorización usa el JSON embebido, no esta tabla (que es un espejo para consultas).
 
 | Columna | Tipo | Restricciones / notas |
 |---|---|---|
@@ -312,8 +312,10 @@ Un registro por ejecución de la sincronización.
 | `products_read` | `integer` | `NOT NULL`, por defecto 0 |
 | `products_inserted` | `integer` | `NOT NULL`, por defecto 0 |
 | `products_updated` | `integer` | `NOT NULL`, por defecto 0 |
-| `products_deactivated` | `integer` | `NOT NULL`, por defecto 0. Productos activos que pasan a `is_active = false` porque **dejaron de venir** de Aspel (un cambio a `STATUS = 'B'` cuenta en `products_updated`) |
+| `products_deactivated` | `integer` | `NOT NULL`, por defecto 0. Productos activos que pasan a `is_active = false` porque **dejaron de venir** de Aspel (un cambio a `STATUS = 'B'` cuenta en `products_updated` y en `products_deactivated_by_status`) |
 | `products_rejected` | `integer` | `NOT NULL`, por defecto 0. Artículos recibidos que no se pudieron guardar: código vacío o de más de 50 caracteres, o valores fuera del rango de las columnas. Si el producto ya existía, no se toca |
+| `products_deactivated_by_status` | `integer` | `NOT NULL`, por defecto 0. Productos que ya existían, estaban activos y Aspel manda ahora con `STATUS` distinto de `'A'`. Es un **subconjunto de `products_updated`** y no incluye los que entran nuevos como `B` ni los que dejaron de venir (esos van en `products_deactivated`). Solo informa: si llega a `Sync:StatusDeactivationWarningCount` (100) se escribe una advertencia en el log, pero la corrida no se frena |
+| `rules_fingerprint` | `varchar(64)` | Huella (SHA-256) de las reglas de catálogo con las que se aplicó la corrida: `categories.json`, `display-dictionary.json`, la versión del algoritmo y el commit desplegado. `NULL` en las corridas anteriores a US-07 y en las que completó un contenedor con código anterior. Una corrida `unchanged` solo se acepta si la última corrida completa tiene la huella actual |
 | `error_message` | `text` | Resumen del error, sin datos sensibles |
 
 Índices:
@@ -340,7 +342,7 @@ Llave primaria `(run_id, code)`: un código repetido dentro de la corrida lo rec
 
 ## 5. Fuera de este esquema
 
-El área de preparación de la sincronización es `sync_run_items` (US-06, migración `AddSyncStaging`). US-07 puede ampliarla para el envío incremental.
+El área de preparación de la sincronización es `sync_run_items` (US-06, migración `AddSyncStaging`). Como el agente envía el inventario completo en cada corrida, no hace falta ampliarla para un envío incremental (ver la decisión en [architecture.md](architecture.md#9-decisiones-registradas)). US-07 agregó a `sync_runs` las columnas `products_deactivated_by_status` y `rules_fingerprint` (migración `AddRulesFingerprintAndStatusDeactivations`).
 
 ## 6. Implementación con Entity Framework Core
 

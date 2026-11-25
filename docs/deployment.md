@@ -30,7 +30,7 @@ El mismo `backend.dll` levanta la API o ejecuta un comando y termina:
 |---|---|---|
 | *(sin argumentos)* | Levanta la API en el puerto `PORT` | Railway, al arrancar |
 | `migrate` | Aplica las migraciones pendientes. Si no hay, lo dice y termina con 0. | Pre-deploy |
-| `seed` | Siembra categorías y reglas desde `categories.json` | Pre-deploy, después de `migrate` |
+| `seed` | Siembra categorías y reglas desde `categories.json` y **recategoriza todos los productos** (y recalcula su nombre) con las reglas y el diccionario del despliegue. Espera hasta 60 s a una sincronización en curso | Pre-deploy, después de `migrate` |
 | `dp-check protect <texto>` / `dp-check unprotect <protegido>` | Diagnóstico de las llaves de Data Protection ([sección 5](#5-llaves-de-data-protection)) | A mano |
 
 ### Pre-deploy y healthcheck
@@ -38,6 +38,7 @@ El mismo `backend.dll` levanta la API o ejecuta un comando y termina:
 Se configuran en el panel del servicio `backend` ([sección 4](#4-pasos-en-el-panel-de-railway-primera-vez)).
 
 - **Pre-deploy:** `sh -c "dotnet backend.dll migrate && dotnet backend.dll seed"`. Si cualquiera falla (código distinto de 0), Railway **no** pasa a la versión nueva y la anterior sigue en línea.
+- **Qué hace `seed` con los productos:** compara la categoría y el nombre de cada producto con lo que dan las reglas del despliegue y escribe solo los que difieren. El resumen del log dice cuántos cambiaron (`Productos: N con otra categoría, M con otro nombre`). En un despliegue sin cambios de reglas son `0` y `0`. Después del despliegue, la primera corrida del agente es completa aunque el inventario no haya cambiado (la huella de las reglas incluye `RAILWAY_GIT_COMMIT_SHA`, que Railway define solo): es lo esperado ([architecture.md](architecture.md#51-protocolo-us-06)).
 - **Healthcheck:** `GET /api/health` responde `200 Healthy` si PostgreSQL contesta y `503 Unhealthy` si no. Railway espera hasta 120 s a que responda 200 antes de dar el despliegue por bueno.
 
 ### Mensajes esperados en los logs
@@ -59,6 +60,7 @@ Ningún valor va en el repositorio. Se configuran en **Variables** de cada servi
 | `PORT` | `8080`. Definirla explícitamente para que el frontend pueda referenciarla. |
 | `Sync__AgentKeyHashes` | Hash SHA-256 (hexadecimal, 64 caracteres) de la llave del agente. **No es la llave**: la llave solo vive en el servidor de la tienda. Se genera con `sync-agent/scripts/New-SyncAgentKey.ps1` (ver abajo). Admite dos hashes separados por coma para rotar la llave (procedimiento en `sync-agent/README.md`, paso 7). |
 | `Sync__MaxDeactivationRatio` | *Opcional.* Freno de seguridad, por defecto `0.10`. Solo se sube **temporalmente** si se eliminaron de verdad muchos artículos de Aspel; después se borra la variable. |
+| `Sync__StatusDeactivationWarningCount` | *Opcional.* Por defecto `100`. Desde esa cantidad de productos que pasan de activo a baja por `STATUS` en una corrida, el backend escribe una advertencia en el log (no frena nada). `0` apaga el aviso. |
 
 `PGHOST` es la dirección **privada** de PostgreSQL. No usar `DATABASE_PUBLIC_URL`.
 
@@ -116,7 +118,7 @@ El script escribe la llave en `Api.AgentKey` de ese archivo (que solo leen Admin
    | *Variables* | `API_URL=http://${{backend.RAILWAY_PRIVATE_DOMAIN}}:${{backend.PORT}}` |
 5. Desplegar y comprobar:
    - `https://<dominio>.up.railway.app/api/health` debe responder `Healthy`.
-   - En los logs del pre-deploy del backend deben aparecer `Migraciones aplicadas.` y el resumen de la siembra.
+   - En los logs del pre-deploy del backend deben aparecer `Migraciones aplicadas.` y el resumen de la siembra, que incluye cuántos productos cambiaron de categoría o de nombre.
    - El backend y Postgres no deben tener dominio ni proxy público.
 6. Una semana después: revisar el consumo (presupuesto: menos de $20 al mes).
 

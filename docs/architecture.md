@@ -145,12 +145,36 @@ Rutas bajo `/api/sync`, por el dominio del frontend y el reenvío `/api/*`. Toda
 
 Reglas al completar:
 
-- **Reglas comerciales** ([business-rules.md](business-rules.md)): `is_active` solo con `STATUS = 'A'`; precio redondeado a 2 decimales, `0` si no hay; `display_name` vacío si la descripción es vacía o `NULL`; categoría y nombre se recalculan **solo si cambió la descripción** (recalcular todo al cambiar las reglas es US-07).
+- **Reglas comerciales** ([business-rules.md](business-rules.md)): `is_active` solo con `STATUS = 'A'`; precio redondeado a 2 decimales, `0` si no hay; `display_name` vacío si la descripción es vacía o `NULL`; categoría y nombre se **recalculan en cada corrida para todo artículo recibido** y se escriben solo si difieren de lo guardado (ver «Reglas de catálogo y despliegues» abajo).
 - **Rechazos por artículo:** un código vacío o de más de 50 caracteres, o un valor fuera del rango de las columnas, no bloquea la corrida: el artículo se cuenta como rechazado y, si ya existía, no se toca (tampoco se desactiva).
 - **Freno de seguridad:** si la corrida no trae artículos, o desactivaría más del 10 % de los activos y más de 20, no se aplica **nada** (ni los precios), la corrida queda `failed` y la respuesta es `422 sync-safety-brake`. Así una lectura vacía o parcial de Aspel no oculta el catálogo.
 - **Conteo incompleto** (artículos o lotes que no cuadran): `422 sync-count-mismatch`, sin cambios.
 - **La transacción no depende de la conexión del cliente.** El reenvío de Next.js corta a los 30 s; si un corte revirtiera la transacción, la primera carga nunca terminaría. Completar unos 18 500 artículos tarda de 6 a 7 s.
 - Solo cambian `synced_at` y `updated_at` de los productos que realmente cambiaron.
+- **Bajas por `STATUS`:** los productos que pasan de activo a `STATUS ≠ 'A'` se cuentan en `sync_runs.products_deactivated_by_status`; desde `Sync:StatusDeactivationWarningCount` (100) se escribe una advertencia en el log. **No frena**: es una decisión explícita en Aspel y reversible, y frenar detendría también precios y existencias. Lo que frena es que los productos dejen de venir (arriba).
+
+#### Reglas de catálogo y despliegues (US-07)
+
+Cambiar `categories.json`, `display-dictionary.json` o el código del categorizador debe reflejarse en los productos ya guardados. Hay dos mecanismos que se complementan:
+
+1. **`seed` (pre-deploy de Railway, después de `migrate`)** deja `categories` y `category_rules` iguales al JSON y **recategoriza y recalcula el nombre de todos los productos**, en la misma transacción. Antes toma un bloqueo que impide escribir en `products` (las lecturas del catálogo público siguen funcionando) y espera hasta 60 s a una sincronización en curso. Solo escribe las filas que cambian; no toca `synced_at`.
+2. **Cada corrida completa** recalcula nombre y categoría de todo artículo recibido y escribe solo si difieren.
+
+**Huella de las reglas.** Es el SHA-256 de cuatro partes: el texto de `categories.json`, el de `display-dictionary.json`, `CatalogRulesFingerprint.AlgorithmVersion` y el valor de la variable `RAILWAY_GIT_COMMIT_SHA` **si existe** (Railway la define en cada despliegue; en local y en el CI no existe y se ignora). Cada corrida completa guarda su huella en `sync_runs.rules_fingerprint`, y una corrida solo se acepta como «sin cambios» si la última completa tiene la huella actual. Consecuencias:
+
+- **Cada despliegue en Railway fuerza una corrida `full`** (el commit cambia la huella), sin tener que acordarse de subir `AlgorithmVersion`. Un redeploy del mismo commit no fuerza nada; un *Rollback* sí, porque el commit cambia.
+- En local o si algún día no se despliega en Railway, depende de `AlgorithmVersion`: hay que subirla a mano si cambia el código del categorizador sin que cambie ningún JSON.
+- Para el agente es una respuesta normal (`201` en lugar de `200 unchanged`). No cambia su contrato.
+
+**La carrera del despliegue.** El pre-deploy (`migrate && seed`) corre con el código nuevo mientras el contenedor viejo sigue atendiendo hasta que Railway cambia el tráfico. Si en ese intervalo el agente completa una corrida en el contenedor viejo:
+
+| Cuándo completa la corrida vieja | Qué pasa |
+|---|---|
+| Antes de que `seed` tome el bloqueo | `seed` ve sus datos y los corrige. |
+| Mientras `seed` espera o va a tomar el bloqueo | `seed` espera a que confirme (unos 6 s) y después corrige. Sin interbloqueo. |
+| Después de `seed`, antes del cambio de contenedor | Los productos nuevos o con descripción modificada en esa corrida quedan con las reglas **viejas**. La corrida queda con `rules_fingerprint = NULL` (el código viejo no conoce la columna), así que la siguiente corrida es completa por fuerza y, al recalcular siempre, corrige esas filas en un ciclo (15 min). |
+
+La migración de US-07 es compatible con el contenedor viejo: `products_deactivated_by_status` tiene `DEFAULT 0` y `rules_fingerprint` admite `NULL`, así que los `INSERT` y las lecturas del código anterior siguen funcionando.
 
 Las tablas y los campos de Aspel SAE (`INVE01`, `PRECIO_X_PROD01`, `STATUS`, `CVE_PRECIO = 1`) se definen en [`business-rules.md`](business-rules.md); la consulta se verifica contra la base real en US-05.
 
@@ -289,6 +313,7 @@ Los nombres de ramas y los mensajes de commit se escribirán en inglés, en min�
 | En un controlador de dominio (el servidor de la tienda), el agente corre como LOCAL SERVICE | Un controlador de dominio no tiene cuentas locales: crear la cuenta dedicada la crearía en el dominio. LOCAL SERVICE no tiene contraseña y tiene privilegios mínimos. La tarea se registra con `ProcessTokenSidType = Unrestricted` y los permisos NTFS se dan al **SID propio de la tarea** (`NT TASK\NettesSyncAgent-Sincronizacion`, `S-1-5-87-…`), no a LOCAL SERVICE: otros servicios con esa cuenta no pueden leer la configuración (contraseña de `catalogo_lectura` y llave del agente). Opcional a futuro: una gMSA. Ver `sync-agent/README.md`. |
 | Lectura con el aislamiento por defecto (READ COMMITTED) y sin `NOLOCK` | `NOLOCK` puede devolver filas duplicadas u omitidas; con unas 18 mil filas la lectura dura milisegundos. No se modifica la configuración de la base de Aspel. |
 | SDK de .NET 10 fijado en `sync-agent/global.json` | Lo que se compila en cada equipo es lo que ejecuta el CI. |
+| Envío completo en cada corrida en lugar de envío incremental (US-07) | El inventario completo son ~18 665 artículos, ~2 MB en 19 lotes, y completar tarda entre 5 y 9 s medido en local según la carga de la máquina (menos de los 30 s del reenvío). Cada corrida es una reconciliación completa: las bajas se detectan por ausencia, sin una lista de bajas que una lectura parcial pueda corromper, y no hay un archivo de huellas en el agente que mantener coherente con la base. La API decide si algo cambió comparando la huella del inventario. Costo: unos 2 MB por corrida con cambios. Las cifras reales de Railway (duración y proporción `full`/`unchanged`) se anotan en #15 después de la instalación. |
 | Sincronización periódica con Aspel SAE                               | Evitar que las consultas públicas dependan directamente de SQL Server.                       |
 | Sesiones con cookies seguras de Identity en lugar de JWT             | Frontend y API comparten sitio mediante `/api/*`; cookies `HttpOnly` cifradas con Data Protection en PostgreSQL (`__Host-nettes.auth` + `Secure` en producción) evitan exponer tokens en `localStorage`, combinadas con `SameSite=Lax` y validación de `Origin` / `Sec-Fetch-Site`. |
 
@@ -298,7 +323,7 @@ Los nombres de ramas y los mensajes de commit se escribirán en inglés, en min�
 - Definir quién abre y paga la cuenta de Railway. Cómo se traspasa al terminar (qué se conserva, qué se comprueba y qué se rota) está en [deployment.md](deployment.md#8-traspaso-del-proyecto-a-la-cuenta-de-la-tienda).
 - Confirmar con el negocio que se puede instalar un agente en su red, con salida HTTPS a Internet.
 - Validar con el negocio la lista de categorías. La consulta a Aspel SAE (US-05) está implementada y probada contra una base de prueba; falta verificarla en la tienda con `sync-agent/sql/install/02` y el modo `--test`.
-- El envío por lotes está implementado en la API y en el agente (sección 5.1, US-06). Falta el envío incremental de US-07 y la prueba en la tienda contra Railway.
+- El envío por lotes está implementado en la API y en el agente (sección 5.1, US-06). US-07 se cerró sin envío incremental (ver la decisión en la sección 9): la API recalcula las reglas de catálogo y avisa de las bajas masivas. Falta la prueba en la tienda contra Railway.
 - Reintentos de lectura de SQL Server: resueltos en el agente (4 intentos con esperas de 5, 15 y 45 segundos ante fallos transitorios). Los reintentos del envío a la API también están resueltos (US-06: 4 intentos con esperas de 5, 15 y 45 segundos ante errores de red, `429` y `5xx`). Pendiente: la detección de inactividad del agente. `sync_runs` registra cada corrida exitosa, incluidas las "sin cambios", así que la API sabe cuándo fue la última (US-12).
 - Confirmar con el negocio quién guarda las contraseñas de `catalogo_lectura` y de la cuenta de Windows del agente.
 - Windows Server 2016 sale de soporte el 12 de enero de 2027: planificar la actualización del sistema operativo de la tienda (ver `sync-agent/README.md`).

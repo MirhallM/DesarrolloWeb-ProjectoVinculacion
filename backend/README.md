@@ -109,6 +109,7 @@ El script guarda la llave en los User Secrets del agente y el hash en los del ba
 | `AbandonAfterMinutes` | `15` | Una corrida en `running` con más tiempo se marca `failed` al iniciar la siguiente. |
 | `FullRunMaxAgeHours` | `24` | Una corrida "sin cambios" solo se acepta si la última completa es más reciente. |
 | `MaxDeactivationRatio` / `MaxDeactivationCount` | `0.10` / `20` | Freno de seguridad: no desactivar más del 10 % de los activos si son más de 20. |
+| `StatusDeactivationWarningCount` | `100` | Aviso en el log (no freno) si una corrida pasa a inactivos esa cantidad de productos por `STATUS`; `0` lo apaga. El contador siempre queda en `sync_runs.products_deactivated_by_status`. |
 | `UnchangedRunRetentionDays` | `30` | Días que se conservan las corridas "sin cambios" en `sync_runs`. |
 
 ---
