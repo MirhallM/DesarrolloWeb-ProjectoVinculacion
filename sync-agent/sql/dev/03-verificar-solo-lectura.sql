@@ -2,7 +2,7 @@
    SOLO PARA DESARROLLO: comprueba que la cuenta catalogo_lectura NO puede modificar datos.
    Se ejecuta CONECTADO COMO catalogo_lectura (no como sa), sobre la base de MENTIRA:
 
-       sqlcmd -C -S localhost,14330 -U catalogo_lectura -P <clave> -d SAE70Empre01 -b -i 03-verificar-solo-lectura.sql
+       sqlcmd -C -S 127.0.0.1,14330 -U catalogo_lectura -P <clave> -d SAE70Empre01 -b -i 03-verificar-solo-lectura.sql
 
    NUNCA se ejecuta contra la base real de la tienda (alli se usa install/04, que no escribe nada).
 

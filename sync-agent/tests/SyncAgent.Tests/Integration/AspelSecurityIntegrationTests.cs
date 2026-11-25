@@ -115,7 +115,7 @@ public class AspelSecurityIntegrationTests
         var waits = new List<TimeSpan>();
         var loader = new AspelProductLoader(
             new AspelProductReader(builder.ConnectionString, options),
-            new RetryPolicy(new AspelOptions.RetryOptions { MaxAttempts = 4, DelaysSeconds = [1] },
+            new RetryPolicy(new RetryOptions { MaxAttempts = 4, DelaysSeconds = [1] },
                 (wait, _) => { waits.Add(wait); return Task.CompletedTask; }),
             new SqlErrorDescriber(SecretRedactor.FromConnectionString(builder.ConnectionString)),
             NullLogger<AspelProductLoader>.Instance);

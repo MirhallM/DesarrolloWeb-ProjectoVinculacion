@@ -76,7 +76,9 @@ Para configurar la llave en desarrollo, desde la raíz del repositorio:
 .\sync-agent\scripts\New-SyncAgentKey.ps1 -Development
 ```
 
-El script guarda la llave en los User Secrets del agente y el hash en los del backend. Hay que reiniciar el backend para que lea el hash. Sin `Sync:AgentKeyHashes`, la API arranca igual y responde `401` en `/api/sync` (lo avisa en el log).
+El script guarda la llave en los User Secrets del agente y el hash en los del backend. Hay que reiniciar el backend para que lea el hash. **Reemplaza** el `Sync:AgentKeyHashes` que hubiera: otras instalaciones locales con una llave distinta recibirán `401` (ver [`sync-agent/README.md`](../sync-agent/README.md)).
+
+`seed-dev` y la sincronización se pisan: los productos `DEV-*` no vienen de Aspel, así que la primera sincronización del agente los **desactiva** (y, si hay más de 20, el freno de seguridad detiene la corrida). Para volver a verlos hay que ejecutar `seed-dev` otra vez; para quitarlos, borrarlos de la base. Sin `Sync:AgentKeyHashes`, la API arranca igual y responde `401` en `/api/sync` (lo avisa en el log).
 
 | Opción (`Sync:*`) | Valor por defecto | Qué hace |
 | :--- | :--- | :--- |

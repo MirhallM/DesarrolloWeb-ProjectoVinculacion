@@ -5,14 +5,24 @@
 .DESCRIPTION
     Qué hace, en 7 pasos (cada uno se muestra en pantalla mientras corre):
 
-      1. Verifica requisitos (consola de administrador, carpeta publicada, módulos de Windows).
-      2. Crea (o actualiza) una cuenta local DEDICADA, sin privilegios de administrador, que ejecutará la tarea, y le
-         concede el único derecho especial que necesita: iniciar sesión "como trabajo por lotes" (sin él la tarea no arranca).
+      1. Verifica requisitos (consola de administrador, carpeta publicada, módulos de Windows) y el ROL del equipo.
+      2. Elige la cuenta que ejecutará la tarea:
+           - En un servidor o equipo normal: crea (o actualiza) una cuenta local DEDICADA, sin privilegios de administrador,
+             y le concede el único derecho especial que necesita: iniciar sesión "como trabajo por lotes".
+           - En un CONTROLADOR DE DOMINIO (no tiene cuentas locales: New-LocalUser crearía la cuenta EN EL DOMINIO), o con
+             -UseLocalService: usa la cuenta integrada LOCAL SERVICE (S-1-5-19). No crea ninguna cuenta ni pide contraseña.
+             La tarea recibe un SID propio (ProcessTokenSidType = Unrestricted, "NT TASK\NettesSyncAgent-Sincronizacion")
+             y los permisos NTFS se dan a ESE SID, no a LOCAL SERVICE: otros servicios con LOCAL SERVICE no leen nada.
       3. Copia el programa a la carpeta de instalación, SIN tocar la configuración ni los datos que ya existan.
       4. Aplica permisos NTFS: la cuenta puede LEER el programa y ESCRIBIR solo en la carpeta data\.
       5. Prepara appsettings.Production.json (la configuración con la cadena de conexión) y lo protege.
       6. Registra la tarea programada con las opciones descritas más abajo.
       7. Muestra un resumen y cómo verificar todo a mano.
+
+    SI LA CONFIGURACIÓN ESTÁ INCOMPLETA (cadena de conexión con la contraseña de ejemplo, o Api:BaseUrl / Api:AgentKey
+    sin completar), la tarea se registra DESHABILITADA: así no corre, ni falla, ni deja un estado de error (ni intenta
+    iniciar sesión en SQL Server con una contraseña falsa) antes de tiempo. Al terminar de configurar se habilita con
+    Enable-ScheduledTask (el resumen final muestra el comando exacto).
 
     Se puede ejecutar varias veces: si la cuenta, los archivos o la tarea ya existen, los ACTUALIZA en lugar de fallar.
     Para deshacerlo todo: Uninstall-SyncAgent.ps1.
@@ -50,6 +60,10 @@
 .PARAMETER StartupDelayMinutes
     Minutos que espera después de encender el servidor antes del primer disparo. Por omisión: 3
 
+.PARAMETER UseLocalService
+    Usa la cuenta integrada LOCAL SERVICE en vez de crear la cuenta local dedicada. En un controlador de dominio se usa
+    siempre, aunque no se indique. Sirve para probar ese camino en un equipo normal.
+
 .PARAMETER AccountPassword
     Contraseña de la cuenta como SecureString. LO NORMAL es NO usar este parámetro: si no se indica, el script la pide por
     pantalla con Read-Host -AsSecureString (no queda en el historial de PowerShell). Existe solo para automatizar; no la
@@ -64,12 +78,16 @@
 
 .EXAMPLE
     .\Install-SyncAgent.ps1 -SourcePath C:\Temp\publish -InstallPath D:\NettesSyncAgent -IntervalMinutes 10
+
+.EXAMPLE
+    .\Install-SyncAgent.ps1 -UseLocalService
 #>
 # (Esta línea va DESPUÉS del bloque de ayuda a propósito: si va antes, PowerShell 5.1 no reconoce la ayuda de Get-Help.)
 #Requires -Version 5.1
 [CmdletBinding()]
 param(
-    [string]$SourcePath = (Join-Path $PSScriptRoot '..\publish'),
+    # Sin valor por omisión aquí: con "powershell -File", $PSScriptRoot llega vacío a los valores de param(). Se calcula en el cuerpo.
+    [string]$SourcePath,
     [string]$InstallPath = 'C:\NettesSyncAgent',
     [ValidatePattern('^[A-Za-z0-9._-]{1,20}$')]
     [string]$AccountName = 'svc-nettes-sync',
@@ -80,6 +98,7 @@ param(
     [ValidateRange(0, 60)]
     [int]$StartupDelayMinutes = 3,
     [System.Security.SecureString]$AccountPassword,
+    [switch]$UseLocalService,
     [switch]$SkipTestPrompt
 )
 
@@ -96,6 +115,7 @@ $AccountMarker = 'NettesSyncAgent: cuenta del agente' # descripción de la cuent
 $AdministratorsSid = 'S-1-5-32-544'                  # grupo Administradores (el SID funciona en cualquier idioma de Windows)
 $UsersSid = 'S-1-5-32-545'                           # grupo Usuarios
 $SystemSid = 'S-1-5-18'                              # cuenta SYSTEM
+$LocalServiceSid = 'S-1-5-19'                        # cuenta integrada LOCAL SERVICE (sin contraseña, privilegios mínimos)
 $TotalSteps = 7
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -108,6 +128,152 @@ function Write-Step([int]$Number, [string]$Text) {
 function Write-Info([string]$Text) { Write-Host "      $Text" }
 function Write-Ok([string]$Text) { Write-Host "      OK     $Text" -ForegroundColor Green }
 function Write-Warn([string]$Text) { Write-Host "      AVISO  $Text" -ForegroundColor Yellow }
+
+function Resolve-FullPath([string]$Path) {
+    # Ruta absoluta respecto de la ubicación ACTUAL de PowerShell. No se usa [IO.Path]::GetFullPath: resuelve contra
+    # [Environment]::CurrentDirectory, que Set-Location no cambia (en una consola de administrador suele ser System32).
+    return $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
+}
+
+function Get-TaskSid([string]$TaskPath) {
+    # SID propio de una tarea ("NT TASK\<carpeta>-<nombre>", S-1-5-87-...). schtasks lo CALCULA a partir de la ruta: es
+    # estable mientras la tarea conserve la misma ruta. El proceso lo lleva en su token solo con ProcessTokenSidType = Unrestricted.
+    $output = Invoke-Native -Program 'schtasks.exe' -Arguments @('/showsid', '/tn', $TaskPath)
+    $match = [regex]::Match($output, 'S-1-5-87(-\d+)+')
+    if (-not $match.Success) { throw "No se pudo obtener el SID de la tarea $TaskPath con schtasks /showsid.`n$output" }
+    return (New-Object System.Security.Principal.SecurityIdentifier($match.Value)).Value
+}
+
+function Set-FolderPermissions([string]$Root, [string]$Data, [string]$AgentSid, [string[]]$RemoveSids = @()) {
+    # Raíz sin herencia del disco: Administradores y SYSTEM con control total y, si se indica, la cuenta del agente con
+    # lectura y ejecución. Lo de adentro vuelve a heredar de la raíz; data\ es la ÚNICA carpeta donde el agente escribe.
+    # Sin $AgentSid quedan solo Administradores y SYSTEM (permisos provisionales mientras se registra la tarea).
+    $grants = @("*${AdministratorsSid}:(OI)(CI)F", "*${SystemSid}:(OI)(CI)F")
+    if ($AgentSid) { $grants += "*${AgentSid}:(OI)(CI)RX" }
+    [void](Invoke-Native -Program 'icacls.exe' -Arguments (@($Root, '/inheritance:r', '/grant:r') + $grants))
+    foreach ($sid in $RemoveSids) {
+        # /grant:r no quita a OTRAS cuentas: se quitan a propósito las de instalaciones anteriores (p. ej. LOCAL SERVICE).
+        [void](Invoke-Native -Program 'icacls.exe' -Arguments @($Root, '/remove:g', "*$sid"))
+    }
+    [void](Invoke-Native -Program 'icacls.exe' -Arguments @("$Root\*", '/reset', '/T', '/C', '/Q'))
+    if ($AgentSid) {
+        [void](Invoke-Native -Program 'icacls.exe' -Arguments @($Data, '/grant:r', "*${AgentSid}:(OI)(CI)M"))
+    }
+}
+
+function Set-ConfigPermissions([string]$Config, [string]$AgentSid, [string[]]$RemoveSids = @()) {
+    # La configuración tiene la contraseña de SQL Server y la llave del agente: sin herencia, escritura solo para
+    # Administradores y SYSTEM, y la cuenta del agente (si se indica) solo la LEE.
+    $grants = @("*${AdministratorsSid}:F", "*${SystemSid}:F")
+    if ($AgentSid) { $grants += "*${AgentSid}:R" }
+    [void](Invoke-Native -Program 'icacls.exe' -Arguments (@($Config, '/inheritance:r', '/grant:r') + $grants))
+    foreach ($sid in $RemoveSids) {
+        [void](Invoke-Native -Program 'icacls.exe' -Arguments @($Config, '/remove:g', "*$sid"))
+    }
+}
+
+function Get-ConfigValue($Object, [string]$Name) {
+    # Lee una propiedad de un objeto de ConvertFrom-Json SIN fallar bajo Set-StrictMode cuando no existe (o cuando el objeto
+    # está vacío o es nulo): devuelve $null.
+    if ($null -eq $Object) { return $null }
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) { return $null }
+    return $property.Value
+}
+
+function Initialize-ConfigSections([string]$Path) {
+    # Garantiza que appsettings.Production.json tenga las secciones ConnectionStrings y Api con sus claves, para que quien lo
+    # edite (o un script) pueda asignarlas sin que falle por una sección ausente. Solo reescribe si falta algo, y lo hace
+    # SOBRE EL MISMO ARCHIVO (conserva sus permisos). Devuelve los nombres de lo que agregó.
+    $config = [IO.File]::ReadAllText($Path) | ConvertFrom-Json
+    if ($null -eq $config) { $config = [pscustomobject]@{} }
+    $added = New-Object System.Collections.Generic.List[string]
+    $wanted = [ordered]@{
+        ConnectionStrings = [ordered]@{ AspelSae = '' }
+        Api               = [ordered]@{ BaseUrl = ''; AgentKey = '' }
+    }
+    foreach ($section in $wanted.Keys) {
+        $value = Get-ConfigValue $config $section
+        if ($value -isnot [System.Management.Automation.PSCustomObject]) {
+            $value = [pscustomobject]@{}
+            $config | Add-Member -NotePropertyName $section -NotePropertyValue $value -Force
+            $added.Add($section)
+        }
+        foreach ($key in $wanted[$section].Keys) {
+            if ($null -eq $value.PSObject.Properties[$key]) {
+                $value | Add-Member -NotePropertyName $key -NotePropertyValue $wanted[$section][$key]
+                $added.Add("${section}:$key")
+            }
+        }
+    }
+    if ($added.Count -gt 0) {
+        [IO.File]::WriteAllText($Path, ($config | ConvertTo-Json -Depth 10), (New-Object System.Text.UTF8Encoding($false)))
+    }
+    return $added.ToArray()
+}
+
+function Get-ConfigGaps([string]$Path) {
+    # Qué falta completar en la configuración. No se muestra ningún valor (podrían ser secretos).
+    $config = [IO.File]::ReadAllText($Path) | ConvertFrom-Json
+    $gaps = New-Object System.Collections.Generic.List[string]
+    $connection = [string](Get-ConfigValue (Get-ConfigValue $config 'ConnectionStrings') 'AspelSae')
+    if ([string]::IsNullOrWhiteSpace($connection) -or $connection -match '(?i)Password\s*=\s*CAMBIAR\s*(;|$)') {
+        $gaps.Add('ConnectionStrings:AspelSae (la contraseña de catalogo_lectura)')
+    }
+    $baseUrl = [string](Get-ConfigValue (Get-ConfigValue $config 'Api') 'BaseUrl')
+    if ([string]::IsNullOrWhiteSpace($baseUrl) -or $baseUrl -match '[<>]') {
+        $gaps.Add('Api:BaseUrl (la URL pública del sitio)')
+    }
+    $key = [string](Get-ConfigValue (Get-ConfigValue $config 'Api') 'AgentKey')
+    if ([string]::IsNullOrWhiteSpace($key) -or $key.Trim() -ieq 'CAMBIAR') {
+        $gaps.Add('Api:AgentKey (la llave: New-SyncAgentKey.ps1)')
+    }
+    return $gaps.ToArray()
+}
+
+function Write-DomainAccountWarning([string]$Name, [string]$Marker) {
+    # SOLO LECTURA. En un controlador de dominio busca una cuenta del dominio con este nombre (p. ej. creada por error por una
+    # versión anterior del instalador, que usaba New-LocalUser) y, si existe, AVISA y muestra cómo revisarla y borrarla a mano.
+    # Nunca borra ni cambia nada. Se usa ADSI para no depender del módulo ActiveDirectory.
+    try {
+        $searcher = [adsisearcher]"(&(objectCategory=person)(objectClass=user)(sAMAccountName=$Name))"
+        $searcher.PropertiesToLoad.AddRange(@('distinguishedName', 'whenCreated', 'description')) | Out-Null
+        $found = $searcher.FindOne()
+    }
+    catch {
+        Write-Info "No se pudo consultar el dominio para buscar una cuenta '$Name' (no es un error). Revísela a mano si hace falta."
+        return
+    }
+    if ($null -eq $found) {
+        Write-Ok "No hay ninguna cuenta '$Name' en el dominio."
+        return
+    }
+    $description = if ($found.Properties['description'].Count -gt 0) { [string]$found.Properties['description'][0] } else { '' }
+    $created = if ($found.Properties['whencreated'].Count -gt 0) { [string]$found.Properties['whencreated'][0] } else { '?' }
+    Write-Warn "Existe una cuenta '$Name' en el DOMINIO (creada: $created; descripción: '$description')."
+    Write-Warn 'Este script NO la toca. Si la creó por error un instalador anterior, revísela y bórrela a mano, en una consola de administrador del dominio:'
+    Write-Info "  1. Get-ADUser $Name -Properties whenCreated,Description,MemberOf"
+    if ($description -eq $Marker) { Write-Info "     (la descripción coincide con la del instalador: '$Marker')" }
+    Write-Info '  2. ¿Le quedó el derecho de inicio de sesión por lotes? Busque el SID de la cuenta (Get-ADUser ... | Select SID) en:'
+    Write-Info '       secedit /export /areas USER_RIGHTS /cfg C:\Temp\derechos.inf'
+    Write-Info '       Select-String C:\Temp\derechos.inf -Pattern SeBatchLogonRight'
+    Write-Info '     Si aparece, quítelo en la directiva "Default Domain Controllers Policy" (Iniciar sesión como trabajo por lotes).'
+    Write-Info "  3. Remove-ADUser $Name -Confirm"
+}
+
+function Test-DomainController {
+    # Win32_ComputerSystem.DomainRole: 0-1 estación de trabajo, 2-3 servidor, 4 controlador de dominio de reserva, 5 principal.
+    return ([int](Get-CimInstance -ClassName Win32_ComputerSystem).DomainRole -ge 4)
+}
+
+function Assert-NotDomainController([string]$Action) {
+    # Segunda línea de defensa: se consulta el rol OTRA VEZ justo antes de tocar cuentas. En un controlador de dominio no
+    # hay cuentas locales: los cmdlets *-LocalUser y *-LocalGroupMember actúan sobre el DOMINIO.
+    if (Test-DomainController) {
+        throw ("PROTECCIÓN: este equipo es un controlador de dominio y '$Action' crearía o cambiaría una cuenta DEL DOMINIO. " +
+               'No se hizo nada. En un controlador de dominio el instalador usa la cuenta integrada LOCAL SERVICE (vea sync-agent\README.md).')
+    }
+}
 
 function ConvertTo-PlainText([System.Security.SecureString]$Secure) {
     # Solo para comparar contraseñas y entregarla al Programador de tareas; no se escribe en pantalla ni en disco.
@@ -293,6 +459,8 @@ try {
     }
     Write-Ok "Consola de administrador ($($identity.Name))."
 
+    if ([string]::IsNullOrWhiteSpace($SourcePath)) { $SourcePath = Join-Path $PSScriptRoot '..\publish' }
+    $SourcePath = Resolve-FullPath $SourcePath
     if (-not (Test-Path -LiteralPath $SourcePath -PathType Container)) {
         throw "No existe la carpeta con el programa publicado: $SourcePath`nGénérela con: dotnet publish src\SyncAgent -c Release -r win-x64 --self-contained -o publish"
     }
@@ -303,7 +471,7 @@ try {
     }
     Write-Ok "Programa publicado encontrado en $SourcePath"
 
-    $InstallPath = [IO.Path]::GetFullPath($InstallPath).TrimEnd('\')
+    $InstallPath = (Resolve-FullPath $InstallPath).TrimEnd('\')
     if ($InstallPath.Length -le 3) {
         throw "La carpeta de instalación no puede ser la raíz de un disco ($InstallPath)."
     }
@@ -311,12 +479,34 @@ try {
         throw 'La carpeta de instalación y la carpeta publicada no pueden ser la misma.'
     }
 
-    foreach ($cmd in 'New-LocalUser', 'Register-ScheduledTask') {
+    $computer = Get-CimInstance -ClassName Win32_ComputerSystem
+    $domainRole = [int]$computer.DomainRole
+    $isDomainController = ($domainRole -ge 4)
+    $useLocalServiceMode = ($isDomainController -or $UseLocalService)
+
+    $requiredCommands = @('Register-ScheduledTask')
+    if (-not $useLocalServiceMode) { $requiredCommands += 'New-LocalUser' }
+    foreach ($cmd in $requiredCommands) {
         if (-not (Get-Command $cmd -ErrorAction SilentlyContinue)) {
             throw "No está disponible el comando $cmd (se necesita Windows PowerShell 5.1 en Windows 10 / Server 2016 o superior)."
         }
     }
     Write-Ok "Sistema: $((Get-CimInstance Win32_OperatingSystem).Caption)"
+
+    if ($isDomainController) {
+        Write-Warn "Este equipo es un CONTROLADOR DE DOMINIO ($($computer.Name), dominio $($computer.Domain), DomainRole $domainRole)."
+        Write-Warn 'No tiene cuentas locales: la tarea usará la cuenta integrada LOCAL SERVICE y NO se crea ninguna cuenta.'
+        if ($PSBoundParameters.ContainsKey('AccountName') -or $PSBoundParameters.ContainsKey('AccountPassword')) {
+            Write-Warn '-AccountName y -AccountPassword se ignoran en un controlador de dominio.'
+        }
+        Write-DomainAccountWarning -Name $AccountName -Marker $AccountMarker
+    }
+    elseif ($UseLocalService) {
+        Write-Ok "Modo LOCAL SERVICE pedido con -UseLocalService (DomainRole $domainRole): no se crea ninguna cuenta."
+    }
+    else {
+        Write-Ok "No es controlador de dominio (DomainRole $domainRole): la tarea usará la cuenta local '$AccountName'."
+    }
 
     if ($IntervalMinutes -le $TimeLimitMinutes) {
         Write-Warn "El intervalo ($IntervalMinutes min) no es mayor que el tiempo máximo de ejecución ($TimeLimitMinutes min)."
@@ -324,81 +514,107 @@ try {
     }
 
     # =================================================================================================================
-    Write-Step 2 "Cuenta local dedicada '$AccountName' (sin privilegios de administrador)"
+    if ($useLocalServiceMode) {
+        Write-Step 2 'Cuenta de la tarea: LOCAL SERVICE (integrada en Windows, sin contraseña)'
     # =================================================================================================================
-    # Por qué una cuenta propia: si el agente tuviera un fallo, el daño se limita a lo que esta cuenta puede hacer
-    # (leer el programa y escribir en data\). No es Administrador y su contraseña no se comparte con nadie.
+        # LOCAL SERVICE (S-1-5-19) es una cuenta de Windows para servicios, con privilegios mínimos y sin contraseña. Se usa en
+        # un controlador de dominio porque ahí no existen cuentas locales: New-LocalUser crearía la cuenta EN EL DOMINIO y el
+        # grupo local "Usuarios" (S-1-5-32-545) no existe. No necesita el derecho "Iniciar sesión como trabajo por lotes".
+        # Los permisos NO se dan a LOCAL SERVICE (la comparten otros servicios): se dan al SID propio de la tarea, que se
+        # obtiene en el paso 6 después de registrarla con ProcessTokenSidType = Unrestricted.
+        $accountSid = $null
+        $taskAccountLabel = 'LOCAL SERVICE con SID propio de la tarea'
+        Write-Ok 'No se crea ninguna cuenta, no se pide contraseña y no se concede ningún derecho especial.'
 
-    $account = Get-LocalUser -Name $AccountName -ErrorAction SilentlyContinue
-
-    if (-not $AccountPassword) {
-        $AccountPassword = Read-Host -AsSecureString -Prompt "Contraseña para la cuenta '$AccountName' (cumpla la directiva de contraseñas del servidor)"
-        if ((ConvertTo-PlainText $AccountPassword).Length -eq 0) { throw 'La contraseña no puede estar vacía.' }
-        if ($null -eq $account) {
-            $confirmation = Read-Host -AsSecureString -Prompt 'Repita la contraseña'
-            if ((ConvertTo-PlainText $AccountPassword) -cne (ConvertTo-PlainText $confirmation)) {
-                throw 'Las contraseñas no coinciden.'
+        if (-not $isDomainController) {
+            # Solo en un equipo normal: avisa si quedó la cuenta dedicada de una instalación anterior (no se toca).
+            $previous = Get-LocalUser -Name $AccountName -ErrorAction SilentlyContinue
+            if (($null -ne $previous) -and ($previous.Description -eq $AccountMarker)) {
+                Write-Warn "Existe la cuenta local '$AccountName' de una instalación anterior. Esta instalación no la usa ni la toca."
+                Write-Warn 'Para quitarla: desinstale con Uninstall-SyncAgent.ps1 (sin -LocalService) ANTES de instalar en modo LOCAL SERVICE.'
             }
         }
     }
-
-    if ($null -eq $account) {
-        try {
-            New-LocalUser -Name $AccountName -Password $AccountPassword -Description $AccountMarker `
-                -PasswordNeverExpires -UserMayNotChangePassword -AccountNeverExpires | Out-Null
-        }
-        catch {
-            throw "No se pudo crear la cuenta '$AccountName': $($_.Exception.Message)`n(Si dice que la contraseña no cumple la directiva, use una más larga y compleja.)"
-        }
-        Write-Ok "Cuenta '$AccountName' creada."
-    }
     else {
-        if ($account.Description -ne $AccountMarker) {
-            Write-Warn "La cuenta '$AccountName' ya existía y NO fue creada por este instalador. Se reutiliza (se le fija la contraseña indicada)."
+        Write-Step 2 "Cuenta local dedicada '$AccountName' (sin privilegios de administrador)"
+        $taskAccountLabel = $AccountName
+        # Por qué una cuenta propia: si el agente tuviera un fallo, el daño se limita a lo que esta cuenta puede hacer
+        # (leer el programa y escribir en data\). No es Administrador y su contraseña no se comparte con nadie.
+
+        $account = Get-LocalUser -Name $AccountName -ErrorAction SilentlyContinue
+
+        if (-not $AccountPassword) {
+            $AccountPassword = Read-Host -AsSecureString -Prompt "Contraseña para la cuenta '$AccountName' (cumpla la directiva de contraseñas del servidor)"
+            if ((ConvertTo-PlainText $AccountPassword).Length -eq 0) { throw 'La contraseña no puede estar vacía.' }
+            if ($null -eq $account) {
+                $confirmation = Read-Host -AsSecureString -Prompt 'Repita la contraseña'
+                if ((ConvertTo-PlainText $AccountPassword) -cne (ConvertTo-PlainText $confirmation)) {
+                    throw 'Las contraseñas no coinciden.'
+                }
+            }
         }
-        # Se fija siempre la contraseña indicada: así la cuenta y la tarea quedan con la MISMA contraseña.
-        Set-LocalUser -Name $AccountName -Password $AccountPassword -PasswordNeverExpires $true
-        Enable-LocalUser -Name $AccountName
-        Write-Ok "Cuenta '$AccountName' actualizada (contraseña fijada y cuenta habilitada)."
-    }
 
-    # La cuenta debe ser un usuario normal: pertenece al grupo Usuarios y NO al de Administradores.
-    $usersGroup = Get-LocalGroup -SID ([Security.Principal.SecurityIdentifier]$UsersSid)
-    $administratorsGroup = Get-LocalGroup -SID ([Security.Principal.SecurityIdentifier]$AdministratorsSid)
-
-    $inUsers = @(Get-LocalGroupMember -Group $usersGroup.Name -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "*\$AccountName" })
-    if ($inUsers.Count -eq 0) {
-        try {
-            Add-LocalGroupMember -Group $usersGroup.Name -Member $AccountName
-            Write-Ok "Agregada al grupo '$($usersGroup.Name)'."
+        if ($null -eq $account) {
+            Assert-NotDomainController 'New-LocalUser'
+            try {
+                New-LocalUser -Name $AccountName -Password $AccountPassword -Description $AccountMarker `
+                    -PasswordNeverExpires -UserMayNotChangePassword -AccountNeverExpires | Out-Null
+            }
+            catch {
+                throw "No se pudo crear la cuenta '$AccountName': $($_.Exception.Message)`n(Si dice que la contraseña no cumple la directiva, use una más larga y compleja.)"
+            }
+            Write-Ok "Cuenta '$AccountName' creada."
         }
-        catch {
-            # En algunos Windows Get-LocalGroupMember no lista bien el grupo (p. ej. si tiene un miembro huérfano);
-            # si en realidad ya era miembro, no es un error.
-            if ($_.FullyQualifiedErrorId -like '*MemberExists*') { Write-Ok "Ya pertenecía al grupo '$($usersGroup.Name)'." }
-            else { throw }
+        else {
+            if ($account.Description -ne $AccountMarker) {
+                Write-Warn "La cuenta '$AccountName' ya existía y NO fue creada por este instalador. Se reutiliza (se le fija la contraseña indicada)."
+            }
+            # Se fija siempre la contraseña indicada: así la cuenta y la tarea quedan con la MISMA contraseña.
+            Assert-NotDomainController 'Set-LocalUser'
+            Set-LocalUser -Name $AccountName -Password $AccountPassword -PasswordNeverExpires $true
+            Enable-LocalUser -Name $AccountName
+            Write-Ok "Cuenta '$AccountName' actualizada (contraseña fijada y cuenta habilitada)."
         }
-    }
 
-    $inAdministrators = @(Get-LocalGroupMember -Group $administratorsGroup.Name -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "*\$AccountName" })
-    if ($inAdministrators.Count -gt 0) {
-        throw "La cuenta '$AccountName' pertenece al grupo '$($administratorsGroup.Name)'. El agente NO debe ejecutarse como administrador: quítela de ese grupo o use otro nombre."
-    }
-    Write-Ok "No pertenece a '$($administratorsGroup.Name)'."
+        # La cuenta debe ser un usuario normal: pertenece al grupo Usuarios y NO al de Administradores.
+        $usersGroup = Get-LocalGroup -SID ([Security.Principal.SecurityIdentifier]$UsersSid)
+        $administratorsGroup = Get-LocalGroup -SID ([Security.Principal.SecurityIdentifier]$AdministratorsSid)
 
-    $accountSid = (Get-LocalUser -Name $AccountName).SID.Value
-    $userId = "$env:COMPUTERNAME\$AccountName"
+        $inUsers = @(Get-LocalGroupMember -Group $usersGroup.Name -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "*\$AccountName" })
+        if ($inUsers.Count -eq 0) {
+            try {
+                Assert-NotDomainController 'Add-LocalGroupMember'
+                Add-LocalGroupMember -Group $usersGroup.Name -Member $AccountName
+                Write-Ok "Agregada al grupo '$($usersGroup.Name)'."
+            }
+            catch {
+                # En algunos Windows Get-LocalGroupMember no lista bien el grupo (p. ej. si tiene un miembro huérfano);
+                # si en realidad ya era miembro, no es un error.
+                if ($_.FullyQualifiedErrorId -like '*MemberExists*') { Write-Ok "Ya pertenecía al grupo '$($usersGroup.Name)'." }
+                else { throw }
+            }
+        }
 
-    # Derecho "Iniciar sesión como trabajo por lotes" (SeBatchLogonRight). Una tarea que se ejecuta con contraseña y sin
-    # sesión iniciada hace un inicio de sesión "por lotes" (tipo 4). Windows NO concede este derecho automáticamente a una
-    # cuenta nueva: sin él la tarea nunca arranca (LastTaskResult 267011 = "aún no se ha ejecutado") y el registro de
-    # Seguridad muestra el evento 4625 con el estado 0xC000015B ("no se concedió el tipo de inicio de sesión solicitado").
-    # Se concede SOLO a esta cuenta y solo este derecho; el desinstalador lo quita.
-    [NettesLsaRights]::Add($accountSid, 'SeBatchLogonRight')
-    if (-not [NettesLsaRights]::Has($accountSid, 'SeBatchLogonRight')) {
-        throw "No se pudo conceder a '$AccountName' el derecho de inicio de sesión como trabajo por lotes."
+        $inAdministrators = @(Get-LocalGroupMember -Group $administratorsGroup.Name -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "*\$AccountName" })
+        if ($inAdministrators.Count -gt 0) {
+            throw "La cuenta '$AccountName' pertenece al grupo '$($administratorsGroup.Name)'. El agente NO debe ejecutarse como administrador: quítela de ese grupo o use otro nombre."
+        }
+        Write-Ok "No pertenece a '$($administratorsGroup.Name)'."
+
+        $accountSid = (Get-LocalUser -Name $AccountName).SID.Value
+        $userId = "$env:COMPUTERNAME\$AccountName"
+
+        # Derecho "Iniciar sesión como trabajo por lotes" (SeBatchLogonRight). Una tarea que se ejecuta con contraseña y sin
+        # sesión iniciada hace un inicio de sesión "por lotes" (tipo 4). Windows NO concede este derecho automáticamente a una
+        # cuenta nueva: sin él la tarea nunca arranca (LastTaskResult 267011 = "aún no se ha ejecutado") y el registro de
+        # Seguridad muestra el evento 4625 con el estado 0xC000015B ("no se concedió el tipo de inicio de sesión solicitado").
+        # Se concede SOLO a esta cuenta y solo este derecho; el desinstalador lo quita.
+        [NettesLsaRights]::Add($accountSid, 'SeBatchLogonRight')
+        if (-not [NettesLsaRights]::Has($accountSid, 'SeBatchLogonRight')) {
+            throw "No se pudo conceder a '$AccountName' el derecho de inicio de sesión como trabajo por lotes."
+        }
+        Write-Ok "Derecho 'Iniciar sesión como trabajo por lotes' concedido solo a '$AccountName' (la tarea lo necesita para arrancar sin sesión iniciada)."
     }
-    Write-Ok "Derecho 'Iniciar sesión como trabajo por lotes' concedido solo a '$AccountName' (la tarea lo necesita para arrancar sin sesión iniciada)."
 
     # =================================================================================================================
     Write-Step 3 "Copiar el programa a $InstallPath"
@@ -452,16 +668,16 @@ try {
     # Se usan SIDs (con "*") para que funcione igual en Windows en español o en inglés.
     # (OI)(CI) = el permiso se hereda a archivos y subcarpetas.  F = control total, RX = leer y ejecutar, M = modificar, R = leer.
 
-    # 4a. Raíz: se corta la herencia (/inheritance:r) para que no se hereden permisos del disco, y se conceden solo los tres.
-    [void](Invoke-Native -Program 'icacls.exe' -Arguments @($InstallPath, '/inheritance:r', '/grant:r',
-        "*${AdministratorsSid}:(OI)(CI)F", "*${SystemSid}:(OI)(CI)F", "*${accountSid}:(OI)(CI)RX"))
-
-    # 4b. Se restablece lo que hay dentro para que HEREDE de la raíz (limpia permisos sueltos de instalaciones anteriores).
-    [void](Invoke-Native -Program 'icacls.exe' -Arguments @("$InstallPath\*", '/reset', '/T', '/C', '/Q'))
-
-    # 4c. data\: ahí sí puede escribir (estado, candado, logs). Es la ÚNICA carpeta con permiso de modificar.
-    [void](Invoke-Native -Program 'icacls.exe' -Arguments @($dataPath, '/grant:r', "*${accountSid}:(OI)(CI)M"))
-    Write-Ok "Cuenta del agente: lectura y ejecución en $InstallPath; modificación solo en $dataPath."
+    if ($useLocalServiceMode) {
+        # Provisional: solo Administradores y SYSTEM. El SID de la tarea recibe sus permisos en el paso 6. Se quitan los de
+        # LOCAL SERVICE que pudo dejar una versión anterior del instalador.
+        Set-FolderPermissions -Root $InstallPath -Data $dataPath -AgentSid $null -RemoveSids @($LocalServiceSid)
+        Write-Ok 'Permisos provisionales: solo Administradores y SYSTEM. La tarea recibe los suyos en el paso 6, con su SID propio.'
+    }
+    else {
+        Set-FolderPermissions -Root $InstallPath -Data $dataPath -AgentSid $accountSid
+        Write-Ok "Cuenta de la tarea ($taskAccountLabel): lectura y ejecución en $InstallPath; modificación solo en $dataPath."
+    }
 
     # =================================================================================================================
     Write-Step 5 'Archivo de configuración appsettings.Production.json'
@@ -485,14 +701,22 @@ try {
 
     # Este archivo contiene la contraseña de SQL Server: solo Administradores y SYSTEM pueden leerlo y modificarlo;
     # la cuenta del agente solo puede LEERLO (no puede cambiar su propia configuración).
-    [void](Invoke-Native -Program 'icacls.exe' -Arguments @($configPath, '/inheritance:r', '/grant:r',
-        "*${AdministratorsSid}:F", "*${SystemSid}:F", "*${accountSid}:R"))
-    Write-Ok 'Archivo protegido: escritura solo para Administradores; la cuenta del agente solo lo lee.'
-
-    $configNeedsEdit = Select-String -LiteralPath $configPath -Pattern 'Password=CAMBIAR' -SimpleMatch -Quiet
-    if ($configNeedsEdit) {
-        Write-Warn 'La cadena de conexión todavía tiene la contraseña de ejemplo ("CAMBIAR"). Hay que editarla (ver el resumen final).'
+    if ($useLocalServiceMode) {
+        Set-ConfigPermissions -Config $configPath -AgentSid $null -RemoveSids @($LocalServiceSid)
+        Write-Ok 'Archivo protegido: por ahora solo Administradores y SYSTEM (la tarea recibe lectura en el paso 6).'
     }
+    else {
+        Set-ConfigPermissions -Config $configPath -AgentSid $accountSid
+        Write-Ok "Archivo protegido: escritura solo para Administradores; la cuenta de la tarea ($taskAccountLabel) solo lo lee."
+    }
+
+    $addedSections = @(Initialize-ConfigSections -Path $configPath)
+    if ($addedSections.Count -gt 0) { Write-Ok "Se agregó lo que faltaba en la configuración: $($addedSections -join ', ')." }
+
+    # ¿Está completa? Si no, la tarea se registra DESHABILITADA (paso 6): no corre antes de tiempo ni deja un estado de fallo.
+    $configGaps = @(Get-ConfigGaps -Path $configPath)
+    $configNeedsEdit = ($configGaps.Count -gt 0)
+    foreach ($gap in $configGaps) { Write-Warn "Falta completar: $gap." }
 
     # =================================================================================================================
     Write-Step 6 "Registrar la tarea programada $TaskFolder$TaskName"
@@ -501,14 +725,42 @@ try {
     # corresponde a una casilla de la ventana del Programador y no depende de cómo se comporten los cmdlets en cada versión de Windows.
     # Las tareas se escriben en hora LOCAL del servidor.
 
+    $taskEnabled = -not $configNeedsEdit
+    $taskEnabledXml = if ($taskEnabled) { 'true' } else { 'false' }
     $firstRun = (Get-Date).AddMinutes(2).ToString('yyyy-MM-ddTHH:mm:ss')
     $e = { param($text) [Security.SecurityElement]::Escape($text) }   # escapa &, <, > y comillas dentro del XML
 
+    if ($useLocalServiceMode) {
+        # ServiceAccount = cuenta integrada de Windows: corre sin sesión iniciada y sin contraseña.
+        # Unrestricted = el Programador agrega al token el SID propio de la tarea (equivale a
+        # New-ScheduledTaskPrincipal -ProcessTokenSidType Unrestricted). Requiere el esquema 1.3 de tareas.
+        $taskSchemaVersion = '1.3'
+        $principalXml = @"
+      <UserId>$LocalServiceSid</UserId>
+      <!-- Cuenta integrada LOCAL SERVICE: sin contraseña, sin sesión iniciada, privilegios mínimos. El XML NO lleva LogonType:
+           "ServiceAccount" no es un valor válido del XML (el Programador lo rechaza); sin él, el Programador reconoce
+           S-1-5-19 como cuenta de servicio y lo muestra como LogonType ServiceAccount. -->
+"@
+        $tokenXml = @"
+      <!-- Unrestricted = el proceso lleva el SID propio de la tarea; los permisos NTFS se dan a ese SID. -->
+      <ProcessTokenSidType>Unrestricted</ProcessTokenSidType>
+"@
+    }
+    else {
+        $taskSchemaVersion = '1.2'
+        $tokenXml = ''
+        $principalXml = @"
+      <UserId>$(& $e $userId)</UserId>
+      <!-- Password = se ejecuta con la contraseña de la cuenta, AUNQUE NO HAYA NINGUNA SESION INICIADA. -->
+      <LogonType>Password</LogonType>
+"@
+    }
+
     $taskXml = @"
 <?xml version="1.0" encoding="UTF-16"?>
-<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+<Task version="$taskSchemaVersion" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo>
-    <Description>Agente de sincronizacion de Mini Super Nettes: lee Aspel SAE (solo lectura) y guarda el estado en data\. Instalado por Install-SyncAgent.ps1.</Description>
+    <Description>Agente de sincronizacion de Mini Super Nettes: lee Aspel SAE (solo lectura) y envia el catalogo a la API. Instalado por Install-SyncAgent.ps1.</Description>
   </RegistrationInfo>
   <Triggers>
     <!-- Disparo 1: unos minutos despues de ENCENDER el servidor (da tiempo a que arranquen SQL Server y Aspel). -->
@@ -527,11 +779,10 @@ try {
   </Triggers>
   <Principals>
     <Principal id="Author">
-      <UserId>$(& $e $userId)</UserId>
-      <!-- Password = se ejecuta con la contraseña de la cuenta, AUNQUE NO HAYA NINGUNA SESION INICIADA. -->
-      <LogonType>Password</LogonType>
+$principalXml
       <!-- LeastPrivilege = sin elevar privilegios (la cuenta ni siquiera es administradora). -->
       <RunLevel>LeastPrivilege</RunLevel>
+$tokenXml
     </Principal>
   </Principals>
   <Settings>
@@ -549,7 +800,8 @@ try {
     <ExecutionTimeLimit>PT$($TimeLimitMinutes)M</ExecutionTimeLimit>
     <AllowHardTerminate>true</AllowHardTerminate>
     <AllowStartOnDemand>true</AllowStartOnDemand>
-    <Enabled>true</Enabled>
+    <!-- Enabled = false cuando la configuración está incompleta: la tarea no corre hasta que se habilite (Enable-ScheduledTask). -->
+    <Enabled>$taskEnabledXml</Enabled>
     <Hidden>false</Hidden>
     <IdleSettings>
       <StopOnIdleEnd>false</StopOnIdleEnd>
@@ -575,19 +827,40 @@ try {
 </Task>
 "@
 
-    # Register-ScheduledTask valida la contraseña contra la cuenta: si no coincide, falla aquí y no más tarde en silencio.
     # -Force = si la tarea ya existe, la REEMPLAZA (por eso el script se puede ejecutar varias veces).
-    $plainPassword = ConvertTo-PlainText $AccountPassword
-    try {
-        Register-ScheduledTask -Xml $taskXml -TaskName $TaskName -TaskPath $TaskFolder -User $userId -Password $plainPassword -Force | Out-Null
+    if ($useLocalServiceMode) {
+        # LOCAL SERVICE no tiene contraseña: la cuenta va en el XML y no se indica -User ni -Password.
+        Register-ScheduledTask -Xml $taskXml -TaskName $TaskName -TaskPath $TaskFolder -Force | Out-Null
     }
-    finally {
-        $plainPassword = $null
+    else {
+        # Register-ScheduledTask valida la contraseña contra la cuenta: si no coincide, falla aquí y no más tarde en silencio.
+        $plainPassword = ConvertTo-PlainText $AccountPassword
+        try {
+            Register-ScheduledTask -Xml $taskXml -TaskName $TaskName -TaskPath $TaskFolder -User $userId -Password $plainPassword -Force | Out-Null
+        }
+        finally {
+            $plainPassword = $null
+        }
     }
 
     $task = Get-ScheduledTask -TaskName $TaskName -TaskPath $TaskFolder
     Write-Ok "Tarea registrada: $TaskFolder$TaskName (estado: $($task.State))."
-    Write-Info "Cuenta ............ $($task.Principal.UserId)  (inicio de sesión: $($task.Principal.LogonType), nivel: $($task.Principal.RunLevel))"
+    if (-not $taskEnabled) {
+        Write-Warn 'La tarea quedó DESHABILITADA porque la configuración está incompleta. No correrá hasta que la habilite (ver el resumen final).'
+    }
+
+    if ($useLocalServiceMode) {
+        if ([string]$task.Principal.ProcessTokenSidType -ne 'Unrestricted') {
+            throw "La tarea quedó con ProcessTokenSidType '$($task.Principal.ProcessTokenSidType)' y no 'Unrestricted': no tendría SID propio."
+        }
+        $accountSid = Get-TaskSid "$TaskFolder$TaskName"
+        Set-FolderPermissions -Root $InstallPath -Data $dataPath -AgentSid $accountSid -RemoveSids @($LocalServiceSid)
+        Set-ConfigPermissions -Config $configPath -AgentSid $accountSid -RemoveSids @($LocalServiceSid)
+        Write-Ok "SID propio de la tarea: $accountSid (NT TASK\$($TaskFolder.Trim('\'))-$TaskName)."
+        Write-Ok 'Permisos para ese SID: lectura y ejecución del programa, modificación en data\ y solo lectura de la configuración.'
+        Write-Ok 'LOCAL SERVICE en sí no tiene permisos: otros servicios con esa cuenta no pueden leer la configuración.'
+    }
+    Write-Info "Cuenta ............ $($task.Principal.UserId)  (inicio de sesión: $($task.Principal.LogonType), nivel: $($task.Principal.RunLevel), SID del proceso: $($task.Principal.ProcessTokenSidType))"
     foreach ($trigger in $task.Triggers) {
         $kind = $trigger.CimClass.CimClassName -replace '^MSFT_Task', '' -replace 'Trigger$', ''
         $repetition = ''
@@ -607,24 +880,36 @@ try {
     Write-Host '      Configuración ....... ' -NoNewline; Write-Host $configPath
     Write-Host '      Estado de la sync ... ' -NoNewline; Write-Host (Join-Path $dataPath 'sync-state.json')
     Write-Host '      Logs (14 días) ...... ' -NoNewline; Write-Host (Join-Path $dataPath 'logs')
+    Write-Host '      Cuenta de la tarea .. ' -NoNewline; Write-Host $taskAccountLabel
     Write-Host ''
     Write-Host '      PRÓXIMOS PASOS' -ForegroundColor Cyan
     if ($configNeedsEdit) {
-        Write-Host "      1. Edite $configPath (como administrador) y ponga la contraseña real de 'catalogo_lectura'." -ForegroundColor Yellow
-        Write-Host '         La cuenta de SQL Server se crea antes con sql\install\01-crear-login-lectura.sql.' -ForegroundColor Yellow
+        Write-Host "      1. Complete la configuración en $configPath (como administrador). Falta:" -ForegroundColor Yellow
+        foreach ($gap in $configGaps) { Write-Host "           - $gap" -ForegroundColor Yellow }
+        Write-Host "         La cadena de conexión y Api:BaseUrl las escribe (la contraseña se pide en una línea oculta, la teclea quien la custodia): & '$(Join-Path $PSScriptRoot 'Set-AgentConnection.ps1')' -ConfigPath '$configPath' -BaseUrl https://<dominio>.up.railway.app" -ForegroundColor Yellow
+        Write-Host "         La llave la escribe: & '$(Join-Path $PSScriptRoot 'New-SyncAgentKey.ps1')' -ConfigPath '$configPath'" -ForegroundColor Yellow
+        Write-Host '         (el hash que muestra va a Sync__AgentKeyHashes en Railway). La cuenta de SQL Server se crea antes con Set-CatalogoLecturaLogin.ps1.' -ForegroundColor Yellow
+        Write-Host "      2. Pruebe la lectura y la API (no envía productos):  & '$exePath' --test"
+        Write-Host "      3. HABILITE la tarea (hoy está deshabilitada y no corre):  Enable-ScheduledTask -TaskPath '$TaskFolder' -TaskName '$TaskName'" -ForegroundColor Yellow
     }
     else {
-        Write-Host '      1. La cadena de conexión ya está configurada.'
+        Write-Host '      1. La configuración está completa y la tarea está habilitada.'
+        Write-Host "      2. Pruebe la lectura y la API (no envía productos ni escribe en disco):  & '$exePath' --test"
+        Write-Host '      3. Si cambia la llave: New-SyncAgentKey.ps1 y el hash nuevo en Railway (ver README, rotación).'
     }
-    Write-Host "      2. Pruebe la lectura (no envía nada ni escribe en disco):  & '$exePath' --test"
-    Write-Host "      3. Verifique la tarea:   Get-ScheduledTask -TaskPath '$TaskFolder' | Get-ScheduledTaskInfo"
-    Write-Host "      4. Verifique permisos:   icacls '$InstallPath'   y   icacls '$dataPath'"
-    Write-Host "      5. Para ejecutarla ya:   Start-ScheduledTask -TaskPath '$TaskFolder' -TaskName '$TaskName'"
-    Write-Host "      6. Para desinstalar:     & '$(Join-Path $PSScriptRoot 'Uninstall-SyncAgent.ps1')' -InstallPath '$InstallPath' -AccountName '$AccountName'"
+    Write-Host "      4. Verifique la tarea:   Get-ScheduledTask -TaskPath '$TaskFolder' | Get-ScheduledTaskInfo"
+    Write-Host "      5. Verifique permisos:   icacls '$InstallPath'   y   icacls '$dataPath'"
+    Write-Host "      6. Para ejecutarla ya:   Start-ScheduledTask -TaskPath '$TaskFolder' -TaskName '$TaskName'   (la tarea debe estar habilitada)"
+    if ($useLocalServiceMode) {
+        Write-Host "      7. Para desinstalar:     & '$(Join-Path $PSScriptRoot 'Uninstall-SyncAgent.ps1')' -InstallPath '$InstallPath'   (detecta LOCAL SERVICE; no toca cuentas)"
+    }
+    else {
+        Write-Host "      7. Para desinstalar:     & '$(Join-Path $PSScriptRoot 'Uninstall-SyncAgent.ps1')' -InstallPath '$InstallPath' -AccountName '$AccountName'"
+    }
 
     if (-not $SkipTestPrompt -and -not $configNeedsEdit) {
         Write-Host ''
-        $answer = Read-Host '¿Ejecutar ahora la prueba de lectura (SyncAgent.exe --test)? [s/N]'
+        $answer = Read-Host '¿Ejecutar ahora la prueba de lectura y de la API (SyncAgent.exe --test)? [s/N]'
         if ($answer -match '^(s|si|sí|y|yes)$') {
             Write-Host ''
             & $exePath --test

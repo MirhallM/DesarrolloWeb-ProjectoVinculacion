@@ -8,11 +8,11 @@ namespace SyncAgent.Resilience;
 /// </summary>
 public sealed class RetryPolicy
 {
-    private readonly AspelOptions.RetryOptions _options;
+    private readonly RetryOptions _options;
     private readonly Func<TimeSpan, CancellationToken, Task> _delay;
 
     /// <param name="delay">Permite sustituir la espera en las pruebas; por defecto es <see cref="Task.Delay(TimeSpan, CancellationToken)"/>.</param>
-    public RetryPolicy(AspelOptions.RetryOptions options, Func<TimeSpan, CancellationToken, Task>? delay = null)
+    public RetryPolicy(RetryOptions options, Func<TimeSpan, CancellationToken, Task>? delay = null)
     {
         _options = options;
         _delay = delay ?? Task.Delay;

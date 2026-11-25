@@ -42,7 +42,7 @@ flowchart TB
 | Backend                  | ASP.NET Core Web API (.NET 10, C#)                          | Servicio en Railway (red privada)                     | Lógica de negocio, autenticación, autorización, recepción de la sincronización y acceso a la base de datos y a los archivos.         |
 | Base de la aplicación    | PostgreSQL 18 con Entity Framework Core y Npgsql            | Servicio de base de datos en Railway                  | Usuarios, roles, favoritos, metadatos de imágenes, contenido del sitio y copia sincronizada de productos.                            |
 | Sistema de origen        | Aspel SAE 7.0 sobre SQL Server                              | Red del negocio                                       | Fuente oficial de códigos, descripciones, precios y existencias. Solo se consulta.                                                   |
-| Agente de sincronización | Tarea programada de Windows que ejecuta un programa .NET 10 autocontenido (`sync-agent/`) | Servidor de la tienda, junto a SQL Server, con una cuenta local dedicada sin privilegios de administrador | Lee SQL Server con una cuenta de solo lectura (`catalogo_lectura`) y, desde US-06, envía los datos a la API. No recibe conexiones entrantes. Ver [`sync-agent/README.md`](../sync-agent/README.md).                            |
+| Agente de sincronización | Tarea programada de Windows que ejecuta un programa .NET 10 autocontenido (`sync-agent/`) | Servidor de la tienda, junto a SQL Server. En la tienda, que es controlador de dominio, corre como LOCAL SERVICE; en otro equipo, con una cuenta local dedicada sin privilegios de administrador | Lee SQL Server con una cuenta de solo lectura (`catalogo_lectura`) y, desde US-06, envía los datos a la API. No recibe conexiones entrantes. Ver [`sync-agent/README.md`](../sync-agent/README.md).                            |
 | Imágenes                 | Archivos en un volumen de Railway                           | Volumen montado en el backend                         | Los archivos viven en el volumen; sus rutas y metadatos se registran en PostgreSQL. El acceso se gestiona a través de la aplicación. |
 | HTTPS y dominio          | Dominio de Railway o dominio propio                         | Plataforma                                            | Railway emite y gestiona el certificado HTTPS del dominio público.                                                                   |
 
@@ -154,6 +154,21 @@ Reglas al completar:
 
 Las tablas y los campos de Aspel SAE (`INVE01`, `PRECIO_X_PROD01`, `STATUS`, `CVE_PRECIO = 1`) se definen en [`business-rules.md`](business-rules.md); la consulta se verifica contra la base real en US-05.
 
+### 5.2 Qué productos ve el cliente
+
+La sincronización **guarda** todos los artículos de Aspel; la **visibilidad** no se guarda: la calcula la API pública en cada consulta (`PublicCatalogQueries.WhereVisible`, usada por `/api/products` y `/api/categories`) según [`business-rules.md`](business-rules.md#2-estado-y-visibilidad). Un producto se muestra solo si cumple **las cuatro** condiciones:
+
+| Condición | Se guarda como | Un artículo que no la cumple |
+|---|---|---|
+| Activo: `STATUS = 'A'` y sigue viniendo de Aspel | `is_active = true` | `STATUS = 'B'` (o cualquier otro valor) o que deja de venir: `is_active = false`. Se conserva, no se borra |
+| Precio mayor que 0 | `public_price > 0` | Sin precio o con precio 0: `public_price = 0` |
+| Precio menor que 100 000 | `public_price < 100 000` | Se guarda tal cual, pero no se muestra. **Límite pendiente de validación con el negocio** |
+| Nombre para mostrar no vacío | `display_name <> ''` | Descripción vacía, nula o con el texto `NULL`: `display_name = ''` |
+
+- **Un cambio de estado en Aspel** (`A` → `B` o al revés) se refleja en la siguiente sincronización: el artículo sigue viniendo, se cuenta como *actualizado* (no como *desactivado*, que son los que dejan de venir) y se oculta o reaparece. Lo cubre una prueba de integración.
+- **Limitación: «sin precio en la lista» y «precio 0» quedan iguales.** El agente los distingue al leer (`--test` informa «Activos sin precio en la lista» y «Activos con precio 0» por separado), pero la API guarda **0.00 en los dos casos** y PostgreSQL no conserva cuál fue. Ninguno de los dos se muestra. En la primera lectura de la tienda (2026-11-24) hubo 120 activos con precio 0 que **no aparecen en el catálogo** hasta que el negocio les ponga precio en la lista 1 de Aspel; al corregirlos, la siguiente sincronización los hace visibles sin hacer nada más.
+- Los productos agotados **sí** se muestran, marcados como agotados (`stock <= 0`); la cantidad nunca se expone.
+
 **Alternativas descartadas:**
 
 | Alternativa                                                    | Motivo                                                                                                                           |
@@ -259,8 +274,9 @@ Los nombres de ramas y los mensajes de commit se escribirán en inglés, en min�
 | Docker Compose solo para desarrollo                                  | Se utiliza para levantar PostgreSQL localmente y, con el perfil `sqlserver`, un SQL Server de prueba para el agente.                                              |
 | Secretos con User Secrets (local) y variables del servicio (Railway) | No guardar credenciales en el repositorio.                                                   |
 | Merge con squash y revisión del otro integrante                      | Mantener un historial de `main` claro y revisar los cambios antes de integrarlos.            |
-| Agente como tarea programada y no como servicio de Windows | El servidor de la tienda tiene 2 GB de RAM compartidos con SQL Server y Aspel: una tarea no ocupa memoria entre ejecuciones. El estado se guarda en disco (`sync-state.json`). |
+| Agente como tarea programada y no como servicio de Windows | El servidor de la tienda tiene 4 GB de RAM compartidos con SQL Server, Aspel y el controlador de dominio: una tarea no ocupa memoria entre ejecuciones. El estado se guarda en disco (`sync-state.json`). |
 | Cuenta local dedicada para el agente, con el derecho de inicio de sesión por lotes | Mínimo privilegio: la cuenta solo lee el programa y solo escribe en `data\`. Windows no concede ese derecho por sí solo: el instalador lo concede y el desinstalador lo quita. |
+| En un controlador de dominio (el servidor de la tienda), el agente corre como LOCAL SERVICE | Un controlador de dominio no tiene cuentas locales: crear la cuenta dedicada la crearía en el dominio. LOCAL SERVICE no tiene contraseña y tiene privilegios mínimos. La tarea se registra con `ProcessTokenSidType = Unrestricted` y los permisos NTFS se dan al **SID propio de la tarea** (`NT TASK\NettesSyncAgent-Sincronizacion`, `S-1-5-87-…`), no a LOCAL SERVICE: otros servicios con esa cuenta no pueden leer la configuración (contraseña de `catalogo_lectura` y llave del agente). Opcional a futuro: una gMSA. Ver `sync-agent/README.md`. |
 | Lectura con el aislamiento por defecto (READ COMMITTED) y sin `NOLOCK` | `NOLOCK` puede devolver filas duplicadas u omitidas; con unas 18 mil filas la lectura dura milisegundos. No se modifica la configuración de la base de Aspel. |
 | SDK de .NET 10 fijado en `sync-agent/global.json` | Lo que se compila en cada equipo es lo que ejecuta el CI. |
 | Sincronización periódica con Aspel SAE                               | Evitar que las consultas públicas dependan directamente de SQL Server.                       |
@@ -268,11 +284,11 @@ Los nombres de ramas y los mensajes de commit se escribirán en inglés, en min�
 ## 10. Pendientes
 
 - **Confirmar con el docente y el negocio** el uso de Railway en lugar de la máquina virtual con Windows 11.
-- Definir quién abre y paga la cuenta de Railway, y cómo se traspasa al terminar.
+- Definir quién abre y paga la cuenta de Railway. Cómo se traspasa al terminar (qué se conserva, qué se comprueba y qué se rota) está en [deployment.md](deployment.md#8-traspaso-del-proyecto-a-la-cuenta-de-la-tienda).
 - Confirmar con el negocio que se puede instalar un agente en su red, con salida HTTPS a Internet.
 - Validar con el negocio la lista de categorías. La consulta a Aspel SAE (US-05) está implementada y probada contra una base de prueba; falta verificarla en la tienda con `sync-agent/sql/install/02` y el modo `--test`.
-- El envío por lotes a la API está definido (sección 5.1). Falta conectar el agente (`ICatalogPublisher` por HTTP) y el envío incremental de US-07.
-- Reintentos de lectura de SQL Server: resueltos en el agente (4 intentos con esperas de 5, 15 y 45 segundos ante fallos transitorios). Pendientes: los reintentos del envío a la API y la detección de inactividad del agente (*Heartbeat*); `sync-state.json` ya guarda `lastSuccessAt` para ese aviso.
+- El envío por lotes está implementado en la API y en el agente (sección 5.1, US-06). Falta el envío incremental de US-07 y la prueba en la tienda contra Railway.
+- Reintentos de lectura de SQL Server: resueltos en el agente (4 intentos con esperas de 5, 15 y 45 segundos ante fallos transitorios). Los reintentos del envío a la API también están resueltos (US-06: 4 intentos con esperas de 5, 15 y 45 segundos ante errores de red, `429` y `5xx`). Pendiente: la detección de inactividad del agente. `sync_runs` registra cada corrida exitosa, incluidas las "sin cambios", así que la API sabe cuándo fue la última (US-12).
 - Confirmar con el negocio quién guarda las contraseñas de `catalogo_lectura` y de la cuenta de Windows del agente.
 - Windows Server 2016 sale de soporte el 12 de enero de 2027: planificar la actualización del sistema operativo de la tienda (ver `sync-agent/README.md`).
 - Configurar las políticas de *Rate Limiting* (`CatalogSearchPolicy`) en la API de .NET.

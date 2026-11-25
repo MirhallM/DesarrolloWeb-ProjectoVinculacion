@@ -8,7 +8,7 @@
     <AssemblyName>SyncAgent</AssemblyName>
     <UserSecretsId>5b1e0c52-8f0e-4d0a-9a43-6f6a4c0b7a11</UserSecretsId>
 
-    <!-- Bajo consumo de memoria (servidor de la tienda: 2 GB compartidos con SQL Server y Aspel).
+    <!-- Bajo consumo de memoria (servidor de la tienda: 4 GB compartidos con SQL Server, Aspel y el controlador de dominio).
          GC de estación de trabajo y sin GC concurrente (evita un hilo extra en segundo plano). -->
     <ServerGarbageCollection>false</ServerGarbageCollection>
     <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>

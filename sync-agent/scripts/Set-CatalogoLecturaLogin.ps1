@@ -38,7 +38,7 @@
     y cierre esa ventana de PowerShell.
 
 .PARAMETER Server
-    Servidor SQL: 'localhost' (por omisión), 'servidor\instancia' o 'host,puerto' (p. ej. 127.0.0.1,14330 para la base de prueba de Docker).
+    Servidor SQL: 'localhost' (por omisión), 'servidor\instancia' o 'host,puerto' entre comillas (p. ej. -Server '127.0.0.1,14330' para la base de prueba de Docker).
 
 .PARAMETER SqlAdminUser
     Cuenta administradora de SQL Server (p. ej. sa). Si se omite se usa la autenticación de Windows del usuario actual.
@@ -67,7 +67,8 @@ param(
     [string]$SqlAdminUser,
     [System.Security.SecureString]$SqlAdminPassword,
     [System.Security.SecureString]$LoginPassword,
-    [string]$SqlFile = (Join-Path $PSScriptRoot '..\sql\install\01-crear-login-lectura.sql')
+    # Sin valor por omisión aquí: con "powershell -File", $PSScriptRoot llega vacío a los valores de param(). Se calcula en el cuerpo.
+    [string]$SqlFile
 )
 
 Set-StrictMode -Version Latest
@@ -153,10 +154,11 @@ try {
     if ($Server -notmatch '^[A-Za-z0-9._\\,:\-]+$') {
         throw "El nombre del servidor tiene caracteres no válidos: $Server"
     }
+    if ([string]::IsNullOrWhiteSpace($SqlFile)) { $SqlFile = Join-Path $PSScriptRoot '..\sql\install\01-crear-login-lectura.sql' }
     if (-not (Test-Path -LiteralPath $SqlFile -PathType Leaf)) {
         throw "No se encuentra el archivo SQL: $SqlFile (¿copió también la carpeta sql\ junto a scripts\?)"
     }
-    $SqlFile = (Resolve-Path -LiteralPath $SqlFile).Path
+    $SqlFile = (Resolve-Path -LiteralPath $SqlFile).ProviderPath
 
     if ($null -eq $LoginPassword) {
         Write-Info "Reglas: mínimo 12 caracteres, con mayúscula, minúscula, número y símbolo."

@@ -11,7 +11,7 @@ public class RetryPolicyTests
     {
         var waits = new List<TimeSpan>();
         var policy = new RetryPolicy(
-            new AspelOptions.RetryOptions { MaxAttempts = maxAttempts, DelaysSeconds = delays },
+            new RetryOptions { MaxAttempts = maxAttempts, DelaysSeconds = delays },
             (wait, _) => { waits.Add(wait); return Task.CompletedTask; });
         return (policy, waits);
     }
@@ -143,7 +143,7 @@ public class AspelProductLoaderTests
 
     private static AspelProductLoader Loader(IAspelProductReader reader, int maxAttempts = 3) =>
         new(reader,
-            new RetryPolicy(new AspelOptions.RetryOptions { MaxAttempts = maxAttempts, DelaysSeconds = [0] }, (_, _) => Task.CompletedTask),
+            new RetryPolicy(new RetryOptions { MaxAttempts = maxAttempts, DelaysSeconds = [0] }, (_, _) => Task.CompletedTask),
             new SqlErrorDescriber(SecretRedactor.None),
             NullLogger<AspelProductLoader>.Instance);
 

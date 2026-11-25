@@ -140,6 +140,6 @@ public class CatalogSummaryTests
         Assert.Contains("Conexión:", report);
         Assert.Contains("Consulta + lectura:", report);
         Assert.Contains("Máximo en memoria física", report);
-        Assert.Contains("No se envió ni se guardó nada", report);
+        Assert.Contains("No se envió ningún producto ni se guardó nada", report);
     }
 }

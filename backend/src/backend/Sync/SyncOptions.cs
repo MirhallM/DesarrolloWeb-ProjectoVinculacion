@@ -7,7 +7,7 @@ public sealed class SyncOptions
 
     /// <summary>
     /// Hash SHA-256 (hexadecimal) de la llave del agente. Se admiten dos separados por coma para rotar la llave
-    /// sin perder un ciclo. La llave en sí nunca se configura en el backend.
+    /// sin que el agente falle en medio. La llave en sí nunca se configura en el backend.
     /// </summary>
     public string? AgentKeyHashes { get; set; }
 

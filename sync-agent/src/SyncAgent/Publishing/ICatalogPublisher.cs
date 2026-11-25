@@ -1,23 +1,22 @@
-using Microsoft.Extensions.Logging;
 using SyncAgent.Aspel;
 
 namespace SyncAgent.Publishing;
 
-/// <summary>
-/// Punto donde el agente entrega los artículos leídos. En US-06 se agrega aquí la implementación que los envía
-/// a la API por HTTPS (en lotes, con la credencial propia del agente). El resto del agente no cambia.
-/// </summary>
+/// <summary>Resultado de un envío confirmado por la API.</summary>
+/// <param name="Unchanged">La huella coincidió con la última corrida aplicada: no se enviaron productos.</param>
+/// <param name="Summary">Resumen de la API; nulo si <paramref name="Unchanged"/>.</param>
+public sealed record PublishResult(Guid RunId, bool Unchanged, string InventoryHash, SyncRunSummary? Summary);
+
+/// <summary>Punto donde el agente entrega los artículos leídos. La implementación real es <see cref="HttpCatalogPublisher"/>.</summary>
 public interface ICatalogPublisher
 {
-    Task PublishAsync(IReadOnlyList<AspelProduct> products, CancellationToken cancellationToken);
+    /// <summary>Envía el inventario. Solo devuelve si la API lo confirmó; si no, lanza <see cref="ApiPublishException"/>.</summary>
+    Task<PublishResult> PublishAsync(IReadOnlyList<AspelProduct> products, CancellationToken cancellationToken);
 }
 
-/// <summary>Implementación provisional (US-05): no envía nada, solo deja constancia en el log.</summary>
-public sealed class NoOpCatalogPublisher(ILogger<NoOpCatalogPublisher> logger) : ICatalogPublisher
+/// <summary>Comprobación de <c>--test</c>: la API responde y la llave es válida. No envía productos.</summary>
+public interface IApiConnectivityCheck
 {
-    public Task PublishAsync(IReadOnlyList<AspelProduct> products, CancellationToken cancellationToken)
-    {
-        logger.LogInformation("Envío a la API pendiente (US-06): {Count} artículos leídos, no se envía nada.", products.Count);
-        return Task.CompletedTask;
-    }
+    /// <summary>Lanza <see cref="ApiPublishException"/> si la API no responde o rechaza la llave.</summary>
+    Task PingAsync(CancellationToken cancellationToken);
 }

@@ -13,7 +13,7 @@ namespace backend.Controllers;
 [ProducesResponseType(StatusCodes.Status401Unauthorized)]
 public sealed class SyncController(SyncService sync, TimeProvider clock) : ControllerBase
 {
-    /// <summary>Lotes de unos 200 KB; el reenvío de Next.js trunca a partir de 10 MB.</summary>
+    /// <summary>Lotes de unos 106 KB; el reenvío de Next.js corta a partir de 10 MB.</summary>
     public const long MaxBatchBodyBytes = 4 * 1024 * 1024;
 
     /// <summary>Comprueba que la API responde y que la llave es válida. No cambia nada.</summary>

@@ -8,4 +8,7 @@ public static class ExitCodes
     public const int SqlFailure = 2;
     public const int AlreadyRunning = 3;
     public const int UnexpectedError = 4;
+
+    /// <summary>No se pudo enviar el catálogo a la API (sin conexión, llave rechazada, freno de seguridad…).</summary>
+    public const int ApiFailure = 5;
 }

@@ -3,18 +3,22 @@ using System.Globalization;
 using System.Text;
 using SyncAgent.Aspel;
 using SyncAgent.Diagnostics;
+using SyncAgent.Publishing;
 
 namespace SyncAgent;
 
 /// <summary>
-/// Modo de prueba (<c>--test</c>): una sola lectura, un informe en pantalla y nada más.
-/// No envía datos a la API ni escribe el estado en disco. Sirve para validar la consulta contra la base real.
+/// Modo de prueba (<c>--test</c>): una sola lectura, un informe en pantalla y, si la API está configurada, una
+/// comprobación de que responde y acepta la llave. No envía productos ni escribe el estado en disco.
 /// </summary>
+/// <param name="api">Nulo si la sección Api no está configurada: entonces solo se avisa.</param>
 public sealed class TestModeRunner(
     AspelProductLoader loader,
     AspelOptions options,
     string connectionDescription,
-    TextWriter output)
+    TextWriter output,
+    IApiConnectivityCheck? api = null,
+    string apiDescription = "(sin configurar)")
 {
     public async Task<int> RunAsync(CancellationToken cancellationToken)
     {
@@ -40,7 +44,32 @@ public sealed class TestModeRunner(
         total.Stop();
 
         output.Write(FormatReport(summary, result, total.Elapsed, ProcessMemory.Capture()));
-        return ExitCodes.Success;
+        return await CheckApiAsync(cancellationToken);
+    }
+
+    /// <summary>Comprueba la API sin enviar productos (GET /api/sync/ping con la llave).</summary>
+    private async Task<int> CheckApiAsync(CancellationToken cancellationToken)
+    {
+        output.WriteLine();
+        output.WriteLine("--- API ---");
+        if (api is null)
+        {
+            output.WriteLine("  Sin configurar (Api:BaseUrl y Api:AgentKey): no se comprobó. --once no funcionará hasta configurarla.");
+            return ExitCodes.Success;
+        }
+
+        output.WriteLine($"  URL: {apiDescription}");
+        try
+        {
+            await api.PingAsync(cancellationToken);
+            output.WriteLine("  Responde y la llave es válida. (No se envió ningún producto.)");
+            return ExitCodes.Success;
+        }
+        catch (ApiPublishException ex)
+        {
+            output.WriteLine($"  NO SE PUDO COMPROBAR: {ex.Message}");
+            return ExitCodes.ApiFailure;
+        }
     }
 
     /// <summary>Arma el informe. Es una función pura para poder probarla.</summary>
@@ -109,7 +138,7 @@ public sealed class TestModeRunner(
         Line($"  Recolecciones del GC (gen0 / gen2):     {memory.Gen0Collections} / {memory.Gen2Collections}");
 
         Line();
-        Line("Lectura terminada. No se envió ni se guardó nada.");
+        Line("Lectura terminada. No se envió ningún producto ni se guardó nada.");
         return sb.ToString();
     }
 }

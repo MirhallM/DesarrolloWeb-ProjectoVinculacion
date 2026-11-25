@@ -352,6 +352,93 @@ public sealed class SyncApiIntegrationTests(ITestOutputHelper output) : IAsyncLi
     }
 
     [PostgresFact]
+    public async Task Un_producto_publicado_que_pasa_de_A_a_B_en_Aspel_se_oculta_aunque_sigue_viniendo_y_vuelve_con_A()
+    {
+        // No es "dejó de venir": el artículo SIGUE en el envío, con STATUS = 'B'. Se cuenta como actualizado, no como desactivado.
+        var factory = CreateFactory();
+        await SeedCategoriesAsync(factory);
+        using var client = AgentClient(factory);
+        using var publicClient = factory.CreateClient();
+        List<SyncBatchItem> items =
+        [
+            Item("P1", "LECHE ENT 1LT", stock: 5, price: 20),
+            Item("P2", "ARROZ BLANCO 2LB", stock: 8, price: 30),
+            Item("P3", "SAL 1LB", stock: 2, price: 9),
+        ];
+        await SyncOkAsync(client, items);
+
+        var published = await publicClient.GetFromJsonAsync<PagedResult<PublicProductDto>>("/api/products?pageSize=100", Ct);
+        Assert.Equal(3, published!.TotalCount);
+
+        Guid p2Id;
+        DateTime p1SyncedAt, p2SyncedAt, p1UpdatedAt;
+        await using (var db = Db())
+        {
+            var p1 = await db.Products.SingleAsync(p => p.Code == "P1", Ct);
+            var p2 = await db.Products.SingleAsync(p => p.Code == "P2", Ct);
+            p2Id = p2.Id;
+            p1SyncedAt = p1.SyncedAt; p1UpdatedAt = p1.UpdatedAt; p2SyncedAt = p2.SyncedAt;
+        }
+
+        // P2 pasa a 'B' (baja) en Aspel; el resto no cambia.
+        items[1] = items[1] with { Status = "B" };
+        var toInactive = await SyncOkAsync(client, items);
+
+        Assert.Equal(3, toInactive.Read);
+        Assert.Equal(1, toInactive.Updated);
+        Assert.Equal(0, toInactive.Deactivated); // "desactivados" son los que dejan de venir
+        Assert.Equal(0, toInactive.Inserted);
+        Assert.Equal(0, toInactive.Rejected);
+
+        await using (var db = Db())
+        {
+            var p2 = await db.Products.SingleAsync(p => p.Code == "P2", Ct);
+            Assert.False(p2.IsActive);
+            Assert.Equal(30m, p2.PublicPrice);              // el precio y los demás datos se conservan
+            Assert.Equal("Arroz Blanco 2 lb", p2.DisplayName);
+            Assert.True(p2.SyncedAt > p2SyncedAt);          // cambió: se marca como sincronizado ahora
+
+            var p1 = await db.Products.SingleAsync(p => p.Code == "P1", Ct);
+            Assert.True(p1.IsActive);
+            Assert.Equal(p1SyncedAt, p1.SyncedAt);          // los que no cambiaron no se tocan
+            Assert.Equal(p1UpdatedAt, p1.UpdatedAt);
+            Assert.Equal(3, await db.Products.CountAsync(Ct)); // no se borra nada
+        }
+
+        // El catálogo público ya no lo muestra, ni en el listado ni en el detalle.
+        published = await publicClient.GetFromJsonAsync<PagedResult<PublicProductDto>>("/api/products?pageSize=100", Ct);
+        Assert.Equal(2, published!.TotalCount);
+        Assert.Equal(HttpStatusCode.NotFound, (await publicClient.GetAsync($"/api/products/{p2Id}", Ct)).StatusCode);
+
+        // Repetir el mismo envío no cambia nada más.
+        var repeated = await SyncOkAsync(client, items);
+        Assert.Equal(0, repeated.Updated);
+
+        // Un estado en minúscula y con espacios también es "baja"; cualquier cosa que no sea 'A' lo es.
+        items[0] = items[0] with { Status = " b " };
+        items[2] = items[2] with { Status = "X" };
+        var others = await SyncOkAsync(client, items);
+        Assert.Equal(2, others.Updated);
+        Assert.Equal(0, others.Deactivated);
+        await using (var db = Db())
+        {
+            Assert.Equal(0, await db.Products.CountAsync(p => p.IsActive, Ct));
+        }
+
+        // Vuelve a 'A': se reactiva y reaparece en el catálogo.
+        items[1] = items[1] with { Status = "A" };
+        var back = await SyncOkAsync(client, items);
+        Assert.Equal(1, back.Updated);
+        await using (var db = Db())
+        {
+            Assert.True((await db.Products.SingleAsync(p => p.Code == "P2", Ct)).IsActive);
+        }
+
+        published = await publicClient.GetFromJsonAsync<PagedResult<PublicProductDto>>("/api/products?pageSize=100", Ct);
+        Assert.Equal(["Arroz Blanco 2 lb"], published!.Items.Select(p => p.Name).ToArray());
+    }
+
+    [PostgresFact]
     public async Task Los_articulos_fuera_de_rango_se_rechazan_sin_tocar_ni_desactivar_el_producto()
     {
         using var client = AgentClient(CreateFactory());

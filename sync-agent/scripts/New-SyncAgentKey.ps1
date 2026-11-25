@@ -20,14 +20,21 @@
                               (Api:AgentKey, más Api:BaseUrl) y el hash en los del backend (Sync:AgentKeyHashes).
                               Usa "dotnet user-secrets", que recibe los valores como argumentos: es aceptable para una
                               llave de desarrollo, nunca para la de la tienda.
+                              ADVERTENCIA: REEMPLAZA Sync:AgentKeyHashes en los secretos del backend. Cualquier otra
+                              instalación local con una llave distinta (por ejemplo la tarea programada instalada con
+                              -ConfigPath) recibirá 401 hasta que su hash se agregue. Se admiten dos hashes separados por coma:
+                              dotnet user-secrets set "Sync:AgentKeyHashes" "<hash 1>,<hash 2>" --project backend\src\backend
 
       -HashFromPrompt         Pide una llave existente en una línea oculta y muestra su hash (por ejemplo, para
                               comprobar qué hash corresponde a la llave instalada).
 
-    ROTACIÓN SIN PERDER UN CICLO: Sync__AgentKeyHashes admite dos hashes separados por coma.
-      1. En Railway: Sync__AgentKeyHashes = <hash anterior>,<hash nuevo>.
-      2. En la tienda: .\New-SyncAgentKey.ps1 -ConfigPath ... (instala la llave nueva).
-      3. Cuando el agente sincronice bien con la nueva: Sync__AgentKeyHashes = <hash nuevo>.
+    ROTACIÓN: Sync__AgentKeyHashes admite dos hashes separados por coma. El script escribe la llave nueva ANTES de que
+    Railway conozca su hash, así que durante el cambio se deshabilita la tarea para que el agente no falle en medio.
+      1. Disable-ScheduledTask -TaskPath '\NettesSyncAgent\' -TaskName 'Sincronizacion'
+      2. .\New-SyncAgentKey.ps1 -ConfigPath ...   (instala la llave nueva y muestra su hash)
+      3. En Railway: Sync__AgentKeyHashes = <hash anterior>,<hash nuevo>.
+      4. SyncAgent.exe --test; si dice que la llave es válida: Enable-ScheduledTask ...
+      5. Cuando el agente sincronice bien con la nueva: Sync__AgentKeyHashes = <hash nuevo>.
 
 .PARAMETER ConfigPath
     Ruta de appsettings.Production.json del agente instalado. Por ejemplo: C:\NettesSyncAgent\appsettings.Production.json
@@ -87,7 +94,7 @@ function Write-HashInstructions([string] $hash) {
     Write-Host ''
     Write-Host 'En Railway, servicio backend, Variables:'
     Write-Host "  Sync__AgentKeyHashes = $hash"
-    Write-Host '  (para rotar sin cortes: "<hash anterior>,<hash nuevo>" y luego solo el nuevo)'
+    Write-Host '  (para rotar: deshabilite la tarea, "<hash anterior>,<hash nuevo>" en Railway, habilite la tarea y luego solo el nuevo)'
 }
 
 switch ($PSCmdlet.ParameterSetName) {
@@ -98,18 +105,28 @@ switch ($PSCmdlet.ParameterSetName) {
 
         $fullPath = (Resolve-Path -LiteralPath $ConfigPath).ProviderPath
         $config = [System.IO.File]::ReadAllText($fullPath) | ConvertFrom-Json
+        if ($null -eq $config) { $config = [pscustomobject]@{} }
+
+        # Permisos del archivo ANTES de tocarlo (solo la lista de accesos): se comparan al final.
+        $aclBefore = (Get-Acl -LiteralPath $fullPath).GetSecurityDescriptorSddlForm('Access')
 
         $key = New-AgentKey
         try {
-            if ($config.PSObject.Properties.Name -notcontains 'Api') {
-                $config | Add-Member -NotePropertyName 'Api' -NotePropertyValue ([pscustomobject]@{ BaseUrl = ''; AgentKey = '' })
+            # Acceso seguro bajo Set-StrictMode: la sección Api puede faltar, ser nula o no tener alguna clave.
+            $api = $null
+            if ($null -ne $config.PSObject.Properties['Api']) { $api = $config.PSObject.Properties['Api'].Value }
+            if ($api -isnot [System.Management.Automation.PSCustomObject]) {
+                $api = [pscustomobject]@{}
+                $config | Add-Member -NotePropertyName 'Api' -NotePropertyValue $api -Force
             }
-            if ($config.Api.PSObject.Properties.Name -notcontains 'AgentKey') {
-                $config.Api | Add-Member -NotePropertyName 'AgentKey' -NotePropertyValue ''
+            foreach ($name in 'BaseUrl', 'AgentKey') {
+                if ($null -eq $api.PSObject.Properties[$name]) { $api | Add-Member -NotePropertyName $name -NotePropertyValue '' }
             }
-            $config.Api.AgentKey = $key
+            $api.AgentKey = $key
+            $baseUrlValue = [string]$api.BaseUrl
 
-            # Se reescribe el contenido del mismo archivo: conserva los permisos NTFS que puso el instalador.
+            # Se escribe SOBRE EL MISMO ARCHIVO (no un temporal que luego se mueve): un archivo nuevo heredaría los permisos de la
+            # carpeta y quedaría legible para más cuentas. Así conserva la lista de permisos que puso el instalador.
             $json = $config | ConvertTo-Json -Depth 10
             [System.IO.File]::WriteAllText($fullPath, $json, (New-Object System.Text.UTF8Encoding($false)))
             $hash = Get-KeyHash $key
@@ -118,10 +135,18 @@ switch ($PSCmdlet.ParameterSetName) {
             $key = $null
         }
 
+        # Comprobación: si por cualquier motivo los permisos cambiaron, se restauran los de antes.
+        $aclAfter = (Get-Acl -LiteralPath $fullPath).GetSecurityDescriptorSddlForm('Access')
+        if ($aclAfter -ne $aclBefore) {
+            $acl = Get-Acl -LiteralPath $fullPath
+            $acl.SetSecurityDescriptorSddlForm($aclBefore, 'Access')
+            Set-Acl -LiteralPath $fullPath -AclObject $acl
+            Write-Host 'AVISO: los permisos del archivo cambiaron al escribirlo y se restauraron.' -ForegroundColor Yellow
+        }
+
         Write-Host "Llave nueva guardada en $fullPath (Api.AgentKey). No se muestra." -ForegroundColor Green
-        $baseUrlValue = if ($config.Api.PSObject.Properties.Name -contains 'BaseUrl') { $config.Api.BaseUrl } else { '' }
-        if ([string]::IsNullOrWhiteSpace($baseUrlValue)) {
-            Write-Host 'Falta Api.BaseUrl en ese archivo: escriba la URL pública del sitio (https://<dominio>.up.railway.app).' -ForegroundColor Yellow
+        if ([string]::IsNullOrWhiteSpace($baseUrlValue) -or $baseUrlValue -match '[<>]') {
+            Write-Host 'Falta Api.BaseUrl en ese archivo: Set-AgentConnection.ps1 -ConfigPath ... -BaseUrl https://<dominio>.up.railway.app' -ForegroundColor Yellow
         }
         Write-HashInstructions $hash
         Write-Host ''
@@ -147,6 +172,9 @@ switch ($PSCmdlet.ParameterSetName) {
 
         & dotnet user-secrets set 'Api:BaseUrl' $BaseUrl --project $agentProject | Out-Null
         if ($LASTEXITCODE -ne 0) { throw 'No se pudo guardar Api:BaseUrl en los User Secrets del agente.' }
+
+        # ¿Ya había un hash? (solo se mira si la clave existe; el valor no se muestra)
+        $hadHash = $null -ne (& dotnet user-secrets list --project $backendProject 2>$null | Where-Object { $_ -like 'Sync:AgentKeyHashes*' })
         & dotnet user-secrets set 'Sync:AgentKeyHashes' $hash --project $backendProject | Out-Null
         if ($LASTEXITCODE -ne 0) { throw 'No se pudo guardar Sync:AgentKeyHashes en los User Secrets del backend.' }
 
@@ -154,6 +182,16 @@ switch ($PSCmdlet.ParameterSetName) {
         Write-Host "  agente  : Api:AgentKey (no se muestra) y Api:BaseUrl = $BaseUrl"
         Write-Host "  backend : Sync:AgentKeyHashes = $hash"
         Write-Host 'Reinicie el backend para que lea el hash nuevo.'
+        Write-Host ''
+        if ($hadHash) {
+            Write-Host 'AVISO: esto REEMPLAZÓ el Sync:AgentKeyHashes que ya tenía el backend.' -ForegroundColor Yellow
+        }
+        else {
+            Write-Host 'AVISO: esto guardó Sync:AgentKeyHashes en los secretos del backend; si luego se vuelve a ejecutar, lo REEMPLAZA.' -ForegroundColor Yellow
+        }
+        Write-Host '       Las instalaciones locales con otra llave (por ejemplo la tarea programada) dejarán de funcionar (401).' -ForegroundColor Yellow
+        Write-Host '       Para aceptar dos llaves a la vez (máximo 2, separadas por coma):' -ForegroundColor Yellow
+        Write-Host '         dotnet user-secrets set "Sync:AgentKeyHashes" "<hash 1>,<hash 2>" --project backend\src\backend' -ForegroundColor Yellow
     }
 
     'Hash' {

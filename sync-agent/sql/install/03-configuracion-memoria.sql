@@ -2,7 +2,7 @@
    DIA DE LA INSTALACION: muestra como esta configurada la memoria de SQL Server.
    SOLO LECTURA: NO modifica la configuracion (no usa sp_configure ni RECONFIGURE).
 
-   Por que importa: el servidor de la tienda tiene solo 2 GB de RAM y comparte SQL Server, Aspel y el agente.
+   Por que importa: el servidor de la tienda tiene solo 4 GB de RAM y comparte SQL Server, Aspel y el agente.
    Si "max server memory" esta sin limite (valor 2147483647, el de fabrica), SQL Server puede tomar casi toda
    la memoria y dejar poco a Aspel y al agente. Este script solo MUESTRA el valor; cambiarlo, si hiciera falta,
    es una decision del administrador de la tienda y no forma parte de este proyecto.

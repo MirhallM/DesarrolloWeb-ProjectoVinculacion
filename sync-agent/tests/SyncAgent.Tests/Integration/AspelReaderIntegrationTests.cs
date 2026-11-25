@@ -149,7 +149,7 @@ public sealed class AspelReaderIntegrationTests : IDisposable
         var loader = new AspelProductLoader(
             Reader(), new RetryPolicy(options.Retry), new SqlErrorDescriber(redactor), NullLogger<AspelProductLoader>.Instance);
         var store = new SyncStateStore(_dir, NullLogger<SyncStateStore>.Instance);
-        var cycle = new SyncCycle(loader, new NoOpCatalogPublisher(NullLogger<NoOpCatalogPublisher>.Instance), store,
+        var cycle = new SyncCycle(loader, new AcceptingPublisher(), store,
             redactor, TimeProvider.System, NullLogger<SyncCycle>.Instance);
 
         var exit = await cycle.RunAsync(TestContext.Current.CancellationToken);
@@ -160,5 +160,13 @@ public sealed class AspelReaderIntegrationTests : IDisposable
         Assert.Equal(14, state.ProductsRead);
         Assert.NotNull(state.LastSuccessAt);
         Assert.Equal(0, state.ConsecutiveFailures);
+    }
+
+    /// <summary>Publicador que confirma todo sin red: aquí solo se prueba la lectura y el estado.</summary>
+    private sealed class AcceptingPublisher : ICatalogPublisher
+    {
+        public Task<PublishResult> PublishAsync(IReadOnlyList<AspelProduct> products, CancellationToken cancellationToken) =>
+            Task.FromResult(new PublishResult(Guid.NewGuid(), false, InventoryHasher.Compute(products),
+                new SyncRunSummary(Guid.NewGuid(), SyncResponseStatuses.Succeeded, products.Count, products.Count, 0, 0, 0, [], DateTime.UtcNow)));
     }
 }
