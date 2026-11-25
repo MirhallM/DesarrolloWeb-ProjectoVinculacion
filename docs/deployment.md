@@ -10,7 +10,7 @@ Esqueleto de la aplicación en Railway (#47): frontend, backend y PostgreSQL en 
 | `backend` | Rama `main`, Root Directory `/backend` | Solo red privada (`backend.railway.internal`) | ASP.NET Core 10 con [`backend/Dockerfile`](../backend/Dockerfile). Configurado a mano en el panel ([sección 4](#4-pasos-en-el-panel-de-railway-primera-vez)). |
 | `Postgres` | Plantilla de PostgreSQL de Railway: **PostgreSQL 18.7**, imagen `ghcr.io/railwayapp-templates/postgres-ssl` | Solo red privada | Sin TCP proxy público. En local se usa `postgres:18`, la misma versión mayor. |
 
-La configuración de los servicios vive **en el panel de Railway**, no en el repositorio. Railway marcó Config as Code (`railway.json`) como obsoleto, así que se quitó `backend/railway.json`. La migración a Infrastructure as Code está en [Pendientes](#8-pendientes).
+La configuración de los servicios vive **en el panel de Railway**, no en el repositorio. Railway marcó Config as Code (`railway.json`) como obsoleto, así que se quitó `backend/railway.json`. La migración a Infrastructure as Code está en [Pendientes](#9-pendientes).
 
 ```
 Internet ──HTTPS──► frontend (Next.js) ──/api/* por red privada──► backend (:8080) ──► Postgres
@@ -177,7 +177,43 @@ Decisiones:
 - Lotes de **1000 artículos** (unos 106 KB medidos con datos parecidos a los reales; 213 KB con 2000), con un máximo de 2000 en el servidor: muy por debajo de los 10 MB. El inventario completo (unos 18 700 artículos) viaja en unos 19 lotes, nunca en una sola solicitud. No hace falta cambiar `next.config.ts`.\n- El encabezado `X-Sync-Agent-Key` llega al backend por el reenvío (se comprobó con un servidor eco detrás de la misma regla `rewrites`). El backend no tiene dominio público: el agente entra siempre por el dominio del frontend.
 - **Completar** aplica unos 18 500 artículos en **6 a 7 s** en un portátil (prueba `Carga_de_18500_articulos_registra_cuanto_tarda_completar`), por debajo de los 30 s. Si alguna vez tarda más, no se pierde: la transacción no depende de la conexión del cliente y el reintento del agente recibe el resumen ya confirmado.
 
-## 8. Pendientes
+## 8. Traspaso del proyecto a la cuenta de la tienda
+
+Al terminar el proyecto, Railway debe quedar a nombre de la tienda: con su cuenta y su medio de pago, sin accesos del equipo de desarrollo. Quién abre y paga esa cuenta sigue pendiente de definir (ver [architecture.md](architecture.md)). Railway ofrece transferir un proyecto a otro espacio de trabajo (*Settings* del proyecto); los requisitos de plan cambian, así que **confírmelos en el panel con tiempo**, antes de la fecha de entrega. Lo que importa es que se **transfiera** el proyecto y no que se recree: así se conservan los servicios y sus datos.
+
+**Antes de transferir**, anote: el `totalCount` de `/api/products?pageSize=1`, el dominio público y los nombres de las variables de cada servicio ([sección 3](#3-variables-nombres-sin-valores)).
+
+### Qué se conserva
+
+- Los servicios `frontend`, `backend` y `Postgres`, con el volumen de PostgreSQL y sus datos.
+- Las variables de cada servicio, entre ellas `Sync__AgentKeyHashes` (el hash de la llave del agente), `ConnectionStrings__DefaultConnection`, `ASPNETCORE_ENVIRONMENT`, `PORT` y `API_URL`.
+- El dominio público del `frontend` (`*.up.railway.app`). El agente de la tienda lo tiene en `Api:BaseUrl`: **si el dominio cambia** (por ejemplo, si se recrearon los servicios), hay que actualizarlo en el servidor con `Set-AgentConnection.ps1 -BaseUrl https://<dominio nuevo>` (vuelve a pedir la contraseña de `catalogo_lectura`).
+- La conexión con el repositorio de GitHub (rama `main`, *Root Directory*, *Watch Paths* y *Wait for CI*, [sección 4](#4-pasos-en-el-panel-de-railway-primera-vez)). Si se pierde, se reconecta.
+
+### Qué se comprueba después
+
+1. `https://<dominio>/api/health` responde `Healthy` y `https://<dominio>/api/sync/ping` responde `401`.
+2. `/api/products?pageSize=1` da el mismo `totalCount` que se anotó antes.
+3. **En el servidor de la tienda:** `& 'C:\NettesSyncAgent\SyncAgent.exe' --test` dice «Responde y la llave es válida». Después, la tarea termina con `LastTaskResult : 0` y `lastPublish` en `unchanged` ([sync-agent/README.md](../sync-agent/README.md), paso 8).
+4. Un despliegue de prueba (*Redeploy* del `backend`) vuelve a quedar `Healthy`.
+5. Las alertas y el límite de gasto están configurados en la cuenta nueva (presupuesto de la [sección 4](#4-pasos-en-el-panel-de-railway-primera-vez)).
+
+### Qué se rota o se quita al terminar
+
+Se rota **todo lo que el equipo de desarrollo vio o pudo ver**, y se quitan sus accesos:
+
+- **Accesos del equipo:** quitar a sus integrantes del proyecto de Railway y, si el repositorio pasa al negocio, del repositorio de GitHub. Revocar los tokens personales que hayan creado.
+- **La contraseña de PostgreSQL**, visible en las variables del servicio `Postgres` para quien tenía acceso al panel. Rotarla es un procedimiento de **dos partes** que Railway no hace solo: cambiarla en la base (`ALTER USER … PASSWORD`, por ejemplo desde una sesión de `railway connect Postgres`), actualizar las variables de contraseña del servicio `Postgres` (`PGPASSWORD` y `POSTGRES_PASSWORD`) para que coincidan y **redesplegar el `backend`**, que las recibe por referencia. Compruebe `/api/health` al terminar y confirme el procedimiento vigente en la documentación de Railway antes de ejecutarlo.
+- **Las cuentas de administrador del sitio** que el equipo haya creado o usado, incluida la primera: el negocio crea las suyas y se desactivan o se les cambia la contraseña a las del equipo.
+- **La contraseña de `catalogo_lectura`**, solo si en algún momento la vio alguien del equipo (por ejemplo, durante una sesión remota): `Set-CatalogoLecturaLogin.ps1` y luego `Set-AgentConnection.ps1`.
+- **Los secretos de los equipos de desarrollo** (User Secrets y el `.env`) no están en el repositorio ni en Railway; se borran de esos equipos. Las llaves que genera `New-SyncAgentKey.ps1 -Development` solo valían en desarrollo.
+
+### Qué NO se rota ni se guarda en el agente
+
+- **La llave del agente no se rota** por el traspaso: se genera **en el servidor de la tienda** y nunca salió de él. A Railway solo viaja su hash, que no permite reconstruirla. Se rota únicamente si alguna vez se mostró, se copió o se pegó en otro lugar ([rotación](../sync-agent/README.md#7-configurar-la-llave-del-agente)).
+- **Un token de la API de Railway nunca va en el agente** ni en el servidor de la tienda ni en el repositorio. El agente solo necesita la URL pública y su propia llave; un token de Railway permite administrar el proyecto entero. Si se creó alguno (por ejemplo, para la CLI o para la migración a Infrastructure as Code, ver Pendientes), vive solo en el equipo de quien administra y se **revoca** al terminar.
+
+## 9. Pendientes
 
 - **Migrar la configuración a Infrastructure as Code, antes o durante US-21 (#29).** Railway marcó Config as Code como obsoleto: los servicios nuevos ya no pueden usarlo, y los archivos `railway.json` / `railway.toml` existentes dejan de leerse el 2026-12-01. Por eso hoy todo se configura a mano en el panel ([sección 4](#4-pasos-en-el-panel-de-railway-primera-vez)). El reemplazo es un archivo `.railway/railway.ts` que maneja la CLI (`railway config init`, `railway config pull` para partir de lo que ya está en el panel, `railway config plan` y `railway config apply`). Guía: <https://docs.railway.com/infrastructure-as-code>.
 - **Forwarded headers.** El backend está detrás del proxy de Railway y del reenvío de Next.js, así que hoy ve HTTP y la IP del frontend, no la del usuario. Hay que configurar `UseForwardedHeaders` (`X-Forwarded-For` y `X-Forwarded-Proto`), confiando solo en la red privada, **antes de**:

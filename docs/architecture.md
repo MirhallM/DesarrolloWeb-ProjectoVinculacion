@@ -284,7 +284,7 @@ Los nombres de ramas y los mensajes de commit se escribirán en inglés, en min�
 ## 10. Pendientes
 
 - **Confirmar con el docente y el negocio** el uso de Railway en lugar de la máquina virtual con Windows 11.
-- Definir quién abre y paga la cuenta de Railway, y cómo se traspasa al terminar.
+- Definir quién abre y paga la cuenta de Railway. Cómo se traspasa al terminar (qué se conserva, qué se comprueba y qué se rota) está en [deployment.md](deployment.md#8-traspaso-del-proyecto-a-la-cuenta-de-la-tienda).
 - Confirmar con el negocio que se puede instalar un agente en su red, con salida HTTPS a Internet.
 - Validar con el negocio la lista de categorías. La consulta a Aspel SAE (US-05) está implementada y probada contra una base de prueba; falta verificarla en la tienda con `sync-agent/sql/install/02` y el modo `--test`.
 - El envío por lotes está implementado en la API y en el agente (sección 5.1, US-06). Falta el envío incremental de US-07 y la prueba en la tienda contra Railway.
