@@ -5,7 +5,7 @@ Programa de .NET 10 que corre en el servidor de la tienda, **lee** la base de As
 > **Alcance:**
 > - **US-05:** leer, resumir y guardar el estado en disco.
 > - **US-06:** enviar el inventario **completo** en cada ciclo, con la llave propia del agente. Si no cambió desde la última corrida aplicada (huella SHA-256), la API lo registra como "sin cambios" y no se envían los productos; aun así, al menos una vez al día se envía todo.
-> - **US-07 (pendiente):** envío solo de los productos que cambiaron, huellas por producto, aborto en el agente si la lectura se reduce mucho y reconciliación diaria.
+> - **US-07 (cerrada sin cambiar el agente):** el agente sigue enviando el inventario completo en cada corrida. No hay envío incremental ni huellas por producto: la API decide si algo cambió y aplica el freno de seguridad y la recategorización (ver [architecture.md](../docs/architecture.md#9-decisiones-registradas)).
 
 El agente entrega los datos **tal como vienen de Aspel**. El redondeo del precio, el nombre para mostrar, la categoría y la visibilidad los aplica la API ([reglas comerciales](../docs/business-rules.md)).
 
