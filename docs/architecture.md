@@ -163,18 +163,28 @@ Las tablas y los campos de Aspel SAE (`INVE01`, `PRECIO_X_PROD01`, `STATUS`, `CV
 
 ## 6. Autenticación y autorización
 
-**Propuesta:**
+**Implementación adoptada (US-13):**
 
-- **Identidad:** ASP.NET Core Identity con PostgreSQL. Las contraseñas se guardan mediante hash, nunca en texto plano.
-- **Sesión:** se prefiere evaluar cookies seguras (`HttpOnly`, `Secure`, `SameSite`). Como el navegador solo habla con el dominio del frontend y Next.js reenvía `/api/*`, frontend y API comparten sitio. Si se utilizan cookies, se debe proteger contra CSRF.
+- **Identidad:** ASP.NET Core Identity sobre PostgreSQL (`users`, `roles`, `user_roles`). Las contraseñas nunca se almacenan en texto plano: se guardan únicamente como hashes PBKDF2-HMAC-SHA512 con sal aleatoria (`PasswordHasher<AppUser>`). Se exige un mínimo de 8 caracteres, máximo de 128 (para evitar denegación de servicio en el cálculo del hash), al menos una letra, un número y 4 caracteres distintos.
+- **Sesión mediante cookies seguras (se descarta JWT):** como el navegador solo habla con el dominio del frontend y Next.js reenvía `/api/*`, frontend y API comparten sitio. La sesión usa una cookie cifrada con llaves de Data Protection persistidas en PostgreSQL (`data_protection_keys`), con atributos `HttpOnly`, `SameSite=Lax` y `Path=/`:
+  - En `Development`: `nettes.auth` (`CookieSecurePolicy.SameAsRequest`, compatible con `http://localhost`).
+  - En `Production`: `__Host-nettes.auth` (`CookieSecurePolicy.Always`, sin `Domain`, obligando a HTTPS e impidiendo que subdominios sobrescriban la cookie).
+  - Expiración deslizante de 7 días (`Auth:SessionExpireHours = 168`) y revalidación periódica contra PostgreSQL (`SecurityStamp` e `IsActive`, cada 5 min por defecto) para invalidar sesiones de cuentas desactivadas o cerradas.
+- **Cabeceras de proxy inverso (`UseForwardedHeaders`):** el backend restaura `X-Forwarded-Proto`, `X-Forwarded-For` y `X-Forwarded-Host` aceptando hasta 2 saltos (`ForwardLimit = 2`: borde HTTPS de Railway → frontend Next.js → backend) únicamente desde loopback y redes privadas (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `fc00::/7`, incluyendo direcciones IPv4 mapeadas en IPv6). Cualquier cabecera enviada desde una IP pública no confiable se ignora.
+- **Protección contra CSRF (`SameSite=Lax` + `CsrfValidationFilter`):** en todos los métodos que modifican estado (`POST`, `PUT`, `PATCH`, `DELETE`), además de `SameSite=Lax`, el backend verifica automáticamente los encabezados estándar del navegador (`Sec-Fetch-Site`, `Origin` y `Referer`) contra el host del sitio, bloqueando peticiones de otros orígenes con `403 ProblemDetails` (`auth-csrf-rejected`) sin requerir cookies ni encabezados manuales adicionales. `/api/sync` queda excluido porque autentica con `X-Sync-Agent-Key`.
+- **Mitigación contra enumeración y fuerza bruta:**
+  - `POST /api/auth/login` devuelve el mismo `401 ProblemDetails` (`auth-invalid-credentials`) tanto si el correo no existe como si la contraseña falla o `is_active = false`, ejecutando una verificación PBKDF2 ficticia cuando el correo no existe para evitar diferencias notorias de tiempo.
+  - Bloqueo temporal de cuenta (`Lockout`): tras 5 intentos fallidos consecutivos (`Auth:MaxFailedAccessAttempts`), la cuenta se bloquea durante 15 minutos (`Auth:LockoutMinutes`) y responde `429 Too Many Requests` (`auth-account-locked`).
+- **Rutas de autenticación (`/api/auth`):**
+  - `POST /api/auth/register` → registra `{ email, password }`, asigna exclusivamente el rol `User` dentro de una transacción e inicia sesión (`201 Created` con `{ id, email, roles }`; `409 auth-duplicate-email` si ya existe).
+  - `POST /api/auth/login` → autentica `{ email, password, rememberMe }` y emite cookie de sesión (`200 OK`).
+  - `POST /api/auth/logout` → invalida la cookie de sesión (`204 No Content`).
+  - `GET /api/auth/me` → devuelve `{ id, email, roles }` de la sesión activa o `401 ProblemDetails` (sin redirecciones HTML `302`).
 - **Dominio:** los dominios gratuitos `*.up.railway.app` son adecuados para pruebas; para la entrega conviene un dominio propio del negocio.
-- **Alternativa:** tokens JWT. Solo se elegirán si la arquitectura final lo justifica. Si se adopta esta alternativa, la configuración se documentará mediante variables de entorno y no se subirán secretos al repositorio.
-- **Roles:** `User` y `Admin`.
+- **Roles:** `User` y `Admin` (autorización detallada en US-14).
 - **Autorización:** se verifica siempre en el backend, no solo en la interfaz. Sin sesión válida: `401`; sin permiso: `403`.
-- **Primera cuenta administradora:** se crea mediante un proceso controlado (semilla o comando), nunca mediante un registro público.
+- **Primera cuenta administradora:** se crea mediante un proceso controlado (semilla o comando en US-14), nunca mediante el registro público.
 - **Agente de sincronización:** usa su propia credencial (sección 5) y no tiene sesión de usuario ni rol `Admin`.
-
-La decisión final entre cookies y tokens se toma en US-13.
 
 ### 6.1 Protección contra tráfico masivo y Rate Limiting
 
@@ -264,6 +274,7 @@ Los nombres de ramas y los mensajes de commit se escribirán en inglés, en min�
 | Lectura con el aislamiento por defecto (READ COMMITTED) y sin `NOLOCK` | `NOLOCK` puede devolver filas duplicadas u omitidas; con unas 18 mil filas la lectura dura milisegundos. No se modifica la configuración de la base de Aspel. |
 | SDK de .NET 10 fijado en `sync-agent/global.json` | Lo que se compila en cada equipo es lo que ejecuta el CI. |
 | Sincronización periódica con Aspel SAE                               | Evitar que las consultas públicas dependan directamente de SQL Server.                       |
+| Sesiones con cookies seguras de Identity en lugar de JWT             | Frontend y API comparten sitio mediante `/api/*`; cookies `HttpOnly` cifradas con Data Protection en PostgreSQL (`__Host-nettes.auth` + `Secure` en producción) evitan exponer tokens en `localStorage`, combinadas con `SameSite=Lax` y validación de `Origin` / `Sec-Fetch-Site`. |
 
 ## 10. Pendientes
 
@@ -277,8 +288,7 @@ Los nombres de ramas y los mensajes de commit se escribirán en inglés, en min�
 - Windows Server 2016 sale de soporte el 12 de enero de 2027: planificar la actualización del sistema operativo de la tienda (ver `sync-agent/README.md`).
 - Configurar las políticas de *Rate Limiting* (`CatalogSearchPolicy`) en la API de .NET.
 - Configurar Cloudflare (plan gratuito) en el dominio público para la caché de imágenes y filtrado de bots.
-- Validar la integración del proxy de Next.js para reenviar la cabecera `X-Forwarded-For` a la API para identificar las IP reales de los clientes.
-- Sesión con cookies o tokens (US-13).
+- Validar de extremo a extremo en Railway que el reenvío de Next.js conserva `X-Forwarded-For` hacia el backend (que ya procesa `UseForwardedHeaders` desde redes privadas) antes de activar el *Rate Limiting* por IP (#48).
 - Reglas de carga de imágenes, tamaño del volumen y límites del proxy (US-16).
 - Respaldos de Railway y copia externa con `pg_dump` (US-20).
 - `Dockerfile` del backend, servicios de Railway, variables, dominio y HTTPS (US-21).

@@ -86,6 +86,10 @@ export function Header() {
     />
   );
 
+  if (pathname === "/login") {
+    return null;
+  }
+
   return (
     <header className="sticky top-0 z-30 bg-brand shadow-[0_1px_0_rgba(0,0,0,0.06)]">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

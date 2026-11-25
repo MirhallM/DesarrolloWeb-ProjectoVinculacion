@@ -69,3 +69,37 @@ X-Sync-Agent-Key: {{agent_key}}
 Content-Type: application/json
 
 { "itemCount": 2, "batchCount": 1 }
+
+###
+
+### Registrar usuario
+POST {{backend_HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "cliente@nettes.hn",
+  "password": "ClaveDePrueba2026"
+}
+
+###
+
+### Consultar sesión actual
+GET {{backend_HostAddress}}/api/auth/me
+Accept: application/json
+
+###
+
+### Iniciar sesión
+POST {{backend_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "cliente@nettes.hn",
+  "password": "ClaveDePrueba2026",
+  "rememberMe": false
+}
+
+###
+
+### Cerrar sesión
+POST {{backend_HostAddress}}/api/auth/logout

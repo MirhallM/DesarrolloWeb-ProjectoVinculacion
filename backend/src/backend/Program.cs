@@ -1,6 +1,6 @@
+using backend.Auth;
 using backend.Catalog;
 using backend.Data;
-using backend.Data.Entities;
 using backend.Data.Seed;
 using backend.Sync;
 using Microsoft.AspNetCore.DataProtection;
@@ -21,13 +21,7 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
 
-builder.Services
-    .AddIdentityCore<AppUser>(options =>
-    {
-        options.User.RequireUniqueEmail = true;
-    })
-    .AddRoles<AppRole>()
-    .AddEntityFrameworkStores<AppDbContext>();
+builder.Services.AddAuth(builder.Environment);
 
 // Llaves en PostgreSQL y no en el disco: cada despliegue arranca un contenedor nuevo y, con llaves en disco,
 // todas las cookies de Identity quedarían inválidas. El nombre fijo evita depender de la ruta de la aplicación.
@@ -50,11 +44,14 @@ builder.Services.AddSync(builder.Configuration);
 builder.Services.AddScoped<CatalogSeeder>();
 builder.Services.AddScoped<DevCatalogSeeder>();
 
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<CsrfValidationFilter>();
+});
 builder.Services.AddProblemDetails();
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>("postgresql");
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options => options.AddAuthExamples());
 
 var app = builder.Build();
 
@@ -85,6 +82,9 @@ if (DevCatalogSeedCommand.IsRequested(args))
 // Se resuelve al arrancar para que un Sync:AgentKeyHashes ausente o inválido se avise en el log de inmediato.
 app.Services.GetRequiredService<SyncAgentKeyVerifier>();
 
+// Restaura el esquema HTTPS y la IP real cuando la solicitud viene del proxy de Railway y del reenvío de Next.js.
+app.UseForwardedHeaders();
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -104,6 +104,7 @@ else
 
 app.UseStatusCodePages();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 // 200 si PostgreSQL responde, 503 si no. Healthcheck de Railway y, por el reenvío del frontend, /api/health público.

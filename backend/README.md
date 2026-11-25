@@ -66,6 +66,28 @@ Al iniciar en modo `Development`, puedes probar los endpoints de tres maneras:
 
 ---
 
+## Autenticación y Sesiones
+
+La autenticación utiliza **ASP.NET Core Identity** con **cookie cifrada `HttpOnly`** respaldada por llaves de Data Protection en PostgreSQL (`data_protection_keys`), `SameSite=Lax` y protección contra **CSRF** validando automáticamente los encabezados del navegador (`Sec-Fetch-Site` / `Origin`) en métodos mutables (ver [`docs/architecture.md`](../docs/architecture.md#6-autenticación-y-autorización)).
+
+- **Cookie de sesión**:
+  - `Development`: `nettes.auth` (`SameAsRequest`, compatible con `http://localhost`).
+  - `Production`: `__Host-nettes.auth` (`Secure` obligatorio, `HttpOnly`, `SameSite=Lax`, `Path=/`).
+- **Rutas bajo `/api/auth`**:
+  - `POST /api/auth/register` → registra `{ email, password }` (contraseña de 8 a 128 caracteres, con al menos 1 letra, 1 número y 4 caracteres distintos), asigna exclusivamente el rol `User` e inicia sesión (`201 Created`).
+  - `POST /api/auth/login` → valida credenciales con bloqueo temporal ante fuerza bruta (`200 OK`, `401` credenciales inválidas o cuenta inactiva, `429` cuenta bloqueada).
+  - `POST /api/auth/logout` → invalida la cookie de sesión (`204 No Content`).
+  - `GET /api/auth/me` → devuelve `{ id, email, roles }` de la sesión activa (`401 ProblemDetails` si no hay sesión).
+
+| Opción (`Auth:*`) | Valor por defecto | Qué hace |
+| :--- | :--- | :--- |
+| `SessionExpireHours` | `168` (7 días) | Duración de la cookie de sesión con expiración deslizante. |
+| `SecurityStampValidationMinutes` | `5` | Cada cuántos minutos se revalidan `SecurityStamp` e `IsActive` contra PostgreSQL. |
+| `MaxFailedAccessAttempts` | `5` | Intentos fallidos consecutivos antes de bloquear temporalmente la cuenta. |
+| `LockoutMinutes` | `15` | Duración del bloqueo temporal tras superar `MaxFailedAccessAttempts`. |
+
+---
+
 ## Sincronización con el agente (US-06)
 
 El agente de [`sync-agent/`](../sync-agent/README.md) envía el inventario de Aspel a `/api/sync`. Todas esas rutas exigen el encabezado `X-Sync-Agent-Key`. El backend **no guarda la llave**: solo su hash SHA-256 en `Sync:AgentKeyHashes`. El protocolo está en [`docs/architecture.md`](../docs/architecture.md#5-flujo-de-sincronización-con-aspel-sae).

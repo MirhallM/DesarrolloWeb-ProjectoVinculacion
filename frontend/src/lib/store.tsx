@@ -4,12 +4,25 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import type { Banner, UserSession } from "@/types";
+import {
+  getCurrentUser,
+  loginUser,
+  logoutUser,
+  registerUser,
+  toUserSession,
+} from "@/lib/auth";
+import type {
+  Banner,
+  LoginInput,
+  RegisterInput,
+  UserSession,
+} from "@/types";
 
 const DEFAULT_BANNERS: Banner[] = [
   {
@@ -35,10 +48,16 @@ const DEFAULT_BANNERS: Banner[] = [
   },
 ];
 
+function sanitizeRedirectPath(path: string): string {
+  return path.startsWith("/") && !path.startsWith("//") ? path : "/";
+}
+
 interface Store {
   user: UserSession | null;
-  login: (email: string, name?: string) => void;
-  logout: () => void;
+  authLoading: boolean;
+  login: (input: LoginInput) => Promise<void>;
+  register: (input: RegisterInput) => Promise<void>;
+  logout: () => Promise<void>;
   favorites: string[];
   toggleFavorite: (id: string) => void;
   isFavorite: (id: string) => boolean;
@@ -55,11 +74,31 @@ const StoreContext = createContext<Store | null>(null);
 export function StoreProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<UserSession | null>(null);
+  const [authLoading, setAuthLoading] = useState<boolean>(true);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [banners] = useState<Banner[]>(DEFAULT_BANNERS);
   const [query, setQuery] = useState("");
   const [redirectTo, setRedirectTo] = useState("/");
   const [loginReason, setLoginReason] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    getCurrentUser({ signal: controller.signal })
+      .then((authUser) => {
+        setUser(authUser ? toUserSession(authUser) : null);
+      })
+      .catch(() => {
+        // Si el backend no responde al iniciar, el catálogo público sigue operando como visitante.
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setAuthLoading(false);
+        }
+      });
+
+    return () => controller.abort();
+  }, []);
 
   const resetLoginIntent = useCallback(() => {
     setRedirectTo("/");
@@ -68,7 +107,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const requireLogin = useCallback(
     (next: string, reason?: string) => {
-      setRedirectTo(next);
+      setRedirectTo(sanitizeRedirectPath(next));
       setLoginReason(reason ?? null);
       router.push("/login");
     },
@@ -76,22 +115,37 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   const login = useCallback(
-    (email: string, name?: string) => {
-      const local = email.split("@")[0];
-      setUser({
-        email,
-        name: name?.trim() || local.charAt(0).toUpperCase() + local.slice(1),
-        isAdmin: local.toLowerCase().startsWith("admin"),
-      });
-      router.push(redirectTo);
+    async (input: LoginInput) => {
+      const authUser = await loginUser(input);
+      setUser(toUserSession(authUser));
+      const destination = sanitizeRedirectPath(redirectTo);
       resetLoginIntent();
+      router.push(destination);
     },
     [router, redirectTo, resetLoginIntent]
   );
 
-  const logout = useCallback(() => {
-    setUser(null);
-    router.push("/");
+  const register = useCallback(
+    async (input: RegisterInput) => {
+      const authUser = await registerUser(input);
+      setUser(toUserSession(authUser));
+      const destination = sanitizeRedirectPath(redirectTo);
+      resetLoginIntent();
+      router.push(destination);
+    },
+    [router, redirectTo, resetLoginIntent]
+  );
+
+  const logout = useCallback(async () => {
+    try {
+      await logoutUser();
+    } catch {
+      // Aunque falle la red al cerrar sesión, se limpia el estado local.
+    } finally {
+      setUser(null);
+      setFavorites([]);
+      router.push("/");
+    }
   }, [router]);
 
   const toggleFavorite = useCallback(
@@ -105,7 +159,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const value = useMemo<Store>(
     () => ({
       user,
+      authLoading,
       login,
+      register,
       logout,
       favorites,
       toggleFavorite,
@@ -119,7 +175,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }),
     [
       user,
+      authLoading,
       login,
+      register,
       logout,
       favorites,
       toggleFavorite,
