@@ -32,6 +32,7 @@ El mismo `backend.dll` levanta la API o ejecuta un comando y termina:
 | `migrate` | Aplica las migraciones pendientes. Si no hay, lo dice y termina con 0. | Pre-deploy |
 | `seed` | Siembra categorías y reglas desde `categories.json` y **recategoriza todos los productos** (y recalcula su nombre) con las reglas y el diccionario del despliegue. Espera hasta 60 s a una sincronización en curso | Pre-deploy, después de `migrate` |
 | `dp-check protect <texto>` / `dp-check unprotect <protegido>` | Diagnóstico de las llaves de Data Protection ([sección 5](#5-llaves-de-data-protection)) | A mano |
+| `admin promote <correo>` | Otorga el rol `Admin` a una cuenta existente ya registrada en el sitio | A mano |
 
 ### Pre-deploy y healthcheck
 

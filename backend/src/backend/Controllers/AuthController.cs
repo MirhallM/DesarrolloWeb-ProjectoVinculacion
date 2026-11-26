@@ -90,7 +90,8 @@ public sealed class AuthController(
 
         await signInManager.SignInAsync(user, isPersistent: false);
 
-        var response = new AuthUserResponse(user.Id, user.Email!, [AppRoleNames.User]);
+        string[] roles = [AppRoleNames.User];
+        var response = new AuthUserResponse(user.Id, user.Email!, roles, AppPermissions.GetForRoles(roles));
         return CreatedAtAction(nameof(Me), response);
     }
 
@@ -140,9 +141,11 @@ public sealed class AuthController(
         }
 
         await signInManager.SignInAsync(user, isPersistent: request.RememberMe);
-        var roles = await userManager.GetRolesAsync(user);
+        var roles = (await userManager.GetRolesAsync(user))
+            .OrderBy(r => r, StringComparer.Ordinal)
+            .ToArray();
 
-        return Ok(new AuthUserResponse(user.Id, user.Email!, [.. roles.OrderBy(r => r, StringComparer.Ordinal)]));
+        return Ok(new AuthUserResponse(user.Id, user.Email!, roles, AppPermissions.GetForRoles(roles)));
     }
 
     [HttpPost("logout")]
@@ -175,8 +178,10 @@ public sealed class AuthController(
                 detail: "Debes iniciar sesión para acceder a este recurso.");
         }
 
-        var roles = await userManager.GetRolesAsync(user);
-        return Ok(new AuthUserResponse(user.Id, user.Email!, [.. roles.OrderBy(r => r, StringComparer.Ordinal)]));
+        var roles = (await userManager.GetRolesAsync(user))
+            .OrderBy(r => r, StringComparer.Ordinal)
+            .ToArray();
+        return Ok(new AuthUserResponse(user.Id, user.Email!, roles, AppPermissions.GetForRoles(roles)));
     }
 
     private ObjectResult InvalidCredentialsProblem() =>

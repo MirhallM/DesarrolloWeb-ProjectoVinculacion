@@ -215,14 +215,19 @@ La sincronización **guarda** todos los artículos de Aspel; la **visibilidad** 
   - `POST /api/auth/login` devuelve el mismo `401 ProblemDetails` (`auth-invalid-credentials`) tanto si el correo no existe como si la contraseña falla o `is_active = false`, ejecutando una verificación PBKDF2 ficticia cuando el correo no existe para evitar diferencias notorias de tiempo.
   - Bloqueo temporal de cuenta (`Lockout`): tras 5 intentos fallidos consecutivos (`Auth:MaxFailedAccessAttempts`), la cuenta se bloquea durante 15 minutos (`Auth:LockoutMinutes`) y responde `429 Too Many Requests` (`auth-account-locked`).
 - **Rutas de autenticación (`/api/auth`):**
-  - `POST /api/auth/register` → registra `{ email, password }`, asigna exclusivamente el rol `User` dentro de una transacción e inicia sesión (`201 Created` con `{ id, email, roles }`; `409 auth-duplicate-email` si ya existe).
+  - `POST /api/auth/register` → registra `{ email, password }`, asigna exclusivamente el rol `User` dentro de una transacción e inicia sesión (`201 Created` con `{ id, email, roles, permissions }`; `409 auth-duplicate-email` si ya existe).
   - `POST /api/auth/login` → autentica `{ email, password, rememberMe }` y emite cookie de sesión (`200 OK`).
   - `POST /api/auth/logout` → invalida la cookie de sesión (`204 No Content`).
-  - `GET /api/auth/me` → devuelve `{ id, email, roles }` de la sesión activa o `401 ProblemDetails` (sin redirecciones HTML `302`).
+  - `GET /api/auth/me` → devuelve `{ id, email, roles, permissions }` de la sesión activa o `401 ProblemDetails` (sin redirecciones HTML `302`).
+- **Roles, privilegios y protección administrativa (`/api/admin/*`):**
+  - Roles sembrados en PostgreSQL: `User` (`favorites:manage`) y `Admin` (`admin:access`, `catalog:images:manage`, `catalog:featured:manage`, `site:content:manage` y `favorites:manage`).
+  - `AdminRouteConvention` aplica automáticamente el guard `[RequireAdmin]` a todo controlador bajo `api/admin/*` y bloquea en el arranque cualquier intento de usar `[AllowAnonymous]` en rutas administrativas.
+  - En cada operación administrativa el backend verifica que exista sesión autenticada (`401 auth-unauthenticated` si falta o si la cuenta fue desactivada en PostgreSQL) y que el usuario conserve actualmente el rol `Admin` en PostgreSQL (`403 auth-forbidden` si es `User` o si su rol fue revocado), además del privilegio específico cuando se usa `[RequireAdminPermission(...)]`.
+  - `GET /api/admin/access` permite verificar desde el backend el acceso y los privilegios administrativos activos.
+- **Primera cuenta administradora (sin mecanismo público):**
+  - No existe ningún endpoint HTTP público ni campo en registro para otorgarse `Admin`.
+  - La cuenta se registra normalmente en el sitio (quedando como `User` con su contraseña hasheada) y se promueve únicamente por consola en el servidor mediante `dotnet backend.dll admin promote <correo>`.
 - **Dominio:** los dominios gratuitos `*.up.railway.app` son adecuados para pruebas; para la entrega conviene un dominio propio del negocio.
-- **Roles:** `User` y `Admin` (autorización detallada en US-14).
-- **Autorización:** se verifica siempre en el backend, no solo en la interfaz. Sin sesión válida: `401`; sin permiso: `403`.
-- **Primera cuenta administradora:** se crea mediante un proceso controlado (semilla o comando en US-14), nunca mediante el registro público.
 - **Agente de sincronización:** usa su propia credencial (sección 5) y no tiene sesión de usuario ni rol `Admin`.
 
 ### 6.1 Protección contra tráfico masivo y Rate Limiting

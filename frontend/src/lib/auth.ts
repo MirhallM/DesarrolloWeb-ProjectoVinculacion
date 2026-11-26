@@ -16,6 +16,7 @@ export function toUserSession(authUser: AuthUser): UserSession {
     email: authUser.email,
     name: displayName,
     roles: authUser.roles,
+    permissions: authUser.permissions ?? [],
     isAdmin: authUser.roles.includes("Admin"),
   };
 }

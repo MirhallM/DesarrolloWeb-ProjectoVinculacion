@@ -4,7 +4,11 @@ public sealed record RegisterRequest(string? Email, string? Password);
 
 public sealed record LoginRequest(string? Email, string? Password, bool RememberMe = false);
 
-public sealed record AuthUserResponse(Guid Id, string Email, IReadOnlyList<string> Roles);
+public sealed record AuthUserResponse(
+    Guid Id,
+    string Email,
+    IReadOnlyList<string> Roles,
+    IReadOnlyList<string> Permissions);
 
 public static class AuthProblemTypes
 {
