@@ -2,6 +2,7 @@ using backend.Auth;
 using backend.Catalog;
 using backend.Data;
 using backend.Data.Seed;
+using backend.Favorites;
 using backend.Sync;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
@@ -42,6 +43,7 @@ if (MigrateCommand.IsRequested(args)
 
 builder.Services.AddCatalogRules();
 builder.Services.AddSync(builder.Configuration);
+builder.Services.AddScoped<FavoritesService>();
 builder.Services.AddScoped<CatalogSeeder>();
 builder.Services.AddScoped<DevCatalogSeeder>();
 

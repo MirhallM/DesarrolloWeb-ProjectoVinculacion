@@ -201,6 +201,28 @@ public static class AuthServiceCollectionExtensions
                     },
                 ];
             }
+            else if (type == typeof(backend.Favorites.FavoriteItemDto))
+            {
+                schema.Examples =
+                [
+                    new JsonObject
+                    {
+                        ["productId"] = "01966b8a-0000-7000-8000-000000000101",
+                        ["name"] = "Leche Entera 1 L",
+                        ["price"] = 35.00m,
+                        ["isVisible"] = true,
+                        ["available"] = true,
+                        ["availabilityStatus"] = backend.Favorites.FavoriteAvailabilityStatuses.Available,
+                        ["category"] = new JsonObject
+                        {
+                            ["slug"] = "lacteos",
+                            ["name"] = "Lácteos",
+                        },
+                        ["imageUrl"] = null,
+                        ["savedAt"] = "2026-11-26T18:00:00Z",
+                    },
+                ];
+            }
 
             return Task.CompletedTask;
         });
