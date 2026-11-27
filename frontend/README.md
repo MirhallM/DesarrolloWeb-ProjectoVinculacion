@@ -52,31 +52,37 @@ cd frontend
 ```text
 src/
 ├── app/                      # Enrutamiento App Router y layouts
-│   ├── (auth)/login/         # Vista de inicio de sesión (/login)
-│   ├── api/auth/             # Route Handler BFF para sesión con cookies HTTP-only
 │   ├── catalogo/             # Catálogo público (/catalogo) con loading.tsx y error.tsx
+│   ├── favorites/            # Vista de productos favoritos del usuario (/favorites)
+│   ├── login/                # Inicio de sesión y registro (/login, /login?modo=registro)
 │   ├── globals.css           # Estilos globales y tokens de Tailwind CSS v4
 │   ├── icon.png              # Favicon de la aplicación
 │   ├── layout.tsx            # Root Layout de la aplicación
 │   └── page.tsx              # Página de inicio (/) que renderiza el catálogo público
 ├── components/
+│   ├── auth/                 # Formulario de inicio de sesión y creación de cuenta (LoginForm)
 │   ├── catalog/              # Componentes del dominio de catálogo público
 │   │   ├── CatalogSection.tsx        # Paginación, ordenamiento, filtros y estados
 │   │   ├── CatalogStates.tsx         # Skeleton de carga, error con reintento y estado vacío
 │   │   ├── FilterSidebar.tsx         # Barra lateral de categorías reales (GET /api/categories)
 │   │   ├── HeroBanner.tsx            # Carrusel de banners promocionales
 │   │   ├── Pagination.tsx            # Controles accesibles de paginación
-│   │   ├── ProductCard.tsx           # Tarjeta pública (nombre, precio, estado, categoría, imagen)
+│   │   ├── ProductCard.tsx           # Tarjeta pública y variante de favoritos con soporte "No disponible"
 │   │   └── ProductImagePlaceholder.tsx # Imagen genérica cuando imageUrl es null o falla
+│   ├── favorites/            # Mis Favoritos (FavoritesView con filtros y ConfirmRemoveFavoriteModal)
 │   ├── layout/               # Componentes estructurales (Header con buscador, favoritos y cuenta)
 │   └── ui/                   # Componentes visuales compartidos (Logo, Icons)
 ├── lib/
 │   ├── api.ts                # Cliente HTTP centralizado (apiFetch, ApiError con ProblemDetails)
+│   ├── auth.ts               # Servicios de sesión (register, login, logout, me)
 │   ├── catalog.ts            # Servicios tipados (getProducts, getProductById, getCategories)
-│   ├── store.tsx             # Contexto de interfaz (búsqueda, favoritos y sesión en memoria)
+│   ├── favorites.ts          # Servicios tipados de favoritos (getFavorites, addFavorite, removeFavorite)
+│   ├── store.tsx             # Contexto de interfaz (sesión hidratada, favoritos persistentes y búsqueda)
 │   └── utils.ts              # Funciones utilitarias (formatPrice en Lempiras, formatDate)
 └── types/
+    ├── auth.ts               # Contratos de autenticación y sesión
     ├── catalog.ts            # Contratos DTO públicos que mapean las respuestas del backend .NET
+    ├── favorites.ts          # Contratos de productos favoritos y estado de disponibilidad
     └── index.ts              # Punto único de re-exportación de tipos
 ```
 
