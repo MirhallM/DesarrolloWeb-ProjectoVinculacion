@@ -87,6 +87,10 @@ La autenticación utiliza **ASP.NET Core Identity** con **cookie cifrada `HttpOn
   # Registrar primero el correo en /login?modo=registro y luego promoverlo:
   dotnet run -- admin promote dueno@nettes.hn
   ```
+- **Favoritos (`/api/favorites`, requiere sesión activa)**:
+  - `GET /api/favorites` → lista los productos favoritos del usuario autenticado (`available`, `out_of_stock` o `unavailable` si el producto quedó oculto después de guardarse, sin exponer código ni stock).
+  - `POST /api/favorites/{productId}` → agrega un producto visible (`201 Created`; `404` si no existe o está oculto; `409` si ya estaba guardado).
+  - `DELETE /api/favorites/{productId}` → quita el producto de los favoritos del usuario actual (`204 No Content`).
 
 | Opción (`Auth:*`) | Valor por defecto | Qué hace |
 | :--- | :--- | :--- |
