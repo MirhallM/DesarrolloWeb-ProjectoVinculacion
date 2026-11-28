@@ -227,6 +227,11 @@ La sincronización **guarda** todos los artículos de Aspel; la **visibilidad** 
 - **Primera cuenta administradora (sin mecanismo público):**
   - No existe ningún endpoint HTTP público ni campo en registro para otorgarse `Admin`.
   - La cuenta se registra normalmente en el sitio (quedando como `User` con su contraseña hasheada) y se promueve únicamente por consola en el servidor mediante `dotnet backend.dll admin promote <correo>`.
+- **Favoritos por usuario (`/api/favorites`):**
+  - Todas las rutas exigen sesión activa (`401` sin sesión) y filtran estrictamente por el `user_id` de la cookie actual:
+    - `GET /api/favorites` → lista los favoritos del usuario autenticado en orden descendente de guardado, sin exponer `code`, `description` ni `stock`. Si un producto guardado quedó oculto posteriormente (`is_active = false`, `public_price <= 0`, `public_price >= 100000` o `display_name` vacío), se devuelve con `isVisible = false`, `availabilityStatus = "unavailable"` y `price = null` para mostrarlo como *"No disponible"*.
+    - `POST /api/favorites/{productId}` → verifica que el producto exista y sea visible (`404` si no existe o está oculto) e impide duplicados por usuario y producto (`409 favorite-already-exists` + llave primaria compuesta `(user_id, product_id)`).
+    - `DELETE /api/favorites/{productId}` → elimina de forma idempotente el favorito de la lista del usuario actual (`204 No Content`), incluso si el producto ya quedó oculto.
 - **Dominio:** los dominios gratuitos `*.up.railway.app` son adecuados para pruebas; para la entrega conviene un dominio propio del negocio.
 - **Agente de sincronización:** usa su propia credencial (sección 5) y no tiene sesión de usuario ni rol `Admin`.
 

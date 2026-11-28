@@ -189,9 +189,9 @@ export function CatalogSection({
     setInStockOnly(false);
   };
 
-  const onHeart = (id: string) =>
+  const onHeart = (product: PublicProduct) =>
     user
-      ? toggleFavorite(id)
+      ? toggleFavorite(product.id, product)
       : requireLogin(
           "/catalogo",
           "Inicia sesión para guardar productos en tus favoritos."
@@ -305,7 +305,7 @@ export function CatalogSection({
                     product={product}
                     eager={index < 4}
                     favorite={Boolean(user && isFavorite(product.id))}
-                    onToggleFavorite={() => onHeart(product.id)}
+                    onToggleFavorite={() => onHeart(product)}
                     sizes="(min-width: 1280px) 22vw, (min-width: 1024px) 30vw, (min-width: 640px) 50vw, 100vw"
                   />
                 ))}

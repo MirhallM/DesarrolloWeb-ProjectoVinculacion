@@ -109,3 +109,19 @@ POST {{backend_HostAddress}}/api/auth/logout
 ### Verificar acceso administrativo (responde 401 sin sesión, 403 con rol User, 200 con rol Admin)
 GET {{backend_HostAddress}}/api/admin/access
 Accept: application/json
+
+###
+
+### Listar favoritos de la sesión actual
+GET {{backend_HostAddress}}/api/favorites
+Accept: application/json
+
+###
+
+### Agregar un producto visible a favoritos (reemplaza el GUID por un id devuelto en GET /api/products)
+POST {{backend_HostAddress}}/api/favorites/00000000-0000-0000-0000-000000000000
+
+###
+
+### Quitar un producto de favoritos
+DELETE {{backend_HostAddress}}/api/favorites/00000000-0000-0000-0000-000000000000
