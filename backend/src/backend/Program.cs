@@ -34,7 +34,8 @@ builder.Services.AddDataProtection()
 if (MigrateCommand.IsRequested(args)
     || CatalogSeedCommand.IsRequested(args)
     || DevCatalogSeedCommand.IsRequested(args)
-    || DataProtectionCheckCommand.IsRequested(args))
+    || DataProtectionCheckCommand.IsRequested(args)
+    || AdminCommand.IsRequested(args))
 {
     builder.Logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Warning);
 }
@@ -46,6 +47,7 @@ builder.Services.AddScoped<DevCatalogSeeder>();
 
 builder.Services.AddControllers(options =>
 {
+    options.Conventions.Add(new AdminRouteConvention());
     options.Filters.Add<CsrfValidationFilter>();
 });
 builder.Services.AddProblemDetails();
@@ -77,6 +79,12 @@ if (CatalogSeedCommand.IsRequested(args))
 if (DevCatalogSeedCommand.IsRequested(args))
 {
     return await DevCatalogSeedCommand.RunAsync(app.Services, app.Environment);
+}
+
+// "dotnet backend.dll admin promote <correo>": asigna el rol Admin a una cuenta existente.
+if (AdminCommand.IsRequested(args))
+{
+    return await AdminCommand.RunAsync(app.Services, args);
 }
 
 // Se resuelve al arrancar para que un Sync:AgentKeyHashes ausente o inválido se avise en el log de inmediato.

@@ -103,3 +103,9 @@ Content-Type: application/json
 
 ### Cerrar sesión
 POST {{backend_HostAddress}}/api/auth/logout
+
+###
+
+### Verificar acceso administrativo (responde 401 sin sesión, 403 con rol User, 200 con rol Admin)
+GET {{backend_HostAddress}}/api/admin/access
+Accept: application/json

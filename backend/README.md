@@ -77,7 +77,16 @@ La autenticación utiliza **ASP.NET Core Identity** con **cookie cifrada `HttpOn
   - `POST /api/auth/register` → registra `{ email, password }` (contraseña de 8 a 128 caracteres, con al menos 1 letra, 1 número y 4 caracteres distintos), asigna exclusivamente el rol `User` e inicia sesión (`201 Created`).
   - `POST /api/auth/login` → valida credenciales con bloqueo temporal ante fuerza bruta (`200 OK`, `401` credenciales inválidas o cuenta inactiva, `429` cuenta bloqueada).
   - `POST /api/auth/logout` → invalida la cookie de sesión (`204 No Content`).
-  - `GET /api/auth/me` → devuelve `{ id, email, roles }` de la sesión activa (`401 ProblemDetails` si no hay sesión).
+  - `GET /api/auth/me` → devuelve `{ id, email, roles, permissions }` de la sesión activa (`401 ProblemDetails` si no hay sesión).
+- **Roles, privilegios y rutas administrativas (`/api/admin/*`)**:
+  - `User`: privilegio `favorites:manage`.
+  - `Admin`: privilegios `admin:access`, `catalog:images:manage`, `catalog:featured:manage`, `site:content:manage` y `favorites:manage`.
+  - Todo controlador bajo `/api/admin/*` queda protegido automáticamente por `AdminRouteConvention` + `[RequireAdmin]` (`401` sin sesión válida o cuenta inactiva; `403` si es `User` o si su rol `Admin` fue revocado en PostgreSQL). Endpoint de verificación: `GET /api/admin/access`.
+- **Primera cuenta administradora (consola desde `backend/src/backend`)**:
+  ```powershell
+  # Registrar primero el correo en /login?modo=registro y luego promoverlo:
+  dotnet run -- admin promote dueno@nettes.hn
+  ```
 
 | Opción (`Auth:*`) | Valor por defecto | Qué hace |
 | :--- | :--- | :--- |

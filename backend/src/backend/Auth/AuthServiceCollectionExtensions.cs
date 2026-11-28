@@ -155,6 +155,7 @@ public static class AuthServiceCollectionExtensions
             });
 
         services.AddAuthorization();
+        services.AddScoped<AdminRoleService>();
 
         return services;
     }
@@ -196,6 +197,7 @@ public static class AuthServiceCollectionExtensions
                         ["id"] = "01966b8a-0000-7000-8000-000000000001",
                         ["email"] = "cliente@nettes.hn",
                         ["roles"] = new JsonArray(AppRoleNames.User),
+                        ["permissions"] = new JsonArray(AppPermissions.FavoritesManage),
                     },
                 ];
             }

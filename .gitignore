@@ -43,3 +43,4 @@ sync-agent/publish/
 Thumbs.db
 /docs/Inventario.csv
 /src/
+.codegraph/

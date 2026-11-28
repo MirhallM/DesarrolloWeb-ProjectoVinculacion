@@ -67,5 +67,6 @@ export interface UserSession {
   name: string;
   email: string;
   roles: string[];
+  permissions: string[];
   isAdmin: boolean;
 }
